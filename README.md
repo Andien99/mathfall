@@ -1,0 +1,189 @@
+# Mathfall
+
+A co-op classroom roguelike. Students form teams of four, each on their own device, and fight through a branching dungeon to a boss. Every Attack, Defend and skill only fires when the student answers a maths question correctly.
+
+This is milestone 1: the full loop works end to end over real multiplayer (one server, many teams). The art is generated in code; see *What's real and what isn't* at the bottom.
+
+## How a game runs
+
+1. **Teacher** opens `/host`, picks questions (school bank, own sets, generated topics, or a mix), sets options and clicks **Create game**.
+2. The lobby shows a big join code, the site address and a QR code. **Students** go to the site, type the code and their name, then **choose a hero**: Knight, Mage, Ranger or Cleric. Teammates see each other's picks.
+3. Students are grouped into teams of four as they join (team size is a setting). **Balance teams** spreads them evenly; drag a student to move them; drop on the dashed box to make a new team. Click **Start game**.
+4. Each team gets its own **dungeon map** (a parchment scroll). Everyone votes for the next room by tapping it; the room most of the team picks wins. Rooms: Monsters, Elite, Treasure, Campfire, Merchant, Unknown (ambush, shrine or cache) and the Boss.
+5. **Battles** run in rounds, and everyone acts in the same round:
+   - Pick **Attack**, **Defend**, **Skill 1** or **Skill 2**. A question opens. A correct answer fires the action at once.
+   - A **wrong answer** shows the correct answer and a worked solution, then offers a fresh question for the same action. Switching action keeps the same question, so students can't skip hard ones.
+   - When every hero has acted, or the round timer runs out, the enemies act. Each enemy shows what it will do next (for example "8 → Mia" or "Storm next!"), so the team can react: guard a target, freeze or kill a dangerous enemy, heal.
+   - An unanswered question carries into the next round, so no work is lost.
+   - Students who finish early can answer **Focus** questions: each correct one makes their next attack or skill 30% stronger (up to three).
+   - A knocked-out hero answers a question to **get back up**. Everyone who fell revives at the end of a fight.
+   - Tap an enemy to target it. Tap a teammate (or their card) to guard or heal them.
+6. **Treasure** gives each student a chest with a skill of a random rarity (Common, Rare, Epic, Legendary). They can swap it into either skill slot, or keep their two skills for 10 gold. The **Merchant** sells skills for gold. The **Campfire** heals 35% or upgrades a skill (+35% power).
+7. The **boss**, Gravemaw the Crystal Wyrm, changes at half health: it summons two Crystal Shards and charges *Shatterstorm*, which hits the whole party harder for every shard still standing. Break the crystals first.
+8. Beating the boss starts a harder run (Ascension 1, 2 …). A team that falls starts a new run. Teams keep going until the teacher ends the game or the time limit runs out.
+9. **Results**: the teacher gets team standings, every student's accuracy, best streak, average time and weakest skill, class accuracy by skill (weakest first) and the hardest questions, plus **Download results (CSV)**. Each student sees a podium and their own report with the questions they got wrong and the worked answers.
+
+While playing, the teacher's **live view** shows every team's floor, current room, enemies, hero health and accuracy. **Watch** opens a team's battle on the projector. **Pause all** freezes every team ("Eyes on your teacher"). **Hurry along** ends the current round or room for a team that's stuck.
+
+## Game options
+
+| Option | Choices |
+|---|---|
+| Run length | Quick (~10 min), Standard (~20 min), Long (~30 min) |
+| Round timer | Off, 30, 45, 60 or 90 seconds |
+| Team size | 2 to 5 |
+| Adaptive support | On/off: after two wrong in a row, a student gets supported questions until they get two right |
+| Hints | On/off: a hint button on every question |
+| Pause after a wrong answer | none to 5 seconds |
+| Game length | No limit, or 15 to 60 minutes |
+| Sound on student devices | On/off (students can also mute) |
+| Late joining | Allowed or locked once started |
+
+## Questions
+
+### The school bank
+
+Every `.json` file in the `banks/` folder appears under **School bank** for every teacher. This is the "agreed upon" bank: add or change a file, redeploy, and everyone sees it. `banks/year-7-algebra-core-skills.json` is included: 48 questions plus 30 supported questions on like terms, collecting like terms, coefficients and constants, substitution and equivalent expressions, each with a worked solution.
+
+### My sets
+
+Teachers' own sets are saved in their browser. **New set** opens the editor:
+
+- Write maths between dollar signs: `$3x + 5x$`, `$\frac{1}{2}$`, `$x^{2}$`. The preview shows exactly what students see.
+- *Pick from options* (correct answer plus up to three wrong ones; options are shuffled per student) or *Type the answer* (with a **Test it** box to check what will be marked right).
+- Optional skill (for the results page), hint and worked solution.
+- Every set has a **main list** and a **supported list**. Drag questions between them, or use ⇄ to copy.
+- **Paste a list**: one question per line, parts separated by `|` or a tab: `question | correct | wrong… | skill`. With only a correct answer it becomes a typed question.
+- **Import a file**: Mathfall or **Flurry Fight** `.json` exports, `.csv` or a text list.
+- **Export** saves a `.json` copy. To add a set to the school bank, put that file in `banks/`.
+- **Copy and edit** on a school bank set makes your own editable copy.
+
+### Generated topics
+
+Integers, Solving equations, Index laws, Percentages, Fractions, and Like terms and substitution. Each has Foundation, Core and Extension levels, fresh numbers every time, wrong options built from common mistakes, and a worked solution for every question. Students on supported questions get the level below. Mix them with sets to stretch a small bank.
+
+### Supported questions
+
+A student uses the supported list when the teacher clicks the small dot beside their name (lobby or live view), or automatically for a few questions after two wrong in a row (if adaptive support is on). The dot has no label, so a projected screen doesn't reveal who is supported, and students never see it. Dots are remembered by name in the teacher's browser.
+
+### How typed answers are marked
+
+Accepted: spacing and capitals, term order (`6 + 8k` = `8k + 6`), letter order (`ba` = `ab`), equal numbers (`1/2` = `0.5`, `1 1/2` = `1.5`), a leading `x =`, a `$` sign, a unit (`26 cm`), and `−` or `×` typed with the keypad.
+
+Marked wrong on purpose: unsimplified answers (`3k + 5k` for `8k`), brackets left in when the answer is expanded (or missing when it's factorised), `×` or `÷` when the answer has none, and an unevaluated sum (`40/8 + 8`) when the answer is one number.
+
+### File format
+
+```json
+{
+  "title": "Year 7 Algebra: core skills",
+  "questions": [
+    { "type": "mc", "skill": "Collecting like terms", "q": "Simplify $3x + 5x$.",
+      "options": ["$8x$", "$15x$", "$8x^{2}$"], "correct": 0,
+      "hint": "Add the numbers in front.", "solution": "$3 + 5 = 8$, so $8x$." },
+    { "type": "text", "skill": "Substitution", "q": "If $m = 5$, evaluate $4m + 3$.", "answers": ["23"] }
+  ],
+  "modified": [ ...supported questions in the same shape... ]
+}
+```
+
+`hint` and `solution` are optional. Flurry Fight exports use the same shape.
+
+## Run it on your own computer
+
+You need [Node.js](https://nodejs.org) 18 or newer.
+
+```
+npm install
+npm start
+```
+
+Open http://localhost:3000/host. Students on the same network join at `http://YOUR-COMPUTER-IP:3000`. School networks often block this, which is why hosting it online is usually easier.
+
+To test multiplayer on one computer, open the student page in several **separate windows or browser profiles** (each tab keeps its own player, so ordinary tabs work too).
+
+## Put it online (free, on Render)
+
+1. Create a GitHub repository and upload this folder (everything except `node_modules`).
+2. Sign in to [render.com](https://render.com) with GitHub, click **New → Blueprint**, choose the repository and click **Apply**. `render.yaml` sets up a free Node web service in Singapore (lowest lag from Australia).
+3. Render gives you an address like `https://mathfall.onrender.com`. Students go there; you go to `/host`.
+
+**Free-plan catch:** free services sleep after a while without visitors and take up to a minute to wake. Open the host page a few minutes before class. One free instance comfortably handles a class of 24–30; everything is turn-based and the server sends small updates.
+
+## Good to know
+
+- Games live in the server's memory. Restarting or redeploying ends any game in progress.
+- Up to 48 players per game, in up to 10 named teams.
+- A student who refreshes or drops out rejoins automatically as the same hero, with their open question restored. Rejoining with the same name also reclaims a disconnected hero. The teacher's page also resumes after a refresh.
+- A disconnected student never holds up their team: rounds and votes only wait for connected players.
+- The server marks every answer and resolves every action. Correct answers are never sent to the browser, each question can only be answered once, and duplicate or stale submissions are ignored.
+- Sound is generated in the browser (no audio files). iPads need one tap before sound can play.
+- The battle scene drops to a lighter mode by itself if a device struggles. Try it on a typical school Chromebook before a lesson.
+
+## Replacing the art
+
+The built-in sprites are generated by a pixel rig in `public/js/sprites.js` (heroes, enemies, boss, chests, icons) and the dungeon by `public/js/dungeon.js`. To use hand-made art, put sprite sheets in `public/art/` with a `manifest.json`:
+
+```json
+{
+  "heroes": {
+    "knight": { "sheet": "knight.png", "frame": [84, 76],
+      "poses": { "idle0": [0, 0], "idle1": [1, 0], "idle2": [2, 0], "idle3": [3, 0],
+                 "windup": [0, 1], "swing1": [1, 1], "swing2": [2, 1], "cast0": [3, 1], "cast1": [4, 1],
+                 "defend": [0, 2], "hurt": [1, 2], "down": [2, 2], "victory": [3, 2] } }
+  },
+  "enemies": {
+    "slime": { "sheet": "slime.png", "frame": [64, 52],
+      "poses": { "idle0": [0, 0], "idle1": [1, 0], "idle2": [2, 0], "idle3": [3, 0], "windup": [4, 0], "attack": [5, 0], "hurt": [6, 0] } }
+  }
+}
+```
+
+Hero frames are 84×76 with the feet at (46, 72), facing left. Enemy frame sizes are in `ENEMY_DEF` in `sprites.js`, facing right. Anything not listed keeps the generated art. Portraits on the HUD still use the generated art. `/dev/sprites.html` shows every frame; `/dev/scene.html` previews the battle scene.
+
+## Tests
+
+```
+npm test
+```
+
+Runs 65 answer-marking cases, then starts a test server and has bot students play full runs over real sockets (8 bots, two teams), including a disconnect and reconnect and a duplicate-answer check. `node test/bots.test.js 24` runs a full class of 24 in six teams.
+
+`MATHFALL_TEST=1` is for these tests only: it sends correct answers to the browser and enables room shortcuts. Never set it on a real server.
+
+## What's real and what isn't
+
+**Built and tested:** real multiplayer for many teams on one server; simultaneous rounds with a round timer; server-side marking; worked solutions; adaptive supported questions; hints; Focus; getting back up; 4 heroes with 3 colour variants each; 21 skills across 4 rarities with cooldowns and upgrades; 5 enemy types with telegraphed intents (including a healer and an elite with a two-turn wind-up); a two-phase boss; branching maps with team voting; treasure skill swaps, campfire, merchant, shrine; ascension runs; teacher editor, import/export, school bank, generators, lobby, live view, spectating, pause, results and CSV; reconnects.
+
+**Prototype quality:**
+- **Art.** The sprites and dungeon are generated from code, not hand-drawn. They're consistent and animated (idle, attack, cast, defend, hurt, knocked out, victory), with smooth lighting, fog and particles over the pixel art, but they won't match a commercial game's hand-painted sprites. The manifest above is the route to commissioned or bought sprite sheets.
+- **Balance.** Bots won comfortably; real students will be slower and less accurate. Expect to tune enemy health and damage (`shared/content.js`, `server/combat.js`) after the first lessons.
+- **Phones.** Laptops, Chromebooks and iPads (both orientations) are the target. Phones work in landscape but are cramped.
+
+**Not built yet:** pictures or diagrams in questions; a live-editable shared bank (needs a database; for now the school bank is the `banks/` folder); saved results history (download the CSV); music.
+
+## Files
+
+```
+server.js            web server, school bank loading, QR codes
+server/session.js    games, players, teams, runs, all socket handlers
+server/combat.js     rounds, hero actions, enemy intents, statuses, the boss
+server/run.js        maps, rooms, loot
+server/questions.js  question sets, adaptive selection, marking, hints
+shared/content.js    heroes, skills, enemies (shared by server and browser)
+shared/answers.js    typed-answer marking (shared by server and the editor's Test it box)
+shared/generators.js skill-based question generators
+banks/               the school question bank (.json files)
+public/index.html    student page          public/js/play.js       student client
+public/host.html     teacher page          public/js/host.js       teacher client
+public/js/scene.js   battle renderer, animations, lighting
+public/js/sprites.js pixel rig, characters, chests, icons
+public/js/pixel.js   pixel drawing toolkit (shading, outlines)
+public/js/dungeon.js generated dungeon backdrops
+public/js/mapview.js parchment map and voting
+public/js/question.js question panel and on-screen maths keypad
+public/js/audio.js   generated sound effects
+public/css/          styles        public/fonts, public/vendor   fonts and KaTeX (self-hosted)
+test/                answer-marking tests and the multiplayer bot test
+render.yaml          one-click Render deployment
+```

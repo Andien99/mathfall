@@ -1,0 +1,121 @@
+// Parchment dungeon map with team voting.
+import { h, clear } from './ui.js';
+import * as SP from './sprites.js';
+
+const INK = '#2a1d14';
+const ICONS = {
+  enemy: `<path d="M9 31 L27 13 M27 13 l3-7 -7 3 M13 27 l-4 1 -1 4 4-1 z M31 31 L13 13 M13 13 l-3-7 7 3 M27 27 l4 1 1 4 -4-1 z" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 25 l4 4 M29 25 l-4 4" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/>`,
+  elite: `<path d="M8 8 C10 14 12 15 14 15 M32 8 C30 14 28 15 26 15" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><path d="M12 18 C12 10 28 10 28 18 L28 25 C28 28 25 29 24 30 L24 33 L16 33 L16 30 C15 29 12 28 12 25 Z" fill="${INK}"/><circle cx="16.5" cy="21" r="2.6" fill="#e6d7b8"/><circle cx="23.5" cy="21" r="2.6" fill="#e6d7b8"/><path d="M18 28 h4" stroke="#e6d7b8" stroke-width="1.6"/>`,
+  treasure: `<path d="M7 17 C7 9 33 9 33 17 L33 31 L7 31 Z" fill="none" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M7 18 H33" stroke="${INK}" stroke-width="3"/><rect x="17" y="15" width="6" height="7" rx="1.2" fill="${INK}"/><path d="M12 11 V31 M28 11 V31" stroke="${INK}" stroke-width="2"/>`,
+  rest: `<path d="M20 7 C24 13 27 15 26 21 C25 26 22 27 20 27 C17 27 14 25 14 21 C14 17 17 16 17 12 C19 14 19 16 20 17 C21 14 21 10 20 7 Z" fill="${INK}"/><path d="M20 19 C21 21 22 22 21 24 C20 25 19 25 18.6 23.6 C18.4 22 19.6 21.4 20 19 Z" fill="#e6d7b8"/><path d="M8 33 L32 27 M8 27 L32 33" stroke="${INK}" stroke-width="3.2" stroke-linecap="round"/>`,
+  merchant: `<path d="M14 11 L26 11 L23 15 C30 18 32 24 31 28 C30 33 25 34 20 34 C15 34 10 33 9 28 C8 24 10 18 17 15 Z" fill="${INK}"/><path d="M16 15 H24" stroke="#e6d7b8" stroke-width="1.6"/><text x="20" y="30" text-anchor="middle" font-family="Cinzel, serif" font-weight="900" font-size="12" fill="#e6d7b8">$</text>`,
+  unknown: `<text x="20" y="31" text-anchor="middle" font-family="Cinzel, serif" font-weight="900" font-size="29" fill="${INK}">?</text>`
+};
+const LEGEND = [['unknown', 'Unknown'], ['merchant', 'Merchant'], ['treasure', 'Treasure'], ['rest', 'Campfire'], ['enemy', 'Monsters'], ['elite', 'Elite']];
+const NAMES = { enemy: 'Monsters', elite: 'Elite', treasure: 'Treasure', rest: 'Campfire', merchant: 'Merchant', unknown: 'Unknown', boss: 'Boss' };
+const ACTS = { quick: 'The Sunken Halls', standard: 'The Crystal Depths', long: 'The Endless Crypt' };
+
+function svgIcon(type) { return `<svg viewBox="0 0 40 40" aria-hidden="true">${ICONS[type] || ICONS.unknown}</svg>`; }
+
+let paperURL = null;
+function paperTexture() {
+  if (paperURL) return paperURL;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const x = c.getContext('2d');
+  const img = x.createImageData(256, 256);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const n = Math.random();
+    const v = 205 + n * 30;
+    img.data[i] = v; img.data[i + 1] = v * 0.93; img.data[i + 2] = v * 0.78; img.data[i + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+  x.globalAlpha = 0.035;
+  for (let k = 0; k < 26; k++) { x.fillStyle = Math.random() < 0.5 ? '#7a5a2a' : '#fff6e0'; x.beginPath(); x.ellipse(Math.random() * 256, Math.random() * 256, 6 + Math.random() * 40, 3 + Math.random() * 14, Math.random() * 3, 0, Math.PI * 2); x.fill(); }
+  x.globalAlpha = 0.06; x.strokeStyle = '#6a4a2a';
+  for (let k = 0; k < 18; k++) { x.beginPath(); const y = Math.random() * 256; x.moveTo(0, y); x.bezierCurveTo(80, y + 6, 170, y - 6, 256, y); x.stroke(); }
+  paperURL = c.toDataURL();
+  return paperURL;
+}
+
+export class MapView {
+  constructor(root, onVote) {
+    this.root = root; this.onVote = onVote;
+    this.el = h('div', { class: 'map-wrap' });
+    this.root.appendChild(this.el);
+  }
+  hide() { this.el.classList.remove('show'); }
+  render(state, myId) {
+    const run = state.run; if (!run) return;
+    const map = run.map;
+    this.el.classList.add('show');
+    clear(this.el);
+    const scroll = h('div', { class: 'scroll' });
+    scroll.style.backgroundImage = `radial-gradient(ellipse at 50% 50%, rgba(255,250,230,0.35), rgba(120,80,40,0.25) 80%, rgba(80,50,20,0.5)), url(${paperTexture()})`;
+    const rodL = h('div', { class: 'rod l' }), rodR = h('div', { class: 'rod r' });
+    const title = h('div', { class: 'map-title' }, h('h2', null, '– ' + (ACTS[run.length] || ACTS.quick) + ' –'), h('div', { class: 'map-act' }, run.asc ? `Ascension ${run.asc}` : 'Act I'));
+    const field = h('div', { class: 'field' });
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('class', 'paths'); svg.setAttribute('viewBox', '0 0 1000 500'); svg.setAttribute('preserveAspectRatio', 'none');
+    const xs = map.nodes.map(n => n.x);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs);
+    const P = n => [70 + ((n.x - x0) / Math.max(0.01, x1 - x0)) * 860, 40 + n.y * 420];
+    const byId = Object.fromEntries(map.nodes.map(n => [n.id, n]));
+    const visitedPath = new Set();
+    // the route walked so far, in order of rows
+    const visited = map.nodes.filter(n => n.visited).sort((a, b) => a.row - b.row);
+    for (let i = 0; i + 1 < visited.length; i++) visitedPath.add(visited[i].id + '>' + visited[i + 1].id);
+    for (const n of map.nodes) for (const id of n.next) {
+      const m = byId[id]; if (!m) continue;
+      const [x1, y1] = P(n), [x2, y2] = P(m);
+      const walked = visitedPath.has(n.id + '>' + m.id);
+      const line = document.createElementNS(svgNS, 'path');
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 + (Math.sin(x1 + y2) * 14);
+      line.setAttribute('d', `M${x1},${y1} Q${mx},${my} ${x2},${y2}`);
+      line.setAttribute('class', walked ? 'walked' : 'trail');
+      svg.appendChild(line);
+    }
+    field.appendChild(svg);
+    const options = new Set(run.map.options);
+    const votes = run.map.votes || {};
+    const heroes = Object.fromEntries(run.heroes.map(h2 => [h2.id, h2]));
+    for (const n of map.nodes) {
+      const [x, y] = P(n);
+      const isOpt = options.has(n.id);
+      const here = run.map.pos === n.id;
+      const cls = ['node', n.type, isOpt ? 'option' : '', n.visited ? 'visited' : '', here ? 'here' : '', run.map.goNode === n.id ? 'going' : '', votes[myId] === n.id ? 'myvote' : ''].join(' ');
+      const btn = h('button', { class: cls, style: { left: (x / 10) + '%', top: (y / 5) + '%' }, title: NAMES[n.type], 'aria-label': NAMES[n.type] + (isOpt ? ' – vote' : ''), disabled: !isOpt || !!run.map.goNode });
+      if (n.type === 'boss') {
+        btn.appendChild(h('img', { src: SP.enemyPortraitURL('wyrm', 1), alt: '' }));
+        btn.appendChild(h('span', { class: 'boss-label' }, 'Boss'));
+      } else btn.innerHTML = svgIcon(n.type);
+      if (n.visited && !here) btn.appendChild(h('span', { class: 'cross' }));
+      if (isOpt) btn.addEventListener('click', () => this.onVote(n.id));
+      // voter portraits
+      const voters = Object.entries(votes).filter(([, v]) => v === n.id).map(([pid]) => heroes[pid]).filter(Boolean);
+      if (voters.length) {
+        const vs = h('div', { class: 'voters' });
+        for (const v of voters) vs.appendChild(h('img', { src: SP.portraitURL(v.cls, v.variant, 'open', 2), alt: v.name, title: v.name }));
+        btn.appendChild(vs);
+      }
+      if (here) btn.appendChild(h('span', { class: 'banner-pin', style: { '--team': state.team.color } }));
+      field.appendChild(btn);
+    }
+    const legend = h('div', { class: 'legend' }, ...LEGEND.map(([t, label]) => h('div', { class: 'leg', html: svgIcon(t) + `<span>${label}</span>` })));
+    const connected = run.heroes.filter(x => x.connected).length;
+    const nVotes = Object.keys(votes).length;
+    let msg = 'Tap a glowing room to vote. The team goes where most of you choose.';
+    if (run.map.goNode) msg = `Heading to ${NAMES[byId[run.map.goNode].type] || 'the next room'}…`;
+    else if (nVotes) msg = `${nVotes} of ${connected} voted.` + (votes[myId] ? ' Waiting for the rest of your team.' : ' Your vote counts too.');
+    this.status = h('div', { class: 'map-status' }, h('span', { class: 'msg' }, msg), h('span', { class: 'count', id: 'voteCount' }));
+    scroll.append(title, field, legend, this.status);
+    this.el.append(h('div', { class: 'scroll-row' }, rodL, scroll, rodR));
+    this.deadline = run.map.voteDeadline;
+    this.serverSkew = Date.now() - state.now;
+  }
+  tick() {
+    const c = this.el.querySelector('#voteCount'); if (!c) return;
+    if (this.deadline) { const ms = this.deadline - (Date.now() - this.serverSkew); c.textContent = ms > 0 ? `Deciding in ${Math.ceil(ms / 1000)}s` : ''; }
+    else c.textContent = '';
+  }
+}

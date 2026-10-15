@@ -1,0 +1,24 @@
+{
+  "name": "mathfall",
+  "version": "0.1.0",
+  "description": "Co-op classroom maths roguelike: four heroes, one dungeon, every action powered by a correct answer.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/answers.test.js && node test/bots.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "express": "^4.22.3",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.4"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
+  }
+}

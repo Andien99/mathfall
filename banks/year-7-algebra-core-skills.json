@@ -1,0 +1,896 @@
+{
+ "id": "year-7-algebra-core-skills",
+ "title": "Year 7 Algebra: core skills",
+ "year": 7,
+ "topic": "Algebra",
+ "description": "Like terms, collecting like terms, coefficients and constants, substitution, equivalent expressions. 48 questions plus 30 supported questions, all with worked solutions.",
+ "questions": [
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Which of the following is a pair of like terms?",
+   "options": [
+    "$5xy$ and $2yx$",
+    "$3x$ and $3y$",
+    "$4a$ and $4a^{2}$",
+    "$6m$ and $6$"
+   ],
+   "correct": 0,
+   "solution": "Like terms have exactly the same letters, in any order. $yx = xy$, so $5xy$ and $2yx$ are like terms."
+  },
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Which term is a like term to $7k$?",
+   "options": [
+    "$3k$",
+    "$7m$",
+    "$7k^{2}$",
+    "$7km$"
+   ],
+   "correct": 0,
+   "solution": "A like term has the same letter part, $k$. The number in front can change, so $3k$."
+  },
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Which pair are NOT like terms?",
+   "options": [
+    "$2b$ and $2b^{2}$",
+    "$4c$ and $c$",
+    "$3gh$ and $hg$",
+    "$9$ and $1$"
+   ],
+   "correct": 0,
+   "solution": "$b$ and $b^{2}$ are different letter parts, so $2b$ and $2b^{2}$ are not like terms."
+  },
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Which of the following is a pair of like terms?",
+   "options": [
+    "$8pq$ and $qp$",
+    "$8p$ and $8q$",
+    "$8pq$ and $8p$",
+    "$p^{2}$ and $2p$"
+   ],
+   "correct": 0,
+   "solution": "$qp$ is the same as $pq$, so $8pq$ and $qp$ are like terms."
+  },
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Which term is a like term to $4a^{2}$?",
+   "options": [
+    "$-a^{2}$",
+    "$4a$",
+    "$2a^{3}$",
+    "$a^{2}b$"
+   ],
+   "correct": 0,
+   "solution": "It needs exactly $a^{2}$. $-a^{2}$ has the same letter part; only the number in front is different."
+  },
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Which term is a like term to $3mn$?",
+   "options": [
+    "$-5nm$",
+    "$3m$",
+    "$3n$",
+    "$3m^{2}n$"
+   ],
+   "correct": 0,
+   "solution": "$nm$ is the same as $mn$, so $-5nm$ matches $3mn$."
+  },
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "In $6x + 2y - 3x + 5$, which term is a like term to $6x$?",
+   "options": [
+    "$-3x$",
+    "$2y$",
+    "$5$",
+    "$6$"
+   ],
+   "correct": 0,
+   "solution": "Both have just $x$. Keep the sign with the term: $-3x$."
+  },
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Which list contains only like terms?",
+   "options": [
+    "$2t$, $-t$, $9t$",
+    "$2t$, $2s$, $2$",
+    "$t$, $t^{2}$, $t^{3}$",
+    "$3t$, $3ts$, $3s$"
+   ],
+   "correct": 0,
+   "solution": "Every term has exactly $t$, so $2t$, $-t$ and $9t$ are all like terms."
+  },
+  {
+   "type": "text",
+   "skill": "Collecting like terms",
+   "q": "Simplify $3x + 5x$.",
+   "answers": [
+    "8x"
+   ],
+   "solution": "Add the numbers in front: $3 + 5 = 8$, so $8x$."
+  },
+  {
+   "type": "text",
+   "skill": "Collecting like terms",
+   "q": "Simplify $9m - 4m$.",
+   "answers": [
+    "5m"
+   ],
+   "solution": "$9 - 4 = 5$, so $5m$."
+  },
+  {
+   "type": "text",
+   "skill": "Collecting like terms",
+   "q": "Simplify $6y + 4y - 2y$.",
+   "answers": [
+    "8y"
+   ],
+   "solution": "$6 + 4 - 2 = 8$, so $8y$."
+  },
+  {
+   "type": "text",
+   "skill": "Collecting like terms",
+   "q": "Simplify $5k + 8 + 3k - 2$.",
+   "answers": [
+    "8k+6"
+   ],
+   "solution": "Letter terms: $5k + 3k = 8k$. Numbers: $8 - 2 = 6$. Answer: $8k + 6$."
+  },
+  {
+   "type": "mc",
+   "skill": "Collecting like terms",
+   "q": "The expression $7a + 3b - 4a + 2b$ simplifies to:",
+   "options": [
+    "$3a + 5b$",
+    "$11a + 5b$",
+    "$3a + b$",
+    "$8ab$"
+   ],
+   "correct": 0,
+   "solution": "$7a - 4a = 3a$ and $3b + 2b = 5b$, so $3a + 5b$."
+  },
+  {
+   "type": "mc",
+   "skill": "Collecting like terms",
+   "q": "The expression $4x + 3y + 2x - y$ simplifies to:",
+   "options": [
+    "$6x + 2y$",
+    "$6x + 4y$",
+    "$8xy$",
+    "$2x + 2y$"
+   ],
+   "correct": 0,
+   "solution": "$4x + 2x = 6x$ and $3y - y = 2y$, so $6x + 2y$."
+  },
+  {
+   "type": "text",
+   "skill": "Collecting like terms",
+   "q": "Simplify $7ab - 3ba$.",
+   "answers": [
+    "4ab"
+   ],
+   "solution": "$ba$ is the same as $ab$, so $7ab - 3ab = 4ab$."
+  },
+  {
+   "type": "text",
+   "skill": "Collecting like terms",
+   "q": "Simplify $4mn + 6m - mn + 3m$.",
+   "answers": [
+    "3mn+9m"
+   ],
+   "solution": "$4mn - mn = 3mn$ and $6m + 3m = 9m$, so $3mn + 9m$."
+  },
+  {
+   "type": "text",
+   "skill": "Collecting like terms",
+   "q": "Simplify $5xy + 3y - 2yx + 4 + y$.",
+   "answers": [
+    "3xy+4y+4"
+   ],
+   "solution": "$5xy - 2xy = 3xy$, $3y + y = 4y$, and the $4$ stays: $3xy + 4y + 4$."
+  },
+  {
+   "type": "mc",
+   "skill": "Collecting like terms",
+   "q": "The expression $9p - 3p + 2$ simplifies to:",
+   "options": [
+    "$6p + 2$",
+    "$8p$",
+    "$12p + 2$",
+    "$6p - 2$"
+   ],
+   "correct": 0,
+   "solution": "$9p - 3p = 6p$. The $2$ has no letter, so it stays: $6p + 2$."
+  },
+  {
+   "type": "text",
+   "skill": "Collecting like terms",
+   "q": "Simplify $2a + 3b + 4a + b$.",
+   "answers": [
+    "6a+4b"
+   ],
+   "solution": "$2a + 4a = 6a$ and $3b + b = 4b$, so $6a + 4b$."
+  },
+  {
+   "type": "mc",
+   "skill": "Terms, coefficients and constants",
+   "q": "In the expression $7m + n + 4mn + 9$, the coefficient of $n$ is:",
+   "options": [
+    "1",
+    "0",
+    "4",
+    "9"
+   ],
+   "correct": 0,
+   "solution": "$n$ means $1 \\times n$, so the coefficient of $n$ is 1."
+  },
+  {
+   "type": "mc",
+   "skill": "Terms, coefficients and constants",
+   "q": "In $x + 4y$, the coefficient of $x$ is:",
+   "options": [
+    "1",
+    "0",
+    "4",
+    "$x$"
+   ],
+   "correct": 0,
+   "solution": "$x$ means $1 \\times x$, so the coefficient of $x$ is 1."
+  },
+  {
+   "type": "text",
+   "skill": "Terms, coefficients and constants",
+   "q": "In $3a + 6ab + b + 5$, what is the coefficient of $ab$?",
+   "answers": [
+    "6"
+   ],
+   "solution": "The number in front of $ab$ is 6."
+  },
+  {
+   "type": "text",
+   "skill": "Terms, coefficients and constants",
+   "q": "In $2h + 9g + 8$, what is the coefficient of $g$?",
+   "answers": [
+    "9"
+   ],
+   "solution": "The number in front of $g$ is 9."
+  },
+  {
+   "type": "mc",
+   "skill": "Terms, coefficients and constants",
+   "q": "In $5a - 8b + 2$, the coefficient of $b$ is:",
+   "options": [
+    "$-8$",
+    "$8$",
+    "$2$",
+    "$5$"
+   ],
+   "correct": 0,
+   "solution": "The sign belongs to the term: $-8b$, so the coefficient is $-8$."
+  },
+  {
+   "type": "text",
+   "skill": "Terms, coefficients and constants",
+   "q": "What is the constant term in $4x + 7y + 11$?",
+   "answers": [
+    "11"
+   ],
+   "solution": "The constant is the term with no letter: 11."
+  },
+  {
+   "type": "mc",
+   "skill": "Terms, coefficients and constants",
+   "q": "In the expression $6 + 3k$, the constant term is:",
+   "options": [
+    "6",
+    "3",
+    "$k$",
+    "$3k$"
+   ],
+   "correct": 0,
+   "solution": "$6$ has no letter, so it is the constant term."
+  },
+  {
+   "type": "text",
+   "skill": "Terms, coefficients and constants",
+   "q": "What is the constant term in $9 + 2m - n$?",
+   "answers": [
+    "9"
+   ],
+   "solution": "$9$ has no letter, so it is the constant term."
+  },
+  {
+   "type": "text",
+   "skill": "Terms, coefficients and constants",
+   "q": "How many terms are in the expression $5p + 3q + pq + 2$?",
+   "answers": [
+    "4"
+   ],
+   "solution": "Terms are separated by + and − signs: $5p$, $3q$, $pq$, $2$. That's 4 terms."
+  },
+  {
+   "type": "text",
+   "skill": "Terms, coefficients and constants",
+   "q": "How many terms are in $3x - 2y + 7$?",
+   "answers": [
+    "3"
+   ],
+   "solution": "The terms are $3x$, $-2y$ and $7$: 3 terms."
+  },
+  {
+   "type": "text",
+   "skill": "Substitution",
+   "q": "If $m = 5$, evaluate $4m + 3$.",
+   "answers": [
+    "23"
+   ],
+   "solution": "$4 \\times 5 + 3 = 20 + 3 = 23$."
+  },
+  {
+   "type": "mc",
+   "skill": "Substitution",
+   "q": "If $k = 6$, the value of $2k + 7$ is:",
+   "options": [
+    "19",
+    "33",
+    "15",
+    "26"
+   ],
+   "correct": 0,
+   "solution": "$2 \\times 6 + 7 = 12 + 7 = 19$."
+  },
+  {
+   "type": "text",
+   "skill": "Substitution",
+   "q": "If $x = 4$, evaluate $5x - 6$.",
+   "answers": [
+    "14"
+   ],
+   "solution": "$5 \\times 4 - 6 = 20 - 6 = 14$."
+  },
+  {
+   "type": "text",
+   "skill": "Substitution",
+   "q": "If $n = 8$, evaluate $\\frac{40}{n} + n$.",
+   "answers": [
+    "13"
+   ],
+   "solution": "$40 \\div 8 + 8 = 5 + 8 = 13$."
+  },
+  {
+   "type": "text",
+   "skill": "Substitution",
+   "q": "If $p = 7$, evaluate $p^{2} - 9$.",
+   "answers": [
+    "40"
+   ],
+   "solution": "$7^{2} - 9 = 49 - 9 = 40$."
+  },
+  {
+   "type": "mc",
+   "skill": "Substitution",
+   "q": "If $a = 3$, the value of $a^{2} + 4$ is:",
+   "options": [
+    "13",
+    "10",
+    "7",
+    "49"
+   ],
+   "correct": 0,
+   "solution": "$3^{2} + 4 = 9 + 4 = 13$."
+  },
+  {
+   "type": "mc",
+   "skill": "Substitution",
+   "q": "If $x = 2$ and $y = 7$, the value of $3x^{2} + y$ is:",
+   "options": [
+    "19",
+    "43",
+    "13",
+    "25"
+   ],
+   "correct": 0,
+   "solution": "Square first: $2^{2} = 4$. Then $3 \\times 4 + 7 = 19$."
+  },
+  {
+   "type": "text",
+   "skill": "Substitution",
+   "q": "If $a = 6$ and $b = 3$, evaluate $2a + 5b$.",
+   "answers": [
+    "27"
+   ],
+   "solution": "$2 \\times 6 + 5 \\times 3 = 12 + 15 = 27$."
+  },
+  {
+   "type": "text",
+   "skill": "Substitution",
+   "q": "If $a = 6$ and $b = 3$, evaluate $ab - a$.",
+   "answers": [
+    "12"
+   ],
+   "solution": "$6 \\times 3 - 6 = 18 - 6 = 12$."
+  },
+  {
+   "type": "text",
+   "skill": "Substitution",
+   "q": "If $a = 6$ and $b = 3$, evaluate $3(a - b) + b^{2}$.",
+   "answers": [
+    "18"
+   ],
+   "solution": "$3 \\times (6 - 3) + 3^{2} = 3 \\times 3 + 9 = 18$."
+  },
+  {
+   "type": "mc",
+   "skill": "Substitution",
+   "q": "If $m = 3$ and $n = 4$, the value of $mn + n$ is:",
+   "options": [
+    "16",
+    "11",
+    "38",
+    "19"
+   ],
+   "correct": 0,
+   "solution": "$3 \\times 4 + 4 = 12 + 4 = 16$."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which expression is equivalent to $6m$?",
+   "options": [
+    "$4m + 2m$",
+    "$m + 6$",
+    "$m^{6}$",
+    "$4m + 2$"
+   ],
+   "correct": 0,
+   "solution": "$4m + 2m = 6m$."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which expression is equivalent to $5a + 2a$?",
+   "options": [
+    "$7a$",
+    "$7a^{2}$",
+    "$10a$",
+    "$5a + 2$"
+   ],
+   "correct": 0,
+   "solution": "Add the numbers in front: $5 + 2 = 7$, so $7a$. Adding never changes the power."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which expression is equivalent to $x \\times y \\times 3$?",
+   "options": [
+    "$3xy$",
+    "$x + y + 3$",
+    "$3x + y$",
+    "$xy^{3}$"
+   ],
+   "correct": 0,
+   "solution": "Write the number first, then the letters: $3xy$."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which expression is NOT equivalent to $4n$?",
+   "options": [
+    "$n + 4$",
+    "$2n + 2n$",
+    "$n \\times 4$",
+    "$5n - n$"
+   ],
+   "correct": 0,
+   "solution": "$n + 4$ adds 4, but $4n$ means $4 \\times n$. They are different."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which expression is equivalent to $3(x + 2)$?",
+   "options": [
+    "$3x + 6$",
+    "$3x + 2$",
+    "$x + 6$",
+    "$5x$"
+   ],
+   "correct": 0,
+   "solution": "Multiply both terms by 3: $3 \\times x + 3 \\times 2 = 3x + 6$."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which expression is equivalent to $(y + 3) \\times 4$?",
+   "options": [
+    "$4y + 12$",
+    "$4y + 3$",
+    "$y + 12$",
+    "$12y$"
+   ],
+   "correct": 0,
+   "solution": "Multiply both terms by 4: $4 \\times y + 4 \\times 3 = 4y + 12$."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which expression is equivalent to $2(3m + 1)$?",
+   "options": [
+    "$6m + 2$",
+    "$6m + 1$",
+    "$5m + 2$",
+    "$3m + 2$"
+   ],
+   "correct": 0,
+   "solution": "$2 \\times 3m + 2 \\times 1 = 6m + 2$."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which two expressions are equivalent?",
+   "options": [
+    "$2x + 8$ and $2(x + 4)$",
+    "$2x + 4$ and $2(x + 4)$",
+    "$x + 4$ and $4x$",
+    "$8x$ and $2x + 8$"
+   ],
+   "correct": 0,
+   "solution": "Expand $2(x + 4)$: $2 \\times x + 2 \\times 4 = 2x + 8$. They match."
+  }
+ ],
+ "modified": [
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Like terms have the same letters. Which term is a like term to $5x$?",
+   "options": [
+    "$2x$",
+    "$5y$",
+    "$5$"
+   ],
+   "correct": 0,
+   "solution": "$2x$ has the same letter, $x$, so it is a like term."
+  },
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Like terms have the same letters. Which term is a like term to $3a$?",
+   "options": [
+    "$a$",
+    "$3b$",
+    "$3$"
+   ],
+   "correct": 0,
+   "solution": "$a$ has the same letter as $3a$."
+  },
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Which is a pair of like terms?",
+   "options": [
+    "$4m$ and $7m$",
+    "$4m$ and $4n$",
+    "$4m$ and $4$"
+   ],
+   "correct": 0,
+   "solution": "Both have just the letter $m$."
+  },
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Which is a pair of like terms?",
+   "options": [
+    "$2y$ and $9y$",
+    "$2y$ and $2$",
+    "$y$ and $x$"
+   ],
+   "correct": 0,
+   "solution": "Both have just the letter $y$."
+  },
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Numbers on their own are like terms. Which term is a like term to $6$?",
+   "options": [
+    "$1$",
+    "$6x$",
+    "$x$"
+   ],
+   "correct": 0,
+   "solution": "Numbers with no letters are like terms, so $1$ goes with $6$."
+  },
+  {
+   "type": "mc",
+   "skill": "Identifying like terms",
+   "q": "Which term is a like term to $ab$?",
+   "options": [
+    "$3ab$",
+    "$3a$",
+    "$3b$"
+   ],
+   "correct": 0,
+   "solution": "$3ab$ has the same letters, $ab$."
+  },
+  {
+   "type": "mc",
+   "skill": "Collecting like terms",
+   "q": "Simplify $2x + 3x$.",
+   "options": [
+    "$5x$",
+    "$6x$",
+    "$5$"
+   ],
+   "correct": 0,
+   "solution": "$2 + 3 = 5$, so $5x$."
+  },
+  {
+   "type": "text",
+   "skill": "Collecting like terms",
+   "q": "Simplify $a + a + a$.",
+   "answers": [
+    "3a"
+   ],
+   "solution": "Three lots of $a$ is $3a$."
+  },
+  {
+   "type": "text",
+   "skill": "Collecting like terms",
+   "q": "Simplify $4m + 2m$.",
+   "answers": [
+    "6m"
+   ],
+   "solution": "$4 + 2 = 6$, so $6m$."
+  },
+  {
+   "type": "mc",
+   "skill": "Collecting like terms",
+   "q": "Simplify $7y - 2y$.",
+   "options": [
+    "$5y$",
+    "$9y$",
+    "$5$"
+   ],
+   "correct": 0,
+   "solution": "$7 - 2 = 5$, so $5y$."
+  },
+  {
+   "type": "text",
+   "skill": "Collecting like terms",
+   "q": "Simplify $5k - k$.",
+   "answers": [
+    "4k"
+   ],
+   "solution": "$k$ means $1k$, so $5 - 1 = 4$: $4k$."
+  },
+  {
+   "type": "mc",
+   "skill": "Collecting like terms",
+   "q": "Simplify $3x + 2 + x$.",
+   "options": [
+    "$4x + 2$",
+    "$6x$",
+    "$3x + 3$"
+   ],
+   "correct": 0,
+   "solution": "$3x + x = 4x$. The $2$ stays: $4x + 2$."
+  },
+  {
+   "type": "mc",
+   "skill": "Collecting like terms",
+   "q": "Simplify $2a + 3b + a$.",
+   "options": [
+    "$3a + 3b$",
+    "$6ab$",
+    "$2a + 4b$"
+   ],
+   "correct": 0,
+   "solution": "$2a + a = 3a$. The $3b$ stays: $3a + 3b$."
+  },
+  {
+   "type": "mc",
+   "skill": "Terms, coefficients and constants",
+   "q": "The coefficient is the number in front of the letter. In $4x$, the coefficient is:",
+   "options": [
+    "4",
+    "$x$",
+    "$4x$"
+   ],
+   "correct": 0,
+   "solution": "The number in front of $x$ is 4."
+  },
+  {
+   "type": "mc",
+   "skill": "Terms, coefficients and constants",
+   "q": "In $7 + 2y$, the coefficient of $y$ is:",
+   "options": [
+    "2",
+    "7",
+    "$y$"
+   ],
+   "correct": 0,
+   "solution": "The number in front of $y$ is 2."
+  },
+  {
+   "type": "mc",
+   "skill": "Terms, coefficients and constants",
+   "q": "A constant is a number on its own. In $3m + 5$, the constant is:",
+   "options": [
+    "5",
+    "3",
+    "$m$"
+   ],
+   "correct": 0,
+   "solution": "$5$ has no letter, so it is the constant."
+  },
+  {
+   "type": "mc",
+   "skill": "Terms, coefficients and constants",
+   "q": "In $x + 9$, the constant term is:",
+   "options": [
+    "9",
+    "1",
+    "$x$"
+   ],
+   "correct": 0,
+   "solution": "$9$ has no letter, so it is the constant."
+  },
+  {
+   "type": "mc",
+   "skill": "Terms, coefficients and constants",
+   "q": "Terms are separated by + and − signs. How many terms are in $2a + 3b$?",
+   "options": [
+    "2",
+    "5",
+    "1"
+   ],
+   "correct": 0,
+   "solution": "The terms are $2a$ and $3b$: 2 terms."
+  },
+  {
+   "type": "mc",
+   "skill": "Terms, coefficients and constants",
+   "q": "How many terms are in $x + y + 4$?",
+   "options": [
+    "3",
+    "2",
+    "4"
+   ],
+   "correct": 0,
+   "solution": "The terms are $x$, $y$ and $4$: 3 terms."
+  },
+  {
+   "type": "mc",
+   "skill": "Substitution",
+   "q": "If $x = 3$, what is $x + 4$?",
+   "options": [
+    "7",
+    "34",
+    "12"
+   ],
+   "correct": 0,
+   "solution": "Swap $x$ for 3: $3 + 4 = 7$."
+  },
+  {
+   "type": "mc",
+   "skill": "Substitution",
+   "q": "If $a = 5$, what is $2a$? (Remember $2a$ means $2 \\times a$.)",
+   "options": [
+    "10",
+    "25",
+    "7"
+   ],
+   "correct": 0,
+   "solution": "$2a$ means $2 \\times a = 2 \\times 5 = 10$."
+  },
+  {
+   "type": "text",
+   "skill": "Substitution",
+   "q": "If $m = 2$, evaluate $m + 8$.",
+   "answers": [
+    "10"
+   ],
+   "solution": "Swap $m$ for 2: $2 + 8 = 10$."
+  },
+  {
+   "type": "mc",
+   "skill": "Substitution",
+   "q": "If $y = 4$, what is $3y$?",
+   "options": [
+    "12",
+    "34",
+    "7"
+   ],
+   "correct": 0,
+   "solution": "$3y$ means $3 \\times 4 = 12$."
+  },
+  {
+   "type": "text",
+   "skill": "Substitution",
+   "q": "If $k = 6$, evaluate $k - 1$.",
+   "answers": [
+    "5"
+   ],
+   "solution": "Swap $k$ for 6: $6 - 1 = 5$."
+  },
+  {
+   "type": "mc",
+   "skill": "Substitution",
+   "q": "If $n = 2$, what is $2n + 1$?",
+   "options": [
+    "5",
+    "23",
+    "7"
+   ],
+   "correct": 0,
+   "solution": "$2 \\times 2 + 1 = 4 + 1 = 5$."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which is the same as $3 \\times x$?",
+   "options": [
+    "$3x$",
+    "$x + 3$",
+    "$x^{3}$"
+   ],
+   "correct": 0,
+   "solution": "$3 \\times x$ is written $3x$."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which is equivalent to $a + a$?",
+   "options": [
+    "$2a$",
+    "$a^{2}$",
+    "$a + 2$"
+   ],
+   "correct": 0,
+   "solution": "Two lots of $a$ is $2a$."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which is equivalent to $4y$?",
+   "options": [
+    "$2y + 2y$",
+    "$4 + y$",
+    "$y^{4}$"
+   ],
+   "correct": 0,
+   "solution": "$2y + 2y = 4y$."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which is equivalent to $x + x + x$?",
+   "options": [
+    "$3x$",
+    "$x^{3}$",
+    "$x + 3$"
+   ],
+   "correct": 0,
+   "solution": "Three lots of $x$ is $3x$."
+  },
+  {
+   "type": "mc",
+   "skill": "Equivalent expressions",
+   "q": "Which is equivalent to $2 \\times (x + 1)$?",
+   "options": [
+    "$2x + 2$",
+    "$2x + 1$",
+    "$x + 3$"
+   ],
+   "correct": 0,
+   "solution": "$2 \\times x + 2 \\times 1 = 2x + 2$."
+  }
+ ]
+}

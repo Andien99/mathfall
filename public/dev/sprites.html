@@ -1,0 +1,25 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Sprite sheet</title>
+<style>body{background:#1d1a2b;color:#ccc;font:12px sans-serif;margin:8px} canvas{image-rendering:pixelated;display:block} .row{display:flex;gap:4px;align-items:flex-end;margin-bottom:6px;flex-wrap:wrap} .cell{text-align:center}</style></head>
+<body><div id="out"></div>
+<script type="module">
+import * as SP from '/js/sprites.js';
+const out = document.getElementById('out');
+const S = +(new URLSearchParams(location.search).get('s') || 3);
+function show(row, canvas, label, s=S) { const d=document.createElement('div'); d.className='cell'; const c=document.createElement('canvas'); c.width=canvas.width*s; c.height=canvas.height*s; const x=c.getContext('2d'); x.imageSmoothingEnabled=false; x.drawImage(canvas,0,0,c.width,c.height); d.appendChild(c); d.append(label); row.appendChild(d); }
+const only = new URLSearchParams(location.search).get('only');
+for (const cls of ['knight','mage','ranger','cleric']) {
+  if (only && only!==cls) continue;
+  for (const v of [0,1,2]) { if (v>0 && only) {} const row=document.createElement('div'); row.className='row'; out.appendChild(row);
+    for (const p of (v===0? SP.HERO_POSES : ['idle0','swing1','defend'])) show(row, SP.heroFrame(cls, v, p), cls+' '+p);
+  }
+}
+if (!only || only==='enemies') {
+for (const k of ['slime','goblin','hexer','skeleton','sentinel','wyrm','shard']) { const row=document.createElement('div'); row.className='row'; out.appendChild(row);
+  for (const p of SP.ENEMY_POSES.concat(k==='wyrm'?['roar','tail']:[])) show(row, SP.enemyFrame(k,p), k+' '+p, k==='wyrm'?2:S); }
+const row=document.createElement('div'); row.className='row'; out.appendChild(row);
+for (const r of ['common','rare','epic','legendary']) { show(row, SP.chestFrame(r,false), r); show(row, SP.chestFrame(r,true), r+' open'); }
+const row2=document.createElement('div'); row2.className='row'; out.appendChild(row2);
+for (const n of SP.ICON_NAMES) show(row2, SP.iconCanvas(n), n, 4);
+}
+document.title='ready';
+</script></body></html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0814">
+<title>Mathfall</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 L28 16 L16 30 L4 16 Z' fill='%23e8b85a'/%3E%3Cpath d='M16 8 L22 16 L16 24 L10 16 Z' fill='%231d2c5e'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<link rel="stylesheet" href="/css/game.css">
+</head>
+<body class="screen-join">
+<canvas id="scene" aria-hidden="true"></canvas>
+
+<!-- Join -->
+<section id="join" class="screen">
+  <div class="join-card">
+    <h1 class="logo">Mathfall</h1>
+    <p class="tag">Answer. Strike. Descend together.</p>
+    <form id="joinForm" autocomplete="off">
+      <label for="code">Game code</label>
+      <input id="code" inputmode="numeric" maxlength="6" placeholder="123456" pattern="[0-9]*" aria-describedby="joinErr">
+      <label for="name">Your name</label>
+      <input id="name" maxlength="18" placeholder="First name and initial">
+      <button type="submit" class="btn primary big">Enter the dungeon</button>
+      <p id="joinErr" class="err" role="alert"></p>
+    </form>
+  </div>
+</section>
+
+<!-- Lobby: hero select -->
+<section id="lobby" class="screen">
+  <header class="lobby-head">
+    <h2>Choose your hero</h2>
+    <p>Your team will see your choice. Mix classes for a stronger party.</p>
+  </header>
+  <div id="heroCards" class="hero-cards"></div>
+  <aside id="teamBox" class="team-box"></aside>
+  <p id="lobbyWait" class="lobby-wait">Waiting for your teacher to start the game…</p>
+</section>
+
+<!-- In game HUD -->
+<section id="hud" class="screen">
+  <div id="topbar">
+    <div class="tb-left"><span id="floorInfo"></span></div>
+    <div class="tb-mid"><div id="roundBox"><span id="roundLabel"></span><div class="tbar"><i id="timerFill"></i></div><span id="timerText"></span></div><div id="waitingFor"></div></div>
+    <div class="tb-right"><span id="teamChip"></span><span id="goldChip" class="chip gold"></span><button id="soundBtn" class="iconbtn" aria-label="Sound on or off"></button></div>
+  </div>
+  <div id="banner" aria-live="polite"></div>
+  <div id="skillBanner"></div>
+  <div id="party" aria-label="Your party"></div>
+  <div id="actions" aria-label="Your actions"></div>
+  <div id="joining" class="note-pop"></div>
+</section>
+
+<div id="mapLayer"></div>
+<div id="roomLayer"></div>
+<div id="qLayer"></div>
+
+<!-- End of game -->
+<section id="ended" class="screen"></section>
+
+<div id="paused" class="cover"><div><h2>Eyes on your teacher</h2><p>The game is paused.</p></div></div>
+<div id="conn" class="conn">Reconnecting…</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/vendor/katex/katex.min.js"></script>
+<script src="/shared/content.js"></script>
+<script type="module" src="/js/play.js"></script>
+</body>
+</html>

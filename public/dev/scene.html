@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Scene</title>
+<link rel="stylesheet" href="/css/fonts.css">
+<style>html,body{margin:0;background:#000;height:100%;overflow:hidden} canvas{display:block}</style></head>
+<body><canvas id="cv"></canvas>
+<script src="/shared/content.js"></script>
+<script type="module">
+import { BattleScene } from '/js/scene.js';
+const q = new URLSearchParams(location.search);
+const cv = document.getElementById('cv');
+const scene = new BattleScene(cv, { myId: 'p2' });
+window.scene = scene;
+const boss = q.get('boss'); const theme = q.get('theme') || (boss ? 'lair' : 'halls');
+scene.setTheme(theme);
+function fit(){ scene.resize(innerWidth, innerHeight, { x: 0, y: 40, w: innerWidth - (innerWidth > 900 ? 300 : 0), h: innerHeight - 190 }); }
+const H = (id,name,cls,v,hp,max)=>({id,name,cls,variant:v,hp,maxHp:max,block:0,st:{},skills:[],focus:id==='p2'?2:0,downed:false,acted:id==='p1',connected:true});
+const run = { heroes: [H('p1','Mia','knight',0,40,48), H('p2','Leo','mage',0,30,34), H('p3','Ava','ranger',0,12,38), H('p4','Sam','cleric',0,40,40)],
+  combat: { enemies: boss ? [ {id:'e1',kind:'wyrm',name:'Gravemaw',size:'xl',tier:'boss',hp:160,maxHp:230,block:12,st:{burn:{v:3,t:2}},intent:{type:'attackAll',dmg:8,perShard:6,label:'Shatterstorm'}}, {id:'e2',kind:'shard',name:'Crystal Shard',size:'s',hp:16,maxHp:16,block:0,st:{},intent:{type:'attack',dmg:4,target:'p1'}}, {id:'e3',kind:'shard',name:'Crystal Shard',size:'s',hp:10,maxHp:16,block:0,st:{},intent:{type:'attack',dmg:4,target:'p3'}} ]
+   : [ {id:'e1',kind:q.get('e1')||'skeleton',name:'Skeleton Warrior',size:'m',hp:22,maxHp:30,block:0,st:{poison:{v:4}},intent:{type:'attack',dmg:8,target:'p2'}}, {id:'e2',kind:q.get('e2')||'slime',name:'Mire Slime',size:'s',hp:24,maxHp:24,block:6,st:{},intent:{type:'block',block:8}}, {id:'e3',kind:q.get('e3')||'hexer',name:'Goblin Hexer',size:'s',hp:20,maxHp:20,block:0,st:{vuln:{t:2}},intent:{type:'debuff',status:'vuln',target:'p1'}} ] } };
+if (q.get('two')) run.combat.enemies = run.combat.enemies.slice(0,2);
+fit(); scene.sync(run, {force:true}); addEventListener('resize', fit);
+scene.target = 'e1';
+if (q.get('anim')) {
+  const evs = [
+   {kind:'hero',actor:'p1',act:'attack',fx:'slash',name:'Slash',targets:[{id:'e1',dmg:8}],after:{e1:{hp:14,maxHp:30,block:0,st:{},dead:false}}},
+   {kind:'hero',actor:'p2',act:'skill0',fx:'proj_fire',name:'Fireball',rarity:'common',targets:[{id:'e2',dmg:5,blocked:6,status:['burn']}],after:{e2:{hp:19,maxHp:24,block:0,st:{burn:{v:3,t:2}},dead:false}}},
+   {kind:'enemy',actor:'e1',act:'cleave',type:'attack',name:'Bone Cleave',targets:[{id:'p2',dmg:8,blocked:0}],after:{p2:{hp:22,maxHp:34,block:0,st:{},downed:false}}}];
+  let i=0; setInterval(()=>{ scene.play([evs[i%evs.length]]); i++; }, 1300);
+}
+document.fonts.ready.then(()=>setTimeout(()=>document.title='ready', 600));
+</script></body></html>

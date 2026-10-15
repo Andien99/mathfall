@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mathfall · Teacher</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 L28 16 L16 30 L4 16 Z' fill='%23e8b85a'/%3E%3Cpath d='M16 8 L22 16 L16 24 L10 16 Z' fill='%231d2c5e'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<link rel="stylesheet" href="/css/host.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">Mathfall</span><span class="who">Teacher</span></div>
+  <nav id="topNav"></nav>
+</header>
+
+<main>
+  <!-- Setup -->
+  <section id="setup" class="view">
+    <div class="setup-grid">
+      <div class="card qcol">
+        <div class="card-h"><h2>Questions</h2><p>Pick from the school bank, your own sets, or generated topics. You can combine them.</p></div>
+        <div class="tabs" role="tablist">
+          <button role="tab" data-tab="bank" class="on">School bank</button>
+          <button role="tab" data-tab="mine">My sets</button>
+          <button role="tab" data-tab="gen">Generated topics</button>
+        </div>
+        <div id="tab-bank" class="tabpane on"></div>
+        <div id="tab-mine" class="tabpane"></div>
+        <div id="tab-gen" class="tabpane"></div>
+        <div id="selSummary" class="sel-summary"></div>
+      </div>
+      <div class="card scol">
+        <div class="card-h"><h2>Game settings</h2></div>
+        <div id="settingsForm" class="settings"></div>
+        <button id="createBtn" class="btn primary big">Create game</button>
+        <p id="createErr" class="err"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Lobby -->
+  <section id="lobby" class="view">
+    <div class="join-hero card">
+      <div class="join-text">
+        <div class="lbl">Go to</div>
+        <div id="joinUrl" class="url"></div>
+        <div class="lbl">and enter</div>
+        <div id="joinCode" class="code"></div>
+      </div>
+      <img id="qr" alt="QR code to join">
+    </div>
+    <div class="lobby-bar">
+      <div><b id="playerCount">0</b> students joined · <span id="lobbyQs"></span></div>
+      <div class="lobby-actions"><button id="balanceBtn" class="btn">Balance teams</button><button id="startBtn" class="btn primary">Start game</button></div>
+    </div>
+    <p class="tip">Drag a student to move them between teams. The small dot beside a name gives that student the supported questions; nobody else can see it.</p>
+    <div id="lobbyTeams" class="teams-grid"></div>
+  </section>
+
+  <!-- Live -->
+  <section id="live" class="view">
+    <div class="live-bar card">
+      <div class="lv-code">Code <b id="liveCode"></b></div>
+      <div id="liveClock" class="lv-clock"></div>
+      <div class="lv-actions">
+        <button id="pauseBtn" class="btn">Pause all</button>
+        <button id="addTimeBtn" class="btn">+5 min</button>
+        <button id="endBtn" class="btn danger">End game</button>
+      </div>
+    </div>
+    <div id="liveTeams" class="live-grid"></div>
+    <div class="card">
+      <div class="card-h"><h2>Students</h2><p>Live accuracy. The dot switches a student to supported questions from their next question.</p></div>
+      <table class="tbl" id="liveTable"></table>
+    </div>
+  </section>
+
+  <!-- Results -->
+  <section id="results" class="view"></section>
+</main>
+
+<!-- Set editor -->
+<div id="editor" class="modal" role="dialog" aria-modal="true" aria-labelledby="edTitle"></div>
+<!-- Spectate -->
+<div id="watch" class="modal watch" role="dialog" aria-modal="true">
+  <div class="watch-box">
+    <div class="watch-h"><b id="watchTitle"></b><span id="watchInfo"></span><button id="watchClose" class="btn">Close</button></div>
+    <div class="watch-stage"><canvas id="watchCanvas"></canvas></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/vendor/katex/katex.min.js"></script>
+<script src="/shared/content.js"></script>
+<script src="/shared/answers.js"></script>
+<script src="/shared/generators.js"></script>
+<script type="module" src="/js/host.js"></script>
+</body>
+</html>
