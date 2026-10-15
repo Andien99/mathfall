@@ -742,7 +742,10 @@ function cached(key, make) { if (!cache.has(key)) cache.set(key, make()); return
 //       "poses": { "idle0": [col, row], "idle1": [1, 0], ... } } },
 //     "enemies": { "slime": { "sheet": "slime.png", "frame": [64, 52], "poses": { ... } } } }
 // Frames must use the same size and foot anchor as the generated ones (heroes 84x76, feet at 46,72).
-export async function loadArtOverrides() {
+// "portrait": [x, y, w, h] picks the face out of the idle0 frame for HUD portraits.
+// The knight ships this way: public/art/knight.png is built by tools/build_knight.py.
+const artPortrait = {};
+async function loadArtOverrides() {
   let man;
   try { const r = await fetch('/art/manifest.json', { cache: 'no-cache' }); if (!r.ok) return 0; man = await r.json(); } catch (e) { return 0; }
   const load = src => new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = '/art/' + src; });
@@ -752,6 +755,7 @@ export async function loadArtOverrides() {
   for (const [cls, d] of Object.entries(man.heroes || {})) {
     const im = await load(d.sheet); if (!im) continue;
     const [fw, fh] = d.frame || [SPRITE_W, SPRITE_H];
+    if (d.portrait) artPortrait[cls] = d.portrait;
     for (let v = 0; v < 3; v++) for (const [pose, [c, r]] of Object.entries(d.poses || {})) {
       const row = r + (d.variants > 1 ? (v % d.variants) * (d.variantRows || 1) : 0);
       const fr = crop(im, fw, fh, c, row);
@@ -810,6 +814,14 @@ export function iconURL(name, scale = 3) {
 // Head-and-shoulders portrait for HUD panels.
 export function portraitURL(cls, variant, mood = 'open', scale = 3) {
   return cached(`p:${cls}:${variant}:${mood}:${scale}`, () => {
+    if (artPortrait[cls]) {
+      const [px, py, pw, ph] = artPortrait[cls];
+      const c = document.createElement('canvas'); c.width = pw * scale; c.height = ph * scale;
+      const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+      if (mood === 'closed') x.filter = 'grayscale(0.8) brightness(0.7)';
+      x.drawImage(heroFrame(cls, variant, 'idle0'), px, py, pw, ph, 0, 0, c.width, c.height);
+      return c.toDataURL();
+    }
     const look = (HERO_LOOKS[cls] || HERO_LOOKS.knight)[variant % 3];
     const pz = { ...getPose(cls, 'idle0'), eyes: mood };
     const s = drawHero(cls, look, pz);
@@ -838,3 +850,6 @@ export function enemyPortraitURL(kind, scale = 2) {
 }
 export const ICON_NAMES = Object.keys(ICONS);
 export const ENEMY_POSES = ['idle0', 'idle1', 'idle2', 'idle3', 'windup', 'attack', 'hurt'];
+
+// Hand-made art loads before anything draws: every module that imports this one waits for it.
+export const artFrames = await loadArtOverrides();

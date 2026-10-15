@@ -258,6 +258,7 @@ export class BattleScene {
     if (ev.kind === 'round') { this.onBanner('Round ' + ev.round, 'round'); return T(450); }
     if (ev.kind === 'focus') {
       const p = this.pos(ev.actor); if (p) { this.burst(p.x, p.y - 26, '#9fb6ff', 14, 22); this.glows.push({ x: p.x, y: p.y - 22, r: 30, color: '#8fa6ff', t: 0, life: 0.5, a: 0.6 }); this.number(p.x, p.y - 40, 'Focus ' + '✦'.repeat(ev.focus), '#b8c8ff', 0.8); sfx('focus'); }
+      if (p && ev.energy != null) { const a = this.actors.get(ev.actor); if (a) a.energy = ev.energy; }
       return 0;
     }
     if (ev.kind === 'tick') {
@@ -285,6 +286,7 @@ export class BattleScene {
     const support = ['defend', 'shield_party', 'taunt', 'aegis', 'heal', 'heal_party', 'bless_party', 'revive', 'buff_party'].includes(fx);
     if (ev.name && ev.act !== 'attack' && ev.act !== 'defend') this.onBanner(ev.name, 'skill', ev.rarity);
     if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    if (ev.energy > 0) setTimeout(() => this.number(A.x + 6, A.y - 62, '+' + ev.energy + ' energy', '#ffd84a', 0.75), T(450));
     const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
 
     if (support) {

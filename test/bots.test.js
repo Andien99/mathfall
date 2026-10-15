@@ -3,11 +3,12 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const { io } = require('socket.io-client');
+const C = require('../shared/content');
 
 const PLAYERS = +(process.argv[2] || 8);
 const PORT = 3900 + Math.floor(Math.random() * 90);
 const URL = `http://localhost:${PORT}`;
-const LIMIT_MS = +(process.env.LIMIT || 150000);
+const LIMIT_MS = +(process.env.LIMIT || 300000);
 
 const srv = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], { env: { ...process.env, PORT, MATHFALL_TEST: '1', MATHFALL_FAST: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
 let srvErr = '';
@@ -118,7 +119,7 @@ async function step(b, done) {
       if (me.downed) action = 'rise';
       else if (!me.acted && !me.ready) {
         const opts = ['attack', 'defend'];
-        me.skills.forEach((s, i) => { if (s.cd === 0) opts.push('skill' + i); });
+        me.skills.forEach((s, i) => { const d = C.SKILLS[s.id]; if (d && (me.energy || 0) >= d.cost) opts.push('skill' + i); });
         action = opts[Math.floor(Math.random() * opts.length)];
       } else if (me.acted && me.focus < 3 && Math.random() < 0.3) action = 'focus';
       if (action) {

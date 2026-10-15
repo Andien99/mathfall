@@ -144,7 +144,7 @@ class Session {
     const variant = Math.max(0, same.findIndex(q => q.id === p.id)) % 3;
     return {
       id: p.id, name: p.name, cls: p.cls, variant, maxHp: H.hp, hp: H.hp, block: 0, st: {},
-      skills: H.skills.map(id => ({ id, lvl: 1, cd: 0 })), focus: 0, downed: false, acted: false, gold: 0,
+      skills: H.skills.map(id => ({ id, lvl: 1 })), focus: 0, energy: 0, downed: false, acted: false, gold: 0,
       readyAction: null, lastTarget: null, stats: { dmg: 0, heal: 0, taken: 0, skills: 0 }
     };
   }
@@ -205,6 +205,8 @@ class Session {
     const node = run.map.nodes.find(n => n.id === nodeId);
     if (!node) return;
     run.pos = node.id; node.visited = true; run.floor = node.row + 1;
+    // Difficulty climbs from 1 to 5 over the tower, whatever its height.
+    run.depth = 1 + 4 * Math.min(1, node.row / Math.max(1, run.map.rows - 2));
     run.votes = {}; run.voteDeadline = 0; run.goAt = 0; run.goNode = null;
     team.history.bestFloor = Math.max(team.history.bestFloor, run.floor);
     this.admitPending(team);
@@ -410,7 +412,7 @@ class Session {
       map: { nodes: run.map.nodes.map(n => ({ id: n.id, row: n.row, type: n.type, x: n.x, y: n.y, next: n.next, visited: !!n.visited })), pos: run.pos, options: run.phase === 'map' ? this.mapOptions(run) : [], votes: run.votes, voteDeadline: run.voteDeadline, goNode: run.goNode },
       heroes: order.map(id => {
         const h = run.heroes[id]; const p = this.players.get(id);
-        return { id, name: h.name, cls: h.cls, variant: h.variant, hp: h.hp, maxHp: h.maxHp, block: h.block, st: h.st, skills: h.skills, focus: h.focus, downed: h.downed, acted: h.acted, ready: !!h.readyAction, gold: h.gold,
+        return { id, name: h.name, cls: h.cls, variant: h.variant, hp: h.hp, maxHp: h.maxHp, block: h.block, st: h.st, skills: h.skills, focus: h.focus, energy: h.energy || 0, downed: h.downed, acted: h.acted, ready: !!h.readyAction, gold: h.gold,
           connected: !!(p && p.connected), busy: p && p.pending && !p.pending.answered ? (p.pending.intent.action || p.pending.intent.kind) : null };
       }),
       waiting: run.pendingJoin,
@@ -739,7 +741,7 @@ function attach(io, banks) {
       } else if (['attack', 'defend', 'skill0', 'skill1'].includes(action)) {
         if (h.downed) return reply(cb, { ok: false, msg: 'You are knocked out. Answer to get back up.' });
         if (h.acted || h.readyAction) return reply(cb, { ok: false, msg: 'You have acted this round. Answer Focus questions to power up.' });
-        if (action.startsWith('skill')) { const sk = h.skills[action === 'skill0' ? 0 : 1]; if (!sk || sk.cd > 0) return reply(cb, { ok: false, msg: 'That skill is recharging.' }); }
+        if (action.startsWith('skill')) { const sk = h.skills[action === 'skill0' ? 0 : 1]; const def = sk && C.SKILLS[sk.id]; if (!def) return reply(cb, { ok: false, msg: 'No skill in that slot.' }); if ((h.energy || 0) < def.cost) return reply(cb, { ok: false, msg: `Not enough energy: ${def.cost} needed, you have ${h.energy || 0}. Attack or Defend to charge up.` }); }
         kind = 'action';
       } else return reply(cb, { ok: false });
       const intent = { kind, action: kind === 'action' ? action : kind, target };
@@ -795,7 +797,8 @@ function attach(io, banks) {
       if (!c || !h || c.phase === 'won' || c.phase === 'lost') { resp.note = 'The battle ended.'; reply(cb, resp); s.flush(t); return; }
       if (intent.kind === 'focus') {
         h.focus = Math.min(3, h.focus + 1);
-        s.event(t, { kind: 'focus', actor: h.id, focus: h.focus });
+        h.energy = Math.min(C.ENERGY.max, (h.energy || 0) + C.ENERGY.focus);
+        s.event(t, { kind: 'focus', actor: h.id, focus: h.focus, energy: h.energy });
         reply(cb, resp); s.flush(t); return;
       }
       if (c.phase !== 'player') {
@@ -853,7 +856,7 @@ function attach(io, banks) {
         if (op === 'open' && !ch.opened) { ch.opened = true; h.gold += ch.gold; return ok({ offer: ch.offer, gold: ch.gold }); }
         if (op === 'take' && ch.opened && !ch.decided && (d.slot === 0 || d.slot === 1)) {
           const old = h.skills[d.slot];
-          h.skills[d.slot] = { id: ch.offer.id, lvl: ch.offer.lvl, cd: 0 };
+          h.skills[d.slot] = { id: ch.offer.id, lvl: ch.offer.lvl };
           ch.decided = true; ch.choice = { took: ch.offer.id, replaced: old.id };
           room.ready[p.id] = true; s.checkRoomReady(t);
           return ok();
@@ -876,7 +879,7 @@ function attach(io, banks) {
           if (h.gold < it.price) return reply(cb, { ok: false, msg: 'Not enough gold.' });
           if (!(d.slot === 0 || d.slot === 1)) return reply(cb, { ok: false });
           h.gold -= it.price; it.sold = true;
-          h.skills[d.slot] = { id: it.id, lvl: it.lvl, cd: 0 };
+          h.skills[d.slot] = { id: it.id, lvl: it.lvl };
           return ok();
         }
         if (op === 'mend') {

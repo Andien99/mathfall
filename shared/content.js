@@ -44,57 +44,61 @@
   };
   const HERO_ORDER = ['knight', 'mage', 'ranger', 'cleric'];
 
+  // Energy powers Skill 1 and Skill 2. Basic actions charge it; it resets at the start of each fight.
+  const ENERGY = { max: 10, start: 2, attack: 3, defend: 3, focus: 1 };
+
   // target: enemy | ally | party | allEnemies | self
+  // cost: energy spent to use the skill
   // Numbers in `p` scale with upgrades (level 2 = x1.35). Durations (keys ending in 'T') do not.
   const SKILLS = {
     // ---- common ----
-    power_strike: { name: 'Power Strike', rarity: 'common', cd: 2, target: 'enemy', icon: 'sword_heavy', fx: 'slash_heavy', color: '#ffb35c',
+    power_strike: { name: 'Power Strike', rarity: 'common', cost: 4, target: 'enemy', icon: 'sword_heavy', fx: 'slash_heavy', color: '#ffb35c',
       p: { dmg: 13, vulnT: 2 }, desc: p => `Deal ${p.dmg} damage. Target takes +50% damage for ${p.vulnT} rounds.` },
-    shield_wall: { name: 'Shield Wall', rarity: 'common', cd: 3, target: 'party', icon: 'shield_wall', fx: 'shield_party', color: '#7fc8ff',
+    shield_wall: { name: 'Shield Wall', rarity: 'common', cost: 5, target: 'party', icon: 'shield_wall', fx: 'shield_party', color: '#7fc8ff',
       p: { block: 7 }, desc: p => `Every hero gains ${p.block} block.` },
-    fireball: { name: 'Fireball', rarity: 'common', cd: 2, target: 'enemy', icon: 'fireball', fx: 'proj_fire', color: '#ff7a2e',
+    fireball: { name: 'Fireball', rarity: 'common', cost: 4, target: 'enemy', icon: 'fireball', fx: 'proj_fire', color: '#ff7a2e',
       p: { dmg: 11, burn: 3, burnT: 2 }, desc: p => `Deal ${p.dmg} damage and Burn ${p.burn} for ${p.burnT} rounds.` },
-    ice_shard: { name: 'Ice Shard', rarity: 'common', cd: 1, target: 'enemy', icon: 'ice_shard', fx: 'proj_ice', color: '#8fe3ff',
+    ice_shard: { name: 'Ice Shard', rarity: 'common', cost: 3, target: 'enemy', icon: 'ice_shard', fx: 'proj_ice', color: '#8fe3ff',
       p: { dmg: 8 }, desc: p => `Deal ${p.dmg} damage. Chill: its next attack deals half damage.` },
-    poison_arrow: { name: 'Poison Arrow', rarity: 'common', cd: 2, target: 'enemy', icon: 'poison_arrow', fx: 'proj_poison', color: '#8fe05a',
+    poison_arrow: { name: 'Poison Arrow', rarity: 'common', cost: 4, target: 'enemy', icon: 'poison_arrow', fx: 'proj_poison', color: '#8fe05a',
       p: { dmg: 4, poison: 5 }, desc: p => `Deal ${p.dmg} damage and apply ${p.poison} Poison (damage each round, fading by 1).` },
-    volley: { name: 'Volley', rarity: 'common', cd: 2, target: 'allEnemies', icon: 'volley', fx: 'volley', color: '#e9d7a0',
+    volley: { name: 'Volley', rarity: 'common', cost: 4, target: 'allEnemies', icon: 'volley', fx: 'volley', color: '#e9d7a0',
       p: { dmg: 5 }, desc: p => `Deal ${p.dmg} damage to every enemy.` },
-    healing_light: { name: 'Healing Light', rarity: 'common', cd: 2, target: 'ally', icon: 'heal', fx: 'heal', color: '#9dffb0',
+    healing_light: { name: 'Healing Light', rarity: 'common', cost: 4, target: 'ally', icon: 'heal', fx: 'heal', color: '#9dffb0',
       p: { heal: 13 }, desc: p => `Heal an ally ${p.heal} HP. Tap an ally first, or it heals the most hurt.` },
-    blessing: { name: 'Blessing', rarity: 'common', cd: 3, target: 'party', icon: 'blessing', fx: 'bless_party', color: '#ffe9a0',
+    blessing: { name: 'Blessing', rarity: 'common', cost: 5, target: 'party', icon: 'blessing', fx: 'bless_party', color: '#ffe9a0',
       p: { heal: 5, block: 4 }, desc: p => `Every hero heals ${p.heal} and gains ${p.block} block.` },
 
     // ---- rare ----
-    whirlwind: { name: 'Whirlwind', rarity: 'rare', cd: 3, target: 'allEnemies', icon: 'whirlwind', fx: 'whirl', color: '#d0f0ff',
+    whirlwind: { name: 'Whirlwind', rarity: 'rare', cost: 5, target: 'allEnemies', icon: 'whirlwind', fx: 'whirl', color: '#d0f0ff',
       p: { dmg: 9 }, desc: p => `Spin through the enemy line: ${p.dmg} damage to every enemy.` },
-    guardian_oath: { name: "Guardian's Oath", rarity: 'rare', cd: 3, target: 'self', icon: 'taunt', fx: 'taunt', color: '#ffd36b',
+    guardian_oath: { name: "Guardian's Oath", rarity: 'rare', cost: 5, target: 'self', icon: 'taunt', fx: 'taunt', color: '#ffd36b',
       p: { block: 14 }, desc: p => `Gain ${p.block} block. Every enemy attack targets you next round.` },
-    lightning_bolt: { name: 'Lightning Bolt', rarity: 'rare', cd: 2, target: 'enemy', icon: 'lightning', fx: 'lightning', color: '#fff27a',
+    lightning_bolt: { name: 'Lightning Bolt', rarity: 'rare', cost: 4, target: 'enemy', icon: 'lightning', fx: 'lightning', color: '#fff27a',
       p: { dmg: 15, chain: 6 }, desc: p => `Deal ${p.dmg} damage, then ${p.chain} to another enemy.` },
-    sanctuary: { name: 'Sanctuary', rarity: 'rare', cd: 3, target: 'party', icon: 'sanctuary', fx: 'heal_party', color: '#b6ffcf',
+    sanctuary: { name: 'Sanctuary', rarity: 'rare', cost: 5, target: 'party', icon: 'sanctuary', fx: 'heal_party', color: '#b6ffcf',
       p: { heal: 10 }, desc: p => `Heal every hero ${p.heal} HP.` },
-    shadow_strike: { name: 'Shadow Strike', rarity: 'rare', cd: 2, target: 'enemy', icon: 'dagger', fx: 'shadow', color: '#c6a0ff',
+    shadow_strike: { name: 'Shadow Strike', rarity: 'rare', cost: 4, target: 'enemy', icon: 'dagger', fx: 'shadow', color: '#c6a0ff',
       p: { dmg: 10 }, desc: p => `Deal ${p.dmg} damage. Double if the target is Poisoned or Burning.` },
-    battle_cry: { name: 'Battle Cry', rarity: 'rare', cd: 3, target: 'party', icon: 'battle_cry', fx: 'buff_party', color: '#ff9a7a',
+    battle_cry: { name: 'Battle Cry', rarity: 'rare', cost: 5, target: 'party', icon: 'battle_cry', fx: 'buff_party', color: '#ff9a7a',
       p: { str: 3, strT: 2 }, desc: p => `Every hero's attacks and skills deal +${p.str} damage for ${p.strT} rounds.` },
 
     // ---- epic ----
-    frost_nova: { name: 'Frost Nova', rarity: 'epic', cd: 4, target: 'allEnemies', icon: 'frost_nova', fx: 'nova_ice', color: '#a8f0ff',
+    frost_nova: { name: 'Frost Nova', rarity: 'epic', cost: 6, target: 'allEnemies', icon: 'frost_nova', fx: 'nova_ice', color: '#a8f0ff',
       p: { dmg: 6 }, desc: p => `Deal ${p.dmg} to every enemy and Freeze them: they skip their next action. Bosses are Chilled instead.` },
-    meteor: { name: 'Meteor', rarity: 'epic', cd: 4, target: 'allEnemies', icon: 'meteor', fx: 'meteor', color: '#ff6a3d',
+    meteor: { name: 'Meteor', rarity: 'epic', cost: 6, target: 'allEnemies', icon: 'meteor', fx: 'meteor', color: '#ff6a3d',
       p: { dmg: 16, burn: 3, burnT: 2 }, desc: p => `Deal ${p.dmg} to every enemy and Burn ${p.burn} for ${p.burnT} rounds.` },
-    phoenix_feather: { name: 'Phoenix Feather', rarity: 'epic', cd: 4, target: 'ally', icon: 'phoenix', fx: 'revive', color: '#ffb347',
+    phoenix_feather: { name: 'Phoenix Feather', rarity: 'epic', cost: 6, target: 'ally', icon: 'phoenix', fx: 'revive', color: '#ffb347',
       p: { heal: 22 }, desc: p => `Revive a fallen ally at half HP, or heal an ally ${p.heal}.`, allowDowned: true },
-    venom_storm: { name: 'Venom Storm', rarity: 'epic', cd: 3, target: 'allEnemies', icon: 'venom_storm', fx: 'venom', color: '#9cff6b',
+    venom_storm: { name: 'Venom Storm', rarity: 'epic', cost: 5, target: 'allEnemies', icon: 'venom_storm', fx: 'venom', color: '#9cff6b',
       p: { poison: 6 }, desc: p => `Apply ${p.poison} Poison to every enemy.` },
 
     // ---- legendary ----
-    starfall: { name: 'Starfall', rarity: 'legendary', cd: 4, target: 'allEnemies', icon: 'starfall', fx: 'starfall', color: '#fff0a8',
+    starfall: { name: 'Starfall', rarity: 'legendary', cost: 6, target: 'allEnemies', icon: 'starfall', fx: 'starfall', color: '#fff0a8',
       p: { dmg: 7, hits: 3 }, desc: p => `Call down the stars: ${p.dmg} damage to every enemy, 3 times.` },
-    aegis: { name: 'Aegis', rarity: 'legendary', cd: 4, target: 'party', icon: 'aegis', fx: 'aegis', color: '#ffe27a',
+    aegis: { name: 'Aegis', rarity: 'legendary', cost: 6, target: 'party', icon: 'aegis', fx: 'aegis', color: '#ffe27a',
       p: { block: 14, heal: 8 }, desc: p => `Every hero gains ${p.block} block and heals ${p.heal}.` },
-    dragons_wrath: { name: "Dragon's Wrath", rarity: 'legendary', cd: 3, target: 'enemy', icon: 'dragon', fx: 'dragon', color: '#ff5030',
+    dragons_wrath: { name: "Dragon's Wrath", rarity: 'legendary', cost: 5, target: 'enemy', icon: 'dragon', fx: 'dragon', color: '#ff5030',
       p: { dmg: 30, burn: 5, burnT: 2 }, desc: p => `Deal ${p.dmg} damage and Burn ${p.burn} for ${p.burnT} rounds.` }
   };
 
@@ -148,5 +152,5 @@
     boss:     { name: 'Boss' }
   };
 
-  return { RARITY, HEROES, HERO_ORDER, SKILLS, ENEMIES, STATUS_INFO, NODE_TYPES, skillParams, skillDesc, skillName };
+  return { ENERGY, RARITY, HEROES, HERO_ORDER, SKILLS, ENEMIES, STATUS_INFO, NODE_TYPES, skillParams, skillDesc, skillName };
 });

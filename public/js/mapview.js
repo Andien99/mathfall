@@ -1,4 +1,4 @@
-// Parchment dungeon map with team voting.
+// Parchment tower map, climbed from the bottom up, with team voting.
 import { h, clear } from './ui.js';
 import * as SP from './sprites.js';
 
@@ -13,7 +13,9 @@ const ICONS = {
 };
 const LEGEND = [['unknown', 'Unknown'], ['merchant', 'Merchant'], ['treasure', 'Treasure'], ['rest', 'Campfire'], ['enemy', 'Monsters'], ['elite', 'Elite']];
 const NAMES = { enemy: 'Monsters', elite: 'Elite', treasure: 'Treasure', rest: 'Campfire', merchant: 'Merchant', unknown: 'Unknown', boss: 'Boss' };
-const ACTS = { quick: 'The Sunken Halls', standard: 'The Crystal Depths', long: 'The Endless Crypt' };
+const ACTS = { quick: 'The Crumbling Spire', standard: 'The Crystal Tower', long: 'The Endless Tower' };
+const ROW_H = 74;      // pixels between floors
+const PAD_TOP = 92, PAD_BOTTOM = 46;
 
 function svgIcon(type) { return `<svg viewBox="0 0 40 40" aria-hidden="true">${ICONS[type] || ICONS.unknown}</svg>`; }
 
@@ -42,56 +44,73 @@ export class MapView {
     this.root = root; this.onVote = onVote;
     this.el = h('div', { class: 'map-wrap' });
     this.root.appendChild(this.el);
+    this.mapKey = null; this.scrollTop = null; this.lastPos = undefined;
   }
   hide() { this.el.classList.remove('show'); }
   render(state, myId) {
     const run = state.run; if (!run) return;
     const map = run.map;
     this.el.classList.add('show');
+    // keep the reader's scroll position across re-renders of the same map
+    const oldTower = this.el.querySelector('.tower');
+    if (oldTower) this.scrollTop = oldTower.scrollTop;
+    const key = map.nodes.length + ':' + map.nodes[0].id + ':' + (run.asc || 0) + ':' + map.nodes.map(n => n.type[0]).join('');
+    const fresh = key !== this.mapKey;
+    const moved = run.map.pos !== this.lastPos;
+    this.mapKey = key; this.lastPos = run.map.pos;
     clear(this.el);
-    const scroll = h('div', { class: 'scroll' });
+
+    const top = Math.max(...map.nodes.map(n => n.row));
+    const H = PAD_TOP + PAD_BOTTOM + top * ROW_H;
+    const Y = n => PAD_TOP + (top - n.y) * ROW_H;       // floor 0 at the bottom, boss at the top
+    const X = n => 7 + n.x * 86;                          // percent across
+
+    const scroll = h('div', { class: 'scroll tall' });
     scroll.style.backgroundImage = `radial-gradient(ellipse at 50% 50%, rgba(255,250,230,0.35), rgba(120,80,40,0.25) 80%, rgba(80,50,20,0.5)), url(${paperTexture()})`;
-    const rodL = h('div', { class: 'rod l' }), rodR = h('div', { class: 'rod r' });
-    const title = h('div', { class: 'map-title' }, h('h2', null, '– ' + (ACTS[run.length] || ACTS.quick) + ' –'), h('div', { class: 'map-act' }, run.asc ? `Ascension ${run.asc}` : 'Act I'));
-    const field = h('div', { class: 'field' });
+    const floorNow = run.floor || 0;
+    const title = h('div', { class: 'map-title' }, h('h2', null, (ACTS[run.length] || ACTS.quick)),
+      h('div', { class: 'map-act' }, (run.asc ? `Ascension ${run.asc} · ` : '') + (floorNow ? `Floor ${floorNow} of ${top}` : `${top} floors to the top`)));
+    const tower = h('div', { class: 'tower' });
+    const field = h('div', { class: 'field tall', style: { height: H + 'px' } });
+    // faint floor numbers up the left edge
+    for (let r = 0; r < top; r++) field.appendChild(h('span', { class: 'floor-no', style: { top: (PAD_TOP + (top - r) * ROW_H) + 'px' } }, String(r + 1)));
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
-    svg.setAttribute('class', 'paths'); svg.setAttribute('viewBox', '0 0 1000 500'); svg.setAttribute('preserveAspectRatio', 'none');
-    const xs = map.nodes.map(n => n.x);
-    const x0 = Math.min(...xs), x1 = Math.max(...xs);
-    const P = n => [70 + ((n.x - x0) / Math.max(0.01, x1 - x0)) * 860, 40 + n.y * 420];
+    svg.setAttribute('class', 'paths'); svg.setAttribute('viewBox', `0 0 1000 ${H}`); svg.setAttribute('preserveAspectRatio', 'none');
     const byId = Object.fromEntries(map.nodes.map(n => [n.id, n]));
-    const visitedPath = new Set();
-    // the route walked so far, in order of rows
     const visited = map.nodes.filter(n => n.visited).sort((a, b) => a.row - b.row);
-    for (let i = 0; i + 1 < visited.length; i++) visitedPath.add(visited[i].id + '>' + visited[i + 1].id);
+    const walkedSet = new Set();
+    for (let i = 0; i + 1 < visited.length; i++) walkedSet.add(visited[i].id + '>' + visited[i + 1].id);
+    const options = new Set(run.map.options);
     for (const n of map.nodes) for (const id of n.next) {
       const m = byId[id]; if (!m) continue;
-      const [x1, y1] = P(n), [x2, y2] = P(m);
-      const walked = visitedPath.has(n.id + '>' + m.id);
+      const x1 = X(n) * 10, y1 = Y(n), x2 = X(m) * 10, y2 = Y(m);
+      // stop the ink short of each icon
+      const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx / 10 * 6, dy) || 1;
+      const gap = 26 / len, gap2 = (m.type === 'boss' ? 52 : 26) / len;
       const line = document.createElementNS(svgNS, 'path');
-      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 + (Math.sin(x1 + y2) * 14);
-      line.setAttribute('d', `M${x1},${y1} Q${mx},${my} ${x2},${y2}`);
-      line.setAttribute('class', walked ? 'walked' : 'trail');
+      line.setAttribute('d', `M${x1 + dx * gap},${y1 + dy * gap} L${x2 - dx * gap2},${y2 - dy * gap2}`);
+      const live = run.map.pos === n.id && options.has(m.id);
+      line.setAttribute('class', walkedSet.has(n.id + '>' + m.id) ? 'walked' : live ? 'live' : 'trail');
       svg.appendChild(line);
     }
     field.appendChild(svg);
-    const options = new Set(run.map.options);
     const votes = run.map.votes || {};
     const heroes = Object.fromEntries(run.heroes.map(h2 => [h2.id, h2]));
+    let focusY = null;
     for (const n of map.nodes) {
-      const [x, y] = P(n);
+      const x = X(n), y = Y(n);
       const isOpt = options.has(n.id);
       const here = run.map.pos === n.id;
-      const cls = ['node', n.type, isOpt ? 'option' : '', n.visited ? 'visited' : '', here ? 'here' : '', run.map.goNode === n.id ? 'going' : '', votes[myId] === n.id ? 'myvote' : ''].join(' ');
-      const btn = h('button', { class: cls, style: { left: (x / 10) + '%', top: (y / 5) + '%' }, title: NAMES[n.type], 'aria-label': NAMES[n.type] + (isOpt ? ' – vote' : ''), disabled: !isOpt || !!run.map.goNode });
+      const reachable = !n.visited && !isOpt && run.map.pos && !here;
+      const cls = ['node', n.type, isOpt ? 'option' : '', n.visited ? 'visited' : '', here ? 'here' : '', run.map.goNode === n.id ? 'going' : '', votes[myId] === n.id ? 'myvote' : '', n.row < floorNow - 1 && !n.visited ? 'past' : ''].join(' ');
+      const btn = h('button', { class: cls, style: { left: x + '%', top: y + 'px' }, title: NAMES[n.type], 'aria-label': NAMES[n.type] + (isOpt ? ' – vote' : ''), disabled: !isOpt || !!run.map.goNode });
       if (n.type === 'boss') {
         btn.appendChild(h('img', { src: SP.enemyPortraitURL('wyrm', 1), alt: '' }));
         btn.appendChild(h('span', { class: 'boss-label' }, 'Boss'));
       } else btn.innerHTML = svgIcon(n.type);
       if (n.visited && !here) btn.appendChild(h('span', { class: 'cross' }));
-      if (isOpt) btn.addEventListener('click', () => this.onVote(n.id));
-      // voter portraits
+      if (isOpt) { btn.addEventListener('click', () => this.onVote(n.id)); focusY = focusY == null ? y : Math.min(focusY, y); }
       const voters = Object.entries(votes).filter(([, v]) => v === n.id).map(([pid]) => heroes[pid]).filter(Boolean);
       if (voters.length) {
         const vs = h('div', { class: 'voters' });
@@ -101,15 +120,23 @@ export class MapView {
       if (here) btn.appendChild(h('span', { class: 'banner-pin', style: { '--team': state.team.color } }));
       field.appendChild(btn);
     }
+    tower.appendChild(field);
     const legend = h('div', { class: 'legend' }, ...LEGEND.map(([t, label]) => h('div', { class: 'leg', html: svgIcon(t) + `<span>${label}</span>` })));
     const connected = run.heroes.filter(x => x.connected).length;
     const nVotes = Object.keys(votes).length;
-    let msg = 'Tap a glowing room to vote. The team goes where most of you choose.';
+    let msg = 'Tap a glowing room to vote. The team climbs where most of you choose.';
     if (run.map.goNode) msg = `Heading to ${NAMES[byId[run.map.goNode].type] || 'the next room'}…`;
     else if (nVotes) msg = `${nVotes} of ${connected} voted.` + (votes[myId] ? ' Waiting for the rest of your team.' : ' Your vote counts too.');
     this.status = h('div', { class: 'map-status' }, h('span', { class: 'msg' }, msg), h('span', { class: 'count', id: 'voteCount' }));
-    scroll.append(title, field, legend, this.status);
-    this.el.append(h('div', { class: 'scroll-row' }, rodL, scroll, rodR));
+    scroll.append(title, tower, legend, this.status);
+    this.el.append(h('div', { class: 'scroll-col' }, h('div', { class: 'rod t' }), scroll, h('div', { class: 'rod b' })));
+    // Scroll: keep the reader's place, but bring the next choices into view when the team moves.
+    requestAnimationFrame(() => {
+      if (!fresh && !moved && this.scrollTop != null) { tower.scrollTop = this.scrollTop; return; }
+      const target = focusY != null ? focusY : H;
+      tower.scrollTop = Math.max(0, target - tower.clientHeight * 0.62);
+      this.scrollTop = tower.scrollTop;
+    });
     this.deadline = run.map.voteDeadline;
     this.serverSkew = Date.now() - state.now;
   }

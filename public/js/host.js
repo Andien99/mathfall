@@ -134,7 +134,7 @@ function renderSettings() {
   const S = (label, sub, control) => h('div', { class: 'setting' }, h('label', null, label, sub ? h('div', { class: 'sub' }, sub) : null), control);
   const set = (k, v) => { settings[k] = v; store.set('mf_settings', settings); if (session && hs && hs.state !== 'ended') socket.emit('host:settings', { settings: { [k]: v } }); };
   f.append(
-    S('Run length', 'One run is a map ending in a boss. Teams who win start a harder run.', seg(['quick', 'standard', 'long'], ['Quick ~10 min', 'Standard ~20 min', 'Long ~30 min'], settings.length, v => set('length', v))),
+    S('Run length', 'One run is a tower climb ending in a boss. Teams who win start a harder run.', seg(['quick', 'standard', 'long'], ['Quick · 6 floors ~20 min', 'Standard · 9 floors ~30 min', 'Long · 13 floors ~45 min'], settings.length, v => set('length', v))),
     S('Round timer', 'Enemies act when everyone has acted, or when this runs out.', seg([0, 30, 45, 60, 90], ['Off', '30s', '45s', '60s', '90s'], settings.timer, v => set('timer', +v))),
     S('Team size', 'Students are grouped as they join. Balance teams in the lobby.', seg([2, 3, 4, 5], ['2', '3', '4', '5'], settings.teamSize, v => set('teamSize', +v))),
     S('Adaptive support', 'After two wrong in a row, a student gets supported questions until they get two right.', seg([true, false], ['On', 'Off'], settings.adaptive, v => set('adaptive', v === true || v === 'true'))),

@@ -18,8 +18,14 @@ function addStatus(ent, k, v) {
   else if (k === 'str') ent.st.str = { v: (cur ? cur.v : 0) + v.v, t: Math.max(cur ? cur.t : 0, v.t || 99) };
   else ent.st[k] = { t: Math.max(cur ? cur.t : 0, v.t || 1) };
 }
+function gainEnergy(hero, n, ev) {
+  const before = hero.energy || 0;
+  hero.energy = Math.min(C.ENERGY.max, before + n);
+  if (ev) ev.energy = hero.energy - before;
+}
 function snapEnt(e) {
   const o = { hp: e.hp, maxHp: e.maxHp, block: e.block, st: JSON.parse(JSON.stringify(e.st)) };
+  if ('energy' in e) o.energy = e.energy;
   if ('downed' in e) o.downed = e.downed; else o.dead = !!e.dead;
   return o;
 }
@@ -91,15 +97,16 @@ function makeEnemy(c, kind, mult) {
 function createCombat(run, encounterType) {
   const size = Math.max(1, heroList(run).length);
   const partyMult = 0.25 + 0.1875 * size;
-  const floorMult = 1 + 0.08 * Math.max(0, run.floor - 1);
+  const depth = run.depth || run.floor || 1;
+  const floorMult = 1 + 0.08 * Math.max(0, depth - 1);
   const ascMult = 1 + 0.15 * (run.asc || 0);
-  const mult = { hp: partyMult * floorMult * ascMult, dmg: (1 + 0.06 * Math.max(0, run.floor - 1)) * (1 + 0.12 * (run.asc || 0)) };
+  const mult = { hp: partyMult * floorMult * ascMult, dmg: (1 + 0.06 * Math.max(0, depth - 1)) * (1 + 0.12 * (run.asc || 0)) };
   const c = { enemies: [], round: 0, phase: 'player', roundEndsAt: 0, phaseEndsAt: 0, nextId: 0, type: encounterType, mult, events: 0 };
   const kinds = pick(ENCOUNTERS[encounterType] || ENCOUNTERS.normal1);
   for (const k of kinds) c.enemies.push(makeEnemy(c, k, mult));
   for (const h of heroList(run)) {
     h.block = 0; h.st = {}; h.acted = false; h.readyAction = null; h.focus = h.focus || 0;
-    h.skills.forEach(s => { s.cd = 0; });
+    h.energy = C.ENERGY.start;
   }
   return c;
 }
@@ -175,7 +182,6 @@ function beginRound(run, now, timerSec) {
   for (const h of heroList(run)) {
     h.block = 0;
     h.acted = false;
-    if (c.round > 1) h.skills.forEach(s => { if (s.cd > 0) s.cd--; });
   }
   planIntents(run);
 }
@@ -230,17 +236,19 @@ function heroAction(run, hero, action, targetId, out) {
       if (a) { const r = healHero(hero, a, H.attack.heal * focusMult); if (r.heal) { ev.targets.push(r); touched.add(a.id); } }
     }
     hero.focus = 0; ev.focus = usedFocus;
+    gainEnergy(hero, C.ENERGY.attack, ev);
   } else if (action === 'defend') {
     const t = (targetId && run.heroes[targetId] && !run.heroes[targetId].downed) ? run.heroes[targetId] : hero;
     ev.fx = 'defend'; ev.name = H.defend.name;
     ev.targets.push(blockHero(t, H.defend.block)); touched.add(t.id);
     if (t !== hero) ev.guard = t.id;
+    gainEnergy(hero, C.ENERGY.defend, ev);
   } else if (action === 'skill0' || action === 'skill1') {
     const slot = action === 'skill0' ? 0 : 1;
     const sk = hero.skills[slot];
     if (!sk) return { ok: false, msg: 'No skill in that slot.' };
-    if (sk.cd > 0) return { ok: false, msg: `${C.skillName(sk.id, sk.lvl)} is recharging (${sk.cd}).` };
     const def = C.SKILLS[sk.id];
+    if ((hero.energy || 0) < def.cost) return { ok: false, msg: `${C.skillName(sk.id, sk.lvl)} needs ${def.cost} energy (you have ${hero.energy || 0}).` };
     const p = C.skillParams(sk.id, sk.lvl);
     const m = focusMult;
     ev.skill = sk.id; ev.name = C.skillName(sk.id, sk.lvl); ev.fx = def.fx; ev.rarity = def.rarity;
@@ -284,7 +292,7 @@ function heroAction(run, hero, action, targetId, out) {
       case 'dragons_wrath': { const e = pickEnemy(); hero.lastTarget = e.id; const r = hitEnemy(hero, e, p.dmg * m); if (!e.dead) { addStatus(e, 'burn', { v: Math.round(p.burn * m), t: p.burnT }); r.status = ['burn']; } ev.targets.push(r); touched.add(e.id); break; }
       default: return { ok: false, msg: 'Unknown skill.' };
     }
-    sk.cd = def.cd;
+    hero.energy -= def.cost; ev.energy = -def.cost;
     hero.focus = 0; ev.focus = usedFocus;
     if (hero.stats) hero.stats.skills++;
   } else return { ok: false, msg: 'Unknown action.' };

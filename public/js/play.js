@@ -4,7 +4,6 @@ import { BattleScene } from './scene.js';
 import { MapView } from './mapview.js';
 import { QuestionPanel } from './question.js';
 import * as SP from './sprites.js';
-SP.loadArtOverrides().then(n => { if (n) console.info(`Mathfall: loaded ${n} hand-made sprite frames`); });
 import { sfx, setSound, soundOn, unlockAudio } from './audio.js';
 
 const C = window.MF_Content;
@@ -173,7 +172,8 @@ function renderLobby() {
         h('div', { class: 'art' }, h('img', { src: SP.heroFullURL(cls, 0, 'idle0', 3), alt: '', 'data-cls': cls })),
         h('h3', null, H.name), h('div', { class: 'role' }, H.role + ' · ' + H.hp + ' HP'),
         h('p', { class: 'blurb' }, H.blurb),
-        h('div', { class: 'sk' }, ...H.skills.flatMap(id => [h('img', { src: SP.iconURL(C.SKILLS[id].icon, 2), alt: '' }), h('div', null, h('b', null, C.SKILLS[id].name), C.skillDesc(id, 1))])),
+        h('div', { class: 'sk' }, ...H.skills.flatMap(id => [h('img', { src: SP.iconURL(C.SKILLS[id].icon, 2), alt: '' }), h('div', null, h('b', null, C.SKILLS[id].name, h('span', { class: 'skcost' }, C.SKILLS[id].cost + ' energy')), C.skillDesc(id, 1))])),
+        h('div', { class: 'entip' }, `Attack or Defend to charge energy (+${C.ENERGY.attack} each). Skills spend it.`),
         taken[cls] ? h('span', { class: 'taken' }, taken[cls].join(', ')) : null);
       box.appendChild(card);
     }
@@ -242,6 +242,7 @@ function renderParty(fromScene) {
       h('div', { class: 'hpbar' }, h('i', { class: pct < 30 ? 'lo' : '', style: { width: pct + '%' } })),
       h('div', { class: 'hpline' }, h('span', null, `${hp}/${maxHp}`), block ? h('span', { class: 'blk' }, `🛡 ${block}`) : h('span')),
       h('div', { class: 'stt' }, ...Object.entries(st).map(([k, v]) => h('span', { style: { '--c': (C.STATUS_INFO[k] || {}).color || '#fff' }, title: (C.STATUS_INFO[k] || {}).desc }, (C.STATUS_INFO[k] || { name: k }).name + (v.v ? ' ' + v.v : v.t > 1 ? ' ' + v.t : '')))),
+      run.phase === 'combat' ? h('div', { class: 'enline', title: 'Energy' }, h('i', { style: { width: (100 * (hdat.energy || 0) / C.ENERGY.max) + '%' } })) : null,
       hdat.focus ? h('div', { class: 'focus' }, '✦'.repeat(hdat.focus) + '✧'.repeat(3 - hdat.focus)) : null,
       stLabel);
     box.appendChild(card);
@@ -251,11 +252,11 @@ function renderParty(fromScene) {
 const ACTION_KEYS = ['attack', 'defend', 'skill0', 'skill1'];
 function actionInfo(hero, action) {
   const H = C.HEROES[hero.cls];
-  if (action === 'attack') return { name: H.attack.name, desc: H.attack.desc, icon: 'attack', color: '#ffb08a', cls: 'attack' };
-  if (action === 'defend') return { name: H.defend.name, desc: H.defend.desc.replace(/ Tap an ally.*$/, ''), icon: 'defend', color: '#a8d0ff', cls: 'defend' };
+  if (action === 'attack') return { name: H.attack.name, desc: H.attack.desc, icon: 'attack', color: '#ffb08a', cls: 'attack', gain: C.ENERGY.attack };
+  if (action === 'defend') return { name: H.defend.name, desc: H.defend.desc.replace(/ Tap an ally.*$/, ''), icon: 'defend', color: '#a8d0ff', cls: 'defend', gain: C.ENERGY.defend };
   const sk = hero.skills[action === 'skill0' ? 0 : 1];
   const def = C.SKILLS[sk.id];
-  return { name: C.skillName(sk.id, sk.lvl), desc: C.skillDesc(sk.id, sk.lvl), icon: def.icon, color: def.color, cls: 'rarity-' + def.rarity, cd: sk.cd, target: def.target, rarity: def.rarity };
+  return { name: C.skillName(sk.id, sk.lvl), desc: C.skillDesc(sk.id, sk.lvl), icon: def.icon, color: def.color, cls: 'rarity-' + def.rarity, cost: def.cost, target: def.target, rarity: def.rarity };
 }
 function metaFor(intent) {
   const hero = myHero();
@@ -294,6 +295,7 @@ function renderActions() {
   const over = phase === 'won' || phase === 'lost';
   const head = h('div', { class: 'am-head' }, h('img', { src: SP.portraitURL(hero.cls, hero.variant, 'determined', 2), alt: '' }), h('div', null, h('div', null, hero.name), h('div', { class: 'hint' },
     over ? 'Battle over' : hero.downed ? 'You are knocked out' : hero.acted ? 'Done for this round' : hero.ready ? 'Your action fires next round' : enemyTurn ? 'Enemies are acting. Plan your next move.' : 'Choose an action')));
+  head.appendChild(energyMeter(hero.energy || 0));
   const list = h('div', { class: 'am-list' });
   if (hero.downed) {
     list.appendChild(h('button', { class: 'act rise', disabled: over, onclick: () => act('rise') }, h('img', { src: SP.iconURL('rise', 2), alt: '' }), h('div', null, h('div', { class: 'an' }, 'Get back up'), h('div', { class: 'ad' }, 'Answer a question to return with 30% health.')), h('span', { class: 'ak' }, '1')));
@@ -304,17 +306,26 @@ function renderActions() {
   } else {
     ACTION_KEYS.forEach((k, i) => {
       const info = actionInfo(hero, k);
-      const cd = info.cd || 0;
+      const short = info.cost ? Math.max(0, info.cost - (hero.energy || 0)) : 0;
       const allyNote = (k === 'defend' || info.target === 'ally') && scene.allyTarget ? ' → ' + (run.heroes.find(x => x.id === scene.allyTarget) || {}).name : '';
-      list.appendChild(h('button', { class: 'act ' + info.cls, disabled: over || cd > 0, onclick: () => act(k), title: info.desc },
+      list.appendChild(h('button', { class: 'act ' + info.cls + (short ? ' low' : ''), disabled: over || short > 0, onclick: () => act(k), title: info.desc },
         h('img', { src: SP.iconURL(info.icon, 2), alt: '' }),
         h('div', null, h('div', { class: 'an' }, info.name + allyNote), h('div', { class: 'ad' }, info.desc)),
-        cd > 0 ? h('span', { class: 'cdv' }, `Ready in ${cd}`) : h('span', { class: 'ak' }, String(i + 1))));
+        info.cost ? h('span', { class: 'cost' + (short ? ' short' : ''), title: short ? `Need ${short} more energy` : `Costs ${info.cost} energy` }, h('b', null, info.cost), h('small', null, 'energy'))
+          : h('span', { class: 'gain', title: `Charges ${info.gain} energy` }, h('b', null, '+' + info.gain), h('small', null, 'energy'))));
     });
     if (hero.focus) list.appendChild(h('div', { class: 'am-tip' }, `Focus ${'✦'.repeat(hero.focus)}: your next attack or skill is ${Math.round(30 * hero.focus)}% stronger.`));
     else list.appendChild(h('div', { class: 'am-tip' }, 'Tap an enemy to target it. Tap a teammate to guard or heal them.'));
   }
   box.append(head, list);
+}
+
+function energyMeter(n) {
+  const max = C.ENERGY.max;
+  return h('div', { class: 'energy', title: `Energy ${n}/${max}. Attack and Defend charge it; skills spend it.` },
+    h('span', { class: 'en-label' }, 'Energy'),
+    h('div', { class: 'en-cells' }, ...Array.from({ length: max }, (_, i) => h('i', { class: i < n ? 'on' : '' }))),
+    h('b', null, `${n}/${max}`));
 }
 
 function act(action) {
@@ -403,7 +414,7 @@ function skillCard(id, lvl, extra) {
     h('div', { class: 'rar' }, C.RARITY[def.rarity].name + (extra && extra.label ? ' · ' + extra.label : '')),
     h('h4', null, C.skillName(id, lvl)),
     h('p', null, C.skillDesc(id, lvl)),
-    h('div', { class: 'cd' }, `Recharge: ${def.cd} round${def.cd > 1 ? 's' : ''}`),
+    h('div', { class: 'cd' }, `Costs ${def.cost} energy`),
     extra && extra.button ? extra.button : null);
 }
 function roomOp(op, data, cb) { socket.emit('room', { op, ...(data || {}) }, r => { if (!r.ok && r.msg) toast(r.msg); cb && cb(r); }); }
@@ -432,7 +443,7 @@ function renderRoom() {
   } else if (room.type === 'complete') {
     panel.append(h('p', { class: 'result-big' }, 'Gravemaw falls!'), h('p', { class: 'lead' }, `Your team conquered the dungeon. +${room.gold} gold each.`),
       h('p', { class: 'lead' }, `Ready for Ascension ${room.asc + 1}? Enemies are tougher and hit harder.`),
-      h('div', { class: 'center' }, h('button', { class: 'btn primary', disabled: ready, onclick: () => roomOp('ready') }, ready ? 'Waiting for team…' : 'Descend deeper')), readyLine(room));
+      h('div', { class: 'center' }, h('button', { class: 'btn primary', disabled: ready, onclick: () => roomOp('ready') }, ready ? 'Waiting for team…' : 'Climb higher')), readyLine(room));
   } else if (room.type === 'treasure') {
     const ch = you.chest;
     const rc = ch ? C.RARITY[ch.rarity].color : '#fff';
