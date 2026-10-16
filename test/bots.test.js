@@ -1,5 +1,7 @@
 // End-to-end server test: a teacher and N bot students play full runs over real sockets.
 // Run: node test/bots.test.js [players] [teams-size]
+// Stress test: STRESS=1 node test/bots.test.js 24 reports reply times, bytes sent to each device and server CPU/memory.
+// REAL=1 also uses real game speed and bots that think 4-12 s before answering, like a class.
 const { spawn } = require('child_process');
 const path = require('path');
 const { io } = require('socket.io-client');
@@ -10,12 +12,29 @@ const PORT = 3900 + Math.floor(Math.random() * 90);
 const URL = `http://localhost:${PORT}`;
 const LIMIT_MS = +(process.env.LIMIT || 300000);
 
-const srv = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], { env: { ...process.env, PORT, MATHFALL_TEST: '1', MATHFALL_FAST: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
+const STRESS = process.env.STRESS === '1', REAL = process.env.REAL === '1';
+const srv = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], { env: { ...process.env, PORT, MATHFALL_TEST: '1', MATHFALL_FAST: REAL ? '0' : '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
+// ---- stress measurements
+const M = { lat: {}, bytesStudent: 0, msgsStudent: 0, bytesHost: 0, cpu: [], rss: [], biggestState: 0 };
+const fs = require('fs');
+let lastCpu = null;
+const sampler = STRESS ? setInterval(() => {
+  try {
+    const f = fs.readFileSync(`/proc/${srv.pid}/stat`, 'utf8').split(') ')[1].split(' ');
+    const ticks = +f[11] + +f[12], t = Date.now();
+    if (lastCpu) M.cpu.push((ticks - lastCpu.ticks) / 100 / ((t - lastCpu.t) / 1000));
+    lastCpu = { ticks, t };
+    const rss = /VmRSS:\s+(\d+)/.exec(fs.readFileSync(`/proc/${srv.pid}/status`, 'utf8'));
+    if (rss) M.rss.push(+rss[1] / 1024);
+  } catch (e) { /* server gone */ }
+}, 1000) : null;
+const pct = (a, p) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(s.length * p))]; };
+const think = () => REAL ? sleep(4000 + Math.random() * 8000) : Promise.resolve();
 let srvErr = '';
 srv.stderr.on('data', d => { srvErr += d; process.stderr.write('[server] ' + d); });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Resolve after 5 s even if a reply never comes (a socket closed mid-call during the reconnect test).
-const emit = (s, ev, data) => new Promise(r => { const t = setTimeout(() => r({ ok: false, timeout: true }), 5000); s.emit(ev, data, x => { clearTimeout(t); r(x); }); });
+const emit = (s, ev, data) => new Promise(r => { const t0 = Date.now(); const t = setTimeout(() => { (M.lat[ev] = M.lat[ev] || []).push(5000); r({ ok: false, timeout: true }); }, 5000); s.emit(ev, data, x => { clearTimeout(t); (M.lat[ev] = M.lat[ev] || []).push(Date.now() - t0); r(x); }); });
 
 const stats = { answered: 0, wrong: 0, actions: 0, fights: 0, rooms: {}, completes: 0, defeats: 0, swaps: 0, whiffs: 0, free: 0, qte: 0, qteOk: 0, events: {}, statPicks: 0, raid: null, errors: [] };
 const RAID_AT = +(process.env.RAID_AT || 45000);
@@ -24,11 +43,11 @@ async function main() {
   await new Promise(r => srv.stdout.on('data', d => { if (String(d).includes('running')) r(); }));
   const host = io(URL, { transports: ['websocket'] });
   await new Promise(r => host.on('connect', r));
-  const created = await emit(host, 'host:create', { settings: { length: 'quick', timer: 6, wrongPause: 0.1, teamSize: 4, raidMinutes: 2 }, questions: { bankIds: ['year-7-algebra-core-skills'], gens: [{ topic: 'integers', level: 2 }], format: 'mix' } });
+  const created = await emit(host, 'host:create', { settings: REAL ? { length: 'quick', timer: 60, wrongPause: 1.5, teamSize: 4, raidMinutes: 3 } : { length: 'quick', timer: 6, wrongPause: 0.1, teamSize: 4, raidMinutes: 2 }, questions: { bankIds: ['year-7-algebra-core-skills'], gens: [{ topic: 'integers', level: 2 }], format: 'mix' } });
   if (!created.ok) throw new Error('create failed ' + created.msg);
   const code = created.code;
   let hostState = null;
-  host.on('host:state', s => { hostState = s; });
+  host.on('host:state', s => { hostState = s; if (STRESS) M.bytesHost += JSON.stringify(s).length; });
 
   const bots = [];
   const classes = ['knight', 'mage', 'ranger', 'cleric'];
@@ -40,7 +59,10 @@ async function main() {
     if (!j.ok) throw new Error('join failed ' + j.msg);
     bot.id = j.playerId; bot.token = j.token;
     await emit(s, 'pickHero', { cls: classes[i % 4] });
-    s.on('state', st => { bot.state = st; for (const ev of st.events || []) if (ev.kind === 'system' && ev.battle) stats.fights++; });
+    s.on('state', st => {
+      if (STRESS) { const n = JSON.stringify(st).length; M.bytesStudent += n; M.msgsStudent++; if (n > M.biggestState) M.biggestState = n; }   // as sent
+      if (st.run && !st.run.map && bot.state && bot.state.run) st.run.map = bot.state.run.map;   // the server skips an unchanged map
+      bot.state = st; for (const ev of st.events || []) if (ev.kind === 'system' && ev.battle) stats.fights++; });
     s.on('qclose', () => { bot.q = null; });
     s.on('ended', () => { bot.ended = true; });
     bots.push(bot);
@@ -58,7 +80,7 @@ async function main() {
     const s = io(URL, { transports: ['websocket'] });
     await new Promise(r => s.on('connect', r));
     b.s = s; b.q = null;
-    s.on('state', st => { b.state = st; });
+    s.on('state', st => { if (st.run && !st.run.map && b.state && b.state.run) st.run.map = b.state.run.map; b.state = st; });
     s.on('qclose', () => { b.q = null; });
     s.on('ended', () => { b.ended = true; });
     const j = await emit(s, 'join', { code, token: b.token });
@@ -81,6 +103,16 @@ async function main() {
     const me = r && r.heroes.find(h => h.id === b.id);
     console.log('UNFINISHED', b.name, r && r.phase, r && r.room && r.room.type, r && r.combat && r.combat.phase, r && r.combat && r.combat.round, me && JSON.stringify({ acted: me.acted, ready: me.ready, downed: me.downed, busy: me.busy }), 'floor', r && r.floor, 'opts', r && r.map.options, 'votes', r && JSON.stringify(r.map.votes), 'goNode', r && r.map.goNode);
   }
+  if (STRESS) {
+    const secs = (Date.now() - t0) / 1000;
+    const lat = Object.fromEntries(Object.entries(M.lat).filter(([, a]) => a.length >= 5).map(([k, a]) => [k, { n: a.length, p50: pct(a, 0.5), p95: pct(a, 0.95), max: Math.max(...a) }]));
+    console.log('STRESS ' + JSON.stringify({ players: PLAYERS, mode: REAL ? 'real speed, 4-12 s thinking' : 'fast, instant answers', seconds: Math.round(secs),
+      cpuCoreAvg: +(M.cpu.reduce((a, b) => a + b, 0) / Math.max(1, M.cpu.length)).toFixed(3), cpuCoreP95: +pct(M.cpu, 0.95).toFixed(3), cpuCoreMax: +Math.max(0, ...M.cpu).toFixed(3),
+      rssStartMB: Math.round(M.rss[0] || 0), rssMaxMB: Math.round(Math.max(0, ...M.rss)), rssEndMB: Math.round(M.rss[M.rss.length - 1] || 0),
+      perStudentKBps: +(M.bytesStudent / PLAYERS / secs / 1024).toFixed(2), classKBps: +(M.bytesStudent / secs / 1024).toFixed(1), hostKBps: +(M.bytesHost / secs / 1024).toFixed(1),
+      statesPerStudentPerSec: +(M.msgsStudent / PLAYERS / secs).toFixed(2), biggestStateKB: +(M.biggestState / 1024).toFixed(1), latencyMs: lat }, null, 1));
+    clearInterval(sampler);
+  }
   const res = await emit(host, 'host:end', {});
   await sleep(400);
   const r = hostState && hostState.results;
@@ -97,6 +129,7 @@ async function main() {
 }
 
 async function answer(b, q) {
+  await think();
   const wrong = Math.random() < 0.2;
   let value = q._answer;
   if (wrong) value = q.type === 'mc' ? (q._answer + 1) % q.options.length : 'zzz';

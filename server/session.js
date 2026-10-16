@@ -646,9 +646,16 @@ class Session {
     if (!team) return;
     const pub = this.teamPublic(team);
     const events = team.run ? team.run.outbox.splice(0) : [];
+    // The tower map is over half of every update but rarely changes: send it only when it has changed since this
+    // device last got it (a device that joins or reconnects gets it again). The client keeps its last copy.
+    let mapKey = null, lean = null;
+    if (pub.run && pub.run.map) { mapKey = JSON.stringify(pub.run.map); const { map, ...rest } = pub.run; lean = { ...pub, run: rest }; }
     for (const id of team.members) {
       const p = this.players.get(id);
-      if (p && p.socket && p.connected) p.socket.emit('state', { ...pub, you: this.youFor(team, p), events });
+      if (!p || !p.socket || !p.connected) continue;
+      const fresh = !mapKey || p.mapSent !== mapKey || p.mapSock !== p.socket.id;
+      if (mapKey && fresh) { p.mapSent = mapKey; p.mapSock = p.socket.id; }
+      p.socket.emit('state', { ...(fresh ? pub : lean), you: this.youFor(team, p), events });
     }
     for (const [sid, tid] of this.watchers) {
       if (tid !== team.id) continue;

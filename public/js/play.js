@@ -161,6 +161,8 @@ function showScreen(name) {
 
 // ------------------------------------------------------------------ state
 function onState(st) {
+  // the server leaves the tower map out when it hasn't changed: keep the copy we have
+  if (st.run && st.run.map === undefined && state && state.run && state.run.map) st.run.map = state.run.map;
   skew = Date.now() - st.now;
   const prev = state; state = st;
   if (!prev && st.you && st.you.gender) pendingGender = st.you.gender;   // rejoin keeps the server's look
