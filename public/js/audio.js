@@ -41,6 +41,7 @@ const SFX = {
   heavy: () => { noise(0.25, { freq: 1600, q: 0.7, vol: 0.45, slide: 0.3 }); tone(140, 0.2, { type: 'sawtooth', vol: 0.12, slide: 0.5 }); },
   whirl: () => { noise(0.45, { freq: 900, q: 2, vol: 0.3, slide: 3 }); },
   hit: () => { noise(0.08, { freq: 900, q: 1, vol: 0.4, type: 'lowpass' }); tone(110, 0.1, { type: 'sine', vol: 0.3, slide: 0.5 }); },
+  stomp: () => { noise(0.12, { freq: 260, q: 0.7, vol: 0.4, type: 'lowpass' }); tone(55, 0.14, { type: 'sine', vol: 0.35, slide: 0.6 }); },   // hooves, earth spikes
   hitBig: () => { noise(0.18, { freq: 700, q: 0.8, vol: 0.55, type: 'lowpass' }); tone(80, 0.22, { type: 'sine', vol: 0.45, slide: 0.45 }); },
   hurt: () => { tone(220, 0.14, { type: 'square', vol: 0.08, slide: 0.6 }); noise(0.1, { freq: 600, vol: 0.3, type: 'lowpass' }); },
   block: () => { tone(880, 0.18, { type: 'triangle', vol: 0.18, slide: 0.98 }); tone(1320, 0.12, { type: 'sine', vol: 0.08 }); },

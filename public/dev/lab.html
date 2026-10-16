@@ -35,6 +35,8 @@ body.bare #wrap { grid-template-columns:1fr; } body.bare #side { display:none; }
   <h2>Other skills (from treasure)</h2><div class="moves" id="extra"></div>
   <h2>Enemy</h2><select id="enemy"></select>
   <div class="row" style="margin-top:6px"><button id="enemyHit">Enemy attacks you</button></div>
+  <h2>Enemy moves</h2><div class="moves" id="emoves"></div>
+  <h2>Party</h2><div class="row" id="party"></div>
   <h2>Speed</h2><div class="row" id="speed"></div>
   <label><input type="checkbox" id="loop" checked> Replay automatically</label>
   <button class="big" id="play">▶ Play again</button>
@@ -47,12 +49,13 @@ const $ = s => document.querySelector(s);
 const cv = $('#cv');
 const scene = new BattleScene(cv, { myId: 'h1' });
 window.scene = scene;
-const S = { cls: 'knight', gender: 'f', variant: 0, move: 'attack', enemy: 'goblin', speed: 1, loop: true };
+const S = { cls: 'knight', gender: 'f', variant: 0, move: 'attack', enemy: 'goblin', speed: 1, loop: true, party: 2 };
 try { Object.assign(S, JSON.parse(localStorage.getItem('mf_lab') || '{}')); } catch (e) {}
 // address-bar overrides, e.g. /dev/lab.html?cls=mage&gender=f&move=fireball&enemy=slime&speed=0.5&loop=0
 const QP = new URLSearchParams(location.search);
 for (const k of ['cls', 'gender', 'move', 'enemy']) if (QP.get(k)) S[k] = QP.get(k);
 if (QP.get('variant')) S.variant = +QP.get('variant');
+if (QP.get('party')) S.party = +QP.get('party');
 if (QP.get('speed')) S.speed = +QP.get('speed');
 if (QP.get('loop')) S.loop = QP.get('loop') !== '0';
 if (QP.get('bare')) document.body.classList.add('bare');
@@ -67,9 +70,10 @@ function run() {
   const ek = S.enemy, ed = C.ENEMIES[ek] || {};
   const hero = { id: 'h1', name: 'You', cls: S.cls, skin: S.cls + ':' + S.gender, variant: S.variant, hp: H[S.cls].hp, maxHp: H[S.cls].hp, block: 0, st: {}, skills: [], focus: 0, downed: false, connected: true };
   const ally = { id: 'h2', name: 'Ally', cls: S.cls === 'knight' ? 'cleric' : 'knight', skin: (S.cls === 'knight' ? 'cleric' : 'knight') + ':m', variant: 1, hp: 20, maxHp: 44, block: 0, st: {}, skills: [], focus: 0, downed: false, connected: true };
+  const more = S.party >= 4 ? ['mage:f', 'ranger:m'].map((sk, i) => ({ id: 'h' + (3 + i), name: ['Mia', 'Leo'][i], cls: sk.split(':')[0], skin: sk, variant: 2, hp: 30, maxHp: 34, block: 0, st: {}, skills: [], focus: 0, downed: false, connected: true })) : [];
   const enemies = [{ id: 'e1', kind: ek, name: ed.name || ek, size: ed.size || 'm', tier: ed.size === 'xl' ? 'boss' : 'normal', hp: 90, maxHp: 100, block: 0, st: {}, intent: { type: 'attack', dmg: 6, target: 'h1' } }];
   if (ed.size !== 'xl') enemies.push({ id: 'e2', kind: 'slime', name: 'Mire Slime', size: 's', hp: 20, maxHp: 24, block: 0, st: {}, intent: { type: 'block', block: 5 } });
-  return { heroes: [hero, ally], combat: { enemies } };
+  return { heroes: [hero, ally, ...more], combat: { enemies } };
 }
 let state = null;
 function reset() { state = run(); scene.actors.clear(); scene.sync(state, { force: true }); scene.layout && scene.layout(); scene.target = 'e1'; }
@@ -88,6 +92,12 @@ function eventFor(move) {
   else if (def.target === 'ally') ev.targets = [{ id: 'h2', heal: 12, revived: def.fx === 'revive' }];
   else ev.targets = ['h1', 'h2'].map(id => (['heal_party', 'bless_party'].includes(def.fx) ? { id, heal: 6, block: def.fx === 'bless_party' ? 4 : 0 } : def.fx === 'buff_party' ? { id, status: ['strength'] } : { id, block: 7 }));
   return ev;
+}
+// the enemy's signature moves (by the move name the server sends), hitting every hero
+const ENEMY_MOVES = { minotaur: [['breath', 'Ground Slam'], ['tailstorm', 'Stampede'], ['tailstorm', 'Stampede (everyone dodges)', true]] };
+function enemyMoveEvent(act, label, dodged) {
+  const after = {}; for (const h of state.heroes) after[h.id] = { ...h };
+  return { kind: 'enemy', actor: 'e1', type: 'attackAll', act, name: label, targets: state.heroes.map(h => dodged ? { id: h.id, dmg: 0, dodged: true } : { id: h.id, dmg: 7, blocked: 0 }), after };
 }
 function enemyEvent() {
   const after = { h1: { ...state.heroes[0] } };
@@ -129,14 +139,23 @@ function render() {
   const ex = $('#extra'); ex.innerHTML = '';
   for (const [id, d] of Object.entries(C.SKILLS)) if (!C.HEROES[S.cls].skills.includes(id) && d.fx) moveBtn(ex, id, d.name, d.rarity);
   $('#loop').checked = S.loop;
+  btns($('#party'), [[2, '2 heroes'], [4, 'Full party (4)']], 'party', play);
+  const em = $('#emoves'); em.innerHTML = '';
+  for (const [act, label, dodged] of ENEMY_MOVES[S.enemy] || []) {
+    const b = document.createElement('button'); b.className = 'move'; b.innerHTML = `<span>${label}</span><small>${act}</small>`;
+    b.onclick = () => { reset(); play(enemyMoveEvent(act, label, dodged)); }; em.appendChild(b);
+  }
+  if (!em.children.length) em.innerHTML = '<small style="color:var(--muted)">No special moves for this enemy yet.</small>';
 }
 const sel = $('#enemy');
 for (const k of ENEMIES) { const o = document.createElement('option'); o.value = k; o.textContent = (C.ENEMIES[k] || {}).name || k; sel.appendChild(o); }
-sel.value = S.enemy; sel.onchange = () => { S.enemy = sel.value; save(); play(); };
+sel.value = S.enemy; sel.onchange = () => { S.enemy = sel.value; save(); render(); play(); };
 $('#loop').onchange = e => { S.loop = e.target.checked; save(); if (S.loop) play(lastEv); else clearTimeout(timer); };
 $('#play').onclick = () => play();
 $('#enemyHit').onclick = () => { reset(); play(enemyEvent()); };
 scene.slowmo = S.speed;
 fit(); addEventListener('resize', fit);
-render(); reset(); setTimeout(() => play(), 900);
+render(); reset();
+// ?emove=breath (or tailstorm, &dodge=1) plays that enemy move instead of a hero move
+setTimeout(() => { const em = QP.get('emove'); if (em) { reset(); play(enemyMoveEvent(em, em, QP.get('dodge') === '1')); } else play(); }, 900);
 </script></body></html>

@@ -705,6 +705,7 @@ function derivedFrame(d, poseName, white) {
   if (white) { x.globalAlpha = 1; x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); }
   return c;
 }
+export function enemySeqLen(kind, name) { const d = ENEMY_DEF[kind]; return (d && d.seqs && d.seqs[name]) || 0; }
 export function enemyInfo(kind) { const d = ENEMY_DEF[kind] || ENEMY_DEF.slime; return { w: d.w, h: d.h, ax: d.ax, ay: d.ay }; }
 
 // ------------------------------------------------------------------ chests
@@ -832,6 +833,7 @@ async function loadArtOverrides() {
     const def = ENEMY_DEF[kind]; if (!def) continue;
     const [fw, fh] = d.frame || [def.w, def.h];
     if (d.anchor) { def.w = fw; def.h = fh; def.ax = d.anchor[0]; def.ay = d.anchor[1]; }   // PixelLab art brings its own frame size
+    if (d.seqs) def.seqs = d.seqs;   // hand-animated move sequences (e.g. the minotaur's slam0..6, run0..7)
     for (const [pose, [c, r]] of Object.entries(d.poses || {})) {
       const fr = crop(im, fw, fh, c, r);
       cache.set(`e:${kind}:${pose}:0`, fr); cache.set(`e:${kind}:${pose}:1`, white(fr)); n++;

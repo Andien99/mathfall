@@ -12,6 +12,8 @@ const easeIn = t => t * t * t;
 const now = () => performance.now();
 
 const STATUS_COL = { burn: '#ff8a3c', poison: '#8fe05a', weak: '#c7a2ff', vuln: '#ff6b8a', chill: '#8fe3ff', freeze: '#dff8ff', str: '#ff9a7a', taunt: '#ffd36b' };
+// the Minotaur's Ground Slam: PixelLab earth spikes that burst out of the floor (public/art/fx)
+const SPIKES = [0, 1, 2].map(i => { const im = new Image(); im.src = '/art/fx/earth_spike_' + i + '.png'; return im; });
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt' };
 
 export class BattleScene {
@@ -36,6 +38,7 @@ export class BattleScene {
     this.onAfter = opts.onAfter || (() => {});
     this.shake = 0; this.shakeT = 0;
     this.trails = []; this.cam = null; this.stars = []; this.rings = []; this.ribbons = []; this.auras = [];
+    this.cracks = []; this.spikes = []; this.ghosts = [];
     this.slowmo = 1;   // <1 plays everything in slow motion (used by the /dev/lab.html animation lab)
     this.freezeUntil = 0;
     this.flash = 0;
@@ -698,6 +701,8 @@ export class BattleScene {
       if (!hits.length) this._applyAfter(ev);
       return T(Math.max(ev.dur || 1100, 900 + (hits.length - 1) * 200));
     }
+    if (type === 'attackAll' && E.kind === 'minotaur' && ev.act === 'breath' && SP.enemySeqLen('minotaur', 'slam')) return this._minoSlam(E, ev, T);
+    if (type === 'attackAll' && E.kind === 'minotaur' && ev.act === 'tailstorm' && SP.enemySeqLen('minotaur', 'run')) return this._minoCharge(E, ev, T);
     if (type === 'attackAll') {
       const big = E.kind === 'wyrm' || E.kind === 'minotaur' || E.kind === 'voidmaw';
       this.pose(E, big ? 'roar' : 'windup', T(500));
@@ -766,9 +771,148 @@ export class BattleScene {
   }
 
   // ------------------------------------------------------------ effect helpers
-  move(a, dx, dy, ms, absolute) {
+  // ---- The Minotaur's hand-animated attacks ------------------------------------------------------------
+  // a hero takes one of his blows: numbers, flash, knock-back (a small hop up), sparks; or dodges (quick-time)
+  _minoHit(h, ev, E, opts = {}) {
+    const p = this.pos(h.id); if (!p) return;
+    if (h.dodged) { this.number(p.x, p.y - 46, 'Dodged!', '#9fffe0', 1.1, true); this.arc(p.x - 12, p.y - 18, 12, '#9fffe0'); return; }
+    if (h.blocked) { this.shield(p.x, p.y, '#7fc8ff'); this.number(p.x - 10, p.y - 30, 'Blocked ' + h.blocked, '#8fd0ff', 0.8); }
+    if (h.dmg > 0) {
+      this.flashActor(p.a); this.pose(p.a, 'hurt', 360);
+      this.move(p.a, opts.dx || 0, -(opts.up || 10), 110, true); setTimeout(() => this.move(p.a, 0, 0, 220, true), 120);
+      this.number(p.x, p.y - 42, h.dmg, '#ff7a6a', h.dmg >= 10 ? 1.35 : 1.2, true); sfx('hurt');
+    }
+    this.burst(p.x, p.y - 16, opts.color || '#c8a070', 18, 40);
+    this.shake = Math.max(this.shake, opts.shake || 5); this.shakeT = now(); this.freezeUntil = now() + 50;
+    this._applyAfter(ev, [h.id, E.id]);
+  }
+  // a jagged crack in the floor from (x0,y0) to (x1,y1), growing over grow ms, with a couple of side branches
+  _crack(x0, y0, x1, y1, grow, life) {
+    const pts = [[x0, y0]]; const len = Math.hypot(x1 - x0, y1 - y0), n = Math.max(3, Math.round(len / 5));
+    for (let i = 1; i < n; i++) { const k = i / n; pts.push([Math.round(x0 + (x1 - x0) * k + (Math.random() - 0.5) * 3), Math.round(y0 + (y1 - y0) * k + (i % 2 ? 1 : -1) * (1 + Math.random() * 3))]); }   // zig-zag
+    pts.push([x1, y1]);
+    const branches = [];
+    for (let b = 0; b < 3; b++) {
+      const at = 2 + Math.floor(Math.random() * (pts.length - 4)); const [bx, by] = pts[at]; const dir = Math.random() < 0.5 ? -1 : 1;
+      const bl = 4 + Math.floor(Math.random() * 6); const bp = [[bx, by]];
+      for (let j = 1; j <= bl; j++) bp.push([bx + j * 2, by + dir * j + Math.round((Math.random() - 0.5) * 2)]);
+      branches.push({ at: at / pts.length, pts: bp });
+    }
+    const rubble = pts.filter((_, i) => i % 3 === 1).map(([x, y]) => [x + Math.round((Math.random() - 0.5) * 4), y + (Math.random() < 0.5 ? -2 : 2), Math.random() < 0.5 ? 2 : 1]);
+    this.cracks.push({ pts, branches, rubble, t0: now(), grow, life });
+  }
+  drawCracks(n, t) {
+    const line = (pts, upto, col, dy, w = 1, every = 1) => {
+      n.fillStyle = col;
+      for (let i = 1; i < pts.length && i <= upto; i++) {
+        if (i % every) continue;
+        const [ax, ay] = pts[i - 1], [bx, by] = pts[i]; const steps = Math.max(Math.abs(bx - ax), Math.abs(by - ay), 1);
+        for (let s = 0; s <= steps; s++) n.fillRect(Math.round(ax + (bx - ax) * s / steps), Math.round(ay + (by - ay) * s / steps) + dy, w, w);
+      }
+    };
+    for (let i = this.cracks.length - 1; i >= 0; i--) {
+      const c = this.cracks[i]; const el = t - c.t0;
+      if (el > c.life) { this.cracks.splice(i, 1); continue; }
+      const g = Math.min(1, el / c.grow), upto = Math.ceil(g * (c.pts.length - 1));
+      n.globalAlpha = el > c.life - 500 ? Math.max(0, (c.life - el) / 500) : 1;
+      line(c.pts, upto, '#3a2a22', -1, 1); line(c.pts, upto, '#0a0503', 0, 2);   // a broken lip, then the deep dark fissure
+      line(c.pts, upto, '#ff7a2a', 0, 1, 2);                                        // molten light deep inside, in places
+      for (const b of c.branches) if (g >= b.at) { line(b.pts, b.pts.length, '#0a0503', 0, 1); }
+      n.fillStyle = '#5a463a';
+      for (const [x, y, sz] of c.rubble) if (upto >= 2) n.fillRect(x, y, sz, sz);
+      n.globalAlpha = 1;
+    }
+  }
+  // an earth spike bursts out of the floor at (x, y): rises, holds, sinks back
+  _spike(x, y, scale, hold = 300) { this.spikes.push({ x, y, scale, img: SPIKES[Math.floor(Math.random() * SPIKES.length)], t0: now(), rise: 120, hold, sink: 300, flip: Math.random() < 0.5 }); }
+  drawSpikes(n, t) {
+    this.spikes.sort((a, b) => a.y - b.y);
+    for (let i = this.spikes.length - 1; i >= 0; i--) {
+      const s = this.spikes[i]; const el = t - s.t0;
+      if (el > s.rise + s.hold + s.sink) { this.spikes.splice(i, 1); continue; }
+      if (!s.img.complete || !s.img.naturalWidth) continue;
+      const r = el < s.rise ? 1 - Math.pow(1 - el / s.rise, 3) : el < s.rise + s.hold ? 1 : 1 - (el - s.rise - s.hold) / s.sink;
+      const w = Math.round(s.img.naturalWidth * s.scale), h = Math.round(s.img.naturalHeight * s.scale), vis = Math.max(1, Math.round(h * r));
+      n.save();
+      if (s.flip) { n.translate(Math.round(s.x) * 2, 0); n.scale(-1, 1); }
+      n.drawImage(s.img, 0, 0, s.img.naturalWidth, s.img.naturalHeight * (vis / h), Math.round(s.x - w / 2), Math.round(s.y - vis), w, vis);   // the tip comes up first
+      n.restore();
+    }
+  }
+  // Ground Slam: fists up, he slams the floor, cracks race to each hero and earth spikes erupt along them
+  _minoSlam(E, ev, T) {
+    const tg = ev.targets.filter(h => !h.shatter && this.pos(h.id));
+    const fx = E.x + 34, fy = E.y + 1;   // where his fists hit the floor
+    this.pose(E, 'windup', T(560)); sfx('enemyWind');
+    this.glows.push({ x: E.x, y: E.y - 50, r: 70, color: '#ff8a3a', t: 0, life: 0.6, a: 0.45 });
+    const n = SP.enemySeqLen('minotaur', 'slam'), fms = T(70);
+    setTimeout(() => { E.seq = { name: 'slam', n, ms: fms, t0: now(), until: now() + T(2600), loop: false }; }, T(560));
+    const impact = T(560) + fms * 3;
+    let last = impact;
+    setTimeout(() => {
+      sfx('hitBig'); this.shake = 9; this.shakeT = now(); this.flash = 0.3; this.freezeUntil = now() + 70;
+      this.burst(fx, fy - 4, '#8a6a4a', 30, 60, 60); this.burst(fx, fy - 6, '#d0b080', 16, 46, 60);
+      this.glows.push({ x: fx, y: fy - 6, r: 60, color: '#ff7a2a', t: 0, life: 0.5, a: 0.8 });
+      for (let k = -2; k <= 2; k++) this._spike(fx + k * 7, fy + Math.abs(k), 0.45 - Math.abs(k) * 0.06, 180);   // a ring of small spikes around the fists
+    }, impact);
+    tg.forEach((h, idx) => {
+      const p = this.pos(h.id);
+      const ex = p.x - 6, ey = p.y + 1, dist = Math.hypot(ex - fx, ey - fy), m = Math.max(3, Math.round(dist / 20)), step = T(55);
+      setTimeout(() => this._crack(fx, fy, ex, ey, step * m, T(2300)), impact + idx * T(40));
+      for (let j = 1; j < m; j++) {
+        const k = j / m, sx = fx + (ex - fx) * k, sy = fy + (ey - fy) * k;
+        setTimeout(() => {   // spikes come up in pairs, growing as they near the hero
+          this._spike(sx - 4 + (Math.random() - 0.5) * 3, sy - 1, 0.75 + 0.5 * k, 380); this._spike(sx + 5, sy + 1, 0.6 + 0.4 * k, 330);
+          this.burst(sx, sy - 2, '#7a5a40', 8, 30, 60); if (j % 2) sfx('stomp');
+        }, impact + idx * T(40) + j * step);
+      }
+      const hitAt = impact + idx * T(40) + m * step;
+      if (h.dodged) setTimeout(() => { this.move(p.a, 10, -18, T(110), true); setTimeout(() => this.move(p.a, 0, 0, T(220), true), T(260)); }, hitAt - T(90));
+      setTimeout(() => {   // the biggest spike bursts up right under the hero
+        this._spike(ex, ey + 1, h.dodged ? 1.1 : 1.7, 560); this._spike(ex - 9, ey, 1.0, 460); this._spike(ex + 8, ey + 2, 0.9, 420);
+        this.burst(ex, ey - 4, '#8a6a4a', 16, 50, 60);
+        this._minoHit(h, ev, E, { up: 22, color: '#c8a070', shake: 7 });
+      }, hitAt);
+      last = Math.max(last, hitAt);
+    });
+    setTimeout(() => { E.seq = null; this._applyAfter(ev); }, last + T(520));
+    return last + T(700);
+  }
+  // Stampede: head down, he charges through the whole party, off the right edge, and back in from the left
+  _minoCharge(E, ev, T) {
+    const tg = ev.targets.filter(h => !h.shatter && this.pos(h.id));
+    const ys = tg.map(h => this.pos(h.id).y); const lane = ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : E.y;
+    const dy = Math.round(lane - E.y) + 4, n = SP.enemySeqLen('minotaur', 'run');
+    this.pose(E, 'attack', T(700)); sfx('roar');
+    for (let k = 0; k < 2; k++) setTimeout(() => { this.burst(E.x - 18, E.y - 2, '#8a7058', 10, 26, 40); sfx('stomp'); }, T(220 + k * 260));   // pawing the ground
+    const go = T(700), out = (this.W + 90) - E.x, d1 = T(820), back = T(900);
+    let dustT = null;
+    setTimeout(() => {
+      E.seq = { name: 'run', n, ms: T(60), t0: now(), until: now() + d1 + back + T(60), loop: true };
+      this.move(E, out, dy, d1, true, true); sfx('whirl');
+      let gi = 0;
+      dustT = setInterval(() => {
+        if (gi++ % 2 === 0) { const info = SP.enemyInfo('minotaur'); this.ghosts.push({ img: this.tinted(this.frameFor(E, true), '#ffb070'), x: Math.round(E.x + E.ox - info.ax), y: Math.round(E.y + E.oy - info.ay), t0: now(), life: 260 }); }
+        this.particles.push({ x: E.x + E.ox - 22, y: E.y + E.oy - 2, vx: -20 - Math.random() * 30, vy: -10 - Math.random() * 14, g: 20, life: 0.5 + Math.random() * 0.3, t: 0, c: ['#6a5a48', '#8a7058', '#a08870'][Math.floor(Math.random() * 3)] });
+      }, 30);
+    }, go);
+    // he reaches each hero in turn (they are hit as he passes, left to right)
+    for (const h of tg) {
+      const p = this.pos(h.id); const f = clamp((p.x - 26 - E.x) / out, 0, 1); const at = go + f * d1;
+      if (h.dodged) setTimeout(() => { this.move(p.a, 4, -24, T(120), true); setTimeout(() => this.move(p.a, 0, 0, T(240), true), T(300)); }, at - T(140));
+      setTimeout(() => { this._minoHit(h, ev, E, { up: 18, dx: 14, color: '#ffb070', shake: 7 }); if (!h.dodged) sfx('hitBig'); }, at);
+    }
+    // off the right edge... and back in from the left
+    setTimeout(() => {
+      E.tween = null; E.ox = -(E.x + 90); E.oy = dy;
+      this.move(E, 0, 0, back, true, true);
+    }, go + d1);
+    setTimeout(() => { clearInterval(dustT); E.seq = null; this.pose(E, 'idle0', T(100)); this._applyAfter(ev); }, go + d1 + back + T(40));
+    return go + d1 + back + T(300);
+  }
+  move(a, dx, dy, ms, absolute, linear) {
     const from = { x: a.ox, y: a.oy };
-    a.tween = { from, to: { x: dx, y: dy }, t0: now(), ms: Math.max(1, ms) };
+    a.tween = { from, to: { x: dx, y: dy }, t0: now(), ms: Math.max(1, ms), linear };
   }
   knock(a, dx) { a.knock = { dx, t0: now() }; }
   // enemies shudder side to side when they take damage (bigger hits shake harder)
@@ -906,6 +1050,10 @@ export class BattleScene {
       if (a.downed && p !== 'hurt') p = 'down';
       return white ? SP.heroWhite(a.skin || a.cls, a.variant, p) : SP.heroFrame(a.skin || a.cls, a.variant, p);
     }
+    if (!p && a.seq) {   // a hand-animated move (slam, run): plays once and holds the last frame, or loops
+      if (t >= a.seq.until) a.seq = null;
+      else { const i = Math.max(0, Math.floor((t - a.seq.t0) / a.seq.ms)); p = a.seq.name + (a.seq.loop ? i % a.seq.n : Math.min(i, a.seq.n - 1)); }
+    }
     if (!p) p = 'idle' + Math.floor(((t + a.phase) / (a.kind === 'slime' ? 200 : 280)) % 4);
     if (a.intent && a.intent.type === 'charge' && !p.startsWith('hurt') && a.kind === 'sentinel') p = 'charge';
     return SP.enemyFrame(a.kind, p, white);
@@ -980,11 +1128,17 @@ export class BattleScene {
       n.restore();
       n.globalAlpha = 1;
     }
+    this.drawCracks(n, t);
+    for (let i = this.ghosts.length - 1; i >= 0; i--) {   // after-images (the Minotaur's charge)
+      const g = this.ghosts[i]; const k = (t - g.t0) / g.life;
+      if (k >= 1) { this.ghosts.splice(i, 1); continue; }
+      n.globalAlpha = 0.38 * (1 - k); n.drawImage(g.img, g.x, g.y); n.globalAlpha = 1;
+    }
     // actors sorted by depth
     const list = [...this.actors.values()].filter(a => !a.gone).sort((a, b) => (a.y + (a.type === 'enemy' ? -0.5 : 0)) - (b.y));
     for (const a of list) {
       if (a.tween) {
-        const k = clamp((t - a.tween.t0) / a.tween.ms, 0, 1); const e = ease(k);
+        const k = clamp((t - a.tween.t0) / a.tween.ms, 0, 1); const e = a.tween.linear ? k : ease(k);
         a.ox = lerp(a.tween.from.x, a.tween.to.x, e); a.oy = lerp(a.tween.from.y, a.tween.to.y, e);
         if (k >= 1) a.tween = null;
       }
@@ -1020,6 +1174,7 @@ export class BattleScene {
       if (a.st && a.st.freeze) { n.globalAlpha = 0.45; n.drawImage(this.tinted(this.frameFor(a, true), '#bff6ff'), x, y); }
       n.globalAlpha = 1;
     }
+    this.drawSpikes(n, t);
     // particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];

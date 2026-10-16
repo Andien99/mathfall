@@ -8,6 +8,7 @@ Output (open index.html in any browser, no internet or server needed):
     heroes/<Class> (<Boy|Girl>)/*.gif   sprite-only animations at 4x (idle, every special move, all poses)
     battle/<Class> (<Boy|Girl>)/*.mp4   the real battle scene with all effects (from /dev/lab.html)
     battle/Treasure skills/<Class>/*.mp4
+    battle/Enemy moves/<Enemy>/*.mp4   enemies' hand-animated attacks against a party of four
     enemies/*.gif                       every enemy's idle + attack + hurt
     sheets/*.png, events/*.png          the raw sprite sheets and event art
 """
@@ -92,17 +93,21 @@ def battle_clips(out, browser):
         for sk, nm in info['skills'].items():
             if sk in h['skills']: continue
             jobs.append((cls, 'f', sk, os.path.join(out, 'battle', 'Treasure skills', CLS_NAME[cls]), nm))
+    jobs = [(cls, g, mv, folder, label, 'cls=%s&gender=%s&move=%s&enemy=goblin' % (cls, g, mv), 3.3) for cls, g, mv, folder, label in jobs]
+    for kind, name, moves in [('minotaur', 'The Minotaur', [('breath', 'Ground Slam'), ('tailstorm', 'Stampede')])]:
+        for i, (act, nm) in enumerate(moves):
+            jobs.append((None, None, act, os.path.join(out, 'battle', 'Enemy moves', name), '%d %s' % (i + 1, nm), 'cls=knight&gender=f&enemy=%s&emove=%s&party=4' % (kind, act), 4.6))
     tmp = os.path.join(out, '_vid'); os.makedirs(tmp, exist_ok=True)
-    for n, (cls, g, mv, folder, label) in enumerate(jobs):
+    for n, (cls, g, mv, folder, label, query, secs) in enumerate(jobs):
         ctx = browser.new_context(viewport={'width': 1040, 'height': 640}, record_video_dir=tmp, record_video_size={'width': 1040, 'height': 640})
         t0 = time.time(); pg = ctx.new_page()
-        pg.goto('%s/dev/lab.html?bare=1&loop=0&cls=%s&gender=%s&move=%s&enemy=goblin' % (BASE, cls, g, mv))
+        pg.goto('%s/dev/lab.html?bare=1&loop=0&%s' % (BASE, query))
         pg.wait_for_function('window.scene'); t_ready = time.time() - t0
-        pg.wait_for_timeout(1000 + 3300)
+        pg.wait_for_timeout(int(1000 + secs * 1000))
         vp = pg.video.path(); ctx.close()
         os.makedirs(folder, exist_ok=True)
         safe = re.sub(r'[\\/:*?"<>|]', '', label)
-        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', '%.2f' % (t_ready + 0.95), '-t', '3.3', '-i', vp,
+        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', '%.2f' % (t_ready + 0.95), '-t', '%.1f' % secs, '-i', vp,
                         '-vf', 'scale=780:-2:flags=lanczos', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '26', '-preset', 'veryfast', '-movflags', '+faststart', '-an',
                         os.path.join(folder, safe + '.mp4')], check=True)
         os.remove(vp)
@@ -123,10 +128,12 @@ def index_html(out):
     for d in sorted(glob.glob(os.path.join(out, 'heroes', '*'))):
         parts.append(section('Hero sprites – ' + os.path.basename(d), sorted(glob.glob(os.path.join(d, '*.gif'))), 'img'))
     for d in sorted(glob.glob(os.path.join(out, 'battle', '*'))):
-        if os.path.basename(d) == 'Treasure skills': continue
+        if os.path.basename(d) in ('Treasure skills', 'Enemy moves'): continue
         parts.append(section('In battle – ' + os.path.basename(d), sorted(glob.glob(os.path.join(d, '*.mp4'))), 'video'))
     for d in sorted(glob.glob(os.path.join(out, 'battle', 'Treasure skills', '*'))):
         parts.append(section('Treasure skills – ' + os.path.basename(d), sorted(glob.glob(os.path.join(d, '*.mp4'))), 'video'))
+    for d in sorted(glob.glob(os.path.join(out, 'battle', 'Enemy moves', '*'))):
+        parts.append(section('Enemy moves – ' + os.path.basename(d), sorted(glob.glob(os.path.join(d, '*.mp4'))), 'video'))
     parts.append(section('Enemies', sorted(glob.glob(os.path.join(out, 'enemies', '*.gif'))), 'img'))
     parts.append(section('Event art', sorted(glob.glob(os.path.join(out, 'events', '*.png'))), 'img'))
     parts.append(section('Raw sprite sheets', sorted(glob.glob(os.path.join(out, 'sheets', '*.png'))), 'img sheets'))
