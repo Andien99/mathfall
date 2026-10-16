@@ -244,7 +244,7 @@ function renderLive() {
     const card = h('div', { class: 'lteam', style: { '--tc': t.color } });
     const ms = t.members.map(id => byId[id]).filter(Boolean);
     const acc = ms.reduce((a, p) => [a[0] + p.correct, a[1] + p.answered], [0, 0]);
-    card.append(h('h3', null, t.name, h('small', null, (t.asc ? `Ascension ${t.asc} · ` : '') + `${t.history.bossKills} boss win${t.history.bossKills === 1 ? '' : 's'}`)));
+    card.append(h('h3', null, t.name, h('small', null, `Act ${(t.asc || 0) + 1} · ` + `${t.history.bossKills} boss win${t.history.bossKills === 1 ? '' : 's'}`)));
     if (t.rows) { const pr = h('div', { class: 'progress' }); for (let i = 1; i <= t.rows; i++) pr.append(h('i', { class: i < t.floor ? 'done' : i === t.floor ? 'now' : '' })); card.append(pr); }
     let room = 'Choosing a path', sub = '';
     if (t.phase === 'combat' && t.combat) { room = NODE_LABEL[t.node] || 'Fighting'; sub = `Round ${t.combat.round} · ` + t.combat.enemies.map(e => `${e.name} ${e.hp}/${e.maxHp}`).join(', '); }
@@ -309,26 +309,34 @@ function renderTower() {
         h('span', { class: 'nm' }, t.name), h('div', { class: 'bar' }, h('i', { style: { width: (100 * (r.dmg[t.id] || 0) / max) + '%' } })), h('b', null, Math.round(r.dmg[t.id] || 0)), h('span', { class: 'mini' }, ...(t.heroCls || []).map(x => h('img', { class: x.downed ? 'ko' : '', src: SP.portraitURL(x.cls, x.variant, x.downed ? 'closed' : 'open', 1), alt: '' }))))))));
     return;
   }
-  box.append(h('div', { class: 'card-h' }, h('h2', null, 'The tower'), h('p', null, 'Every team, live. Click a team to show it on your screen.')));
+  box.append(h('div', { class: 'card-h' }, h('h2', null, 'The tower'), h('p', null, 'Every team, live. Click a team to show its battle on your screen.')));
   if (!teams.length) { box.append(h('p', { class: 'tip' }, 'Teams appear here once the game starts.')); return; }
   const rows = Math.max(...teams.map(t => t.rows));            // floors + the boss
-  const tower = h('div', { class: 'tower' });
-  for (let f = rows; f >= 1; f--) {
-    const here = teams.filter(t => Math.max(1, t.floor || 1) === f || (f === 1 && !t.floor));
-    const label = f === rows ? 'Boss' : 'Floor ' + f;
-    const row = h('div', { class: 'tfloor' + (f === rows ? ' boss' : '') }, h('span', { class: 'fl' }, label));
-    if (f === rows) row.append(h('img', { class: 'boss-pic', src: SP.enemyPortraitURL('wyrm', 1), alt: '' }));
-    const lane = h('div', { class: 'lane' });
-    for (const t of here) {
-      lane.append(h('button', { class: 'ttoken' + (t.phase === 'combat' ? ' fighting' : ''), style: { '--tc': t.color }, onclick: () => openWatch(t), title: 'Show Team ' + t.name + ' on screen' },
-        h('span', { class: 'flag' }), h('b', null, t.name), t.asc ? h('span', { class: 'asc' }, 'A' + t.asc) : null,
-        h('span', { class: 'mini' }, ...(t.heroCls || []).map(x => h('img', { class: x.downed ? 'ko' : '', src: SP.portraitURL(x.cls, x.variant, x.downed ? 'closed' : 'open', 1), alt: '' }))),
-        h('span', { class: 'st' }, teamStatus(t))));
-    }
-    row.append(lane);
-    tower.append(row);
+  const token = t => h('button', { class: 'ttoken' + (t.phase === 'combat' ? ' fighting' : ''), style: { '--tc': t.color }, onclick: () => openWatch(t), title: 'Show Team ' + t.name + ' on screen' },
+    h('span', { class: 'flag' }), h('b', null, t.name), h('span', { class: 'asc' }, 'Act ' + ((t.asc || 0) + 1)),
+    h('span', { class: 'mini' }, ...(t.heroCls || []).map(x => h('img', { class: x.downed ? 'ko' : '', src: SP.portraitURL(x.cls, x.variant, x.downed ? 'closed' : 'open', 1), alt: '' }))),
+    h('span', { class: 'st' }, teamStatus(t)));
+  const floorOf = t => Math.max(1, t.floor || 1);
+  const scene = h('div', { class: 'tower-scene' });
+  const tw = h('div', { class: 'tw' });
+  // the boss chamber at the top, under the battlements
+  const bossTeams = teams.filter(t => floorOf(t) >= rows);
+  const kinds = [...new Set(teams.map(t => t.boss || 'wyrm'))];
+  tw.append(h('div', { class: 'tw-crown' }),
+    h('div', { class: 'tw-boss' + (bossTeams.length ? ' lit' : '') },
+      h('div', { class: 'tw-bosspics' }, ...kinds.map(k => h('img', { src: SP.enemyPortraitURL(k, 1), alt: C.ENEMIES[k].name, title: C.ENEMIES[k].name }))),
+      h('span', { class: 'plaque boss' }, 'Boss'),
+      h('div', { class: 'lane' }, ...bossTeams.map(token))));
+  for (let f = rows - 1; f >= 1; f--) {
+    const here = teams.filter(t => floorOf(t) === f);
+    tw.append(h('div', { class: 'tw-floor' + (here.length ? ' lit' : '') },
+      h('span', { class: 'win l' }), h('span', { class: 'plaque' }, String(f)),
+      h('div', { class: 'lane' }, ...here.map(token)),
+      h('span', { class: 'win r' })));
   }
-  box.append(tower);
+  tw.append(h('div', { class: 'tw-base' }, h('span', { class: 'door' })));
+  scene.append(tw);
+  box.append(scene);
 }
 $('#raidBtn').addEventListener('click', () => { if (confirm('Start the raid now? Every team stops where they are and fights the raid boss together.')) socket.emit('host:raid', {}, r => { if (!r.ok) toast(r.msg || 'Could not start the raid.'); }); });
 

@@ -90,6 +90,10 @@ const ENCOUNTERS = {
   elite: [['sentinel']],
   boss: [['wyrm']]
 };
+function encounterKinds(run, type) {
+  if (type === 'boss') return [C.bossForAct(run.asc || 0)];
+  return pick(ENCOUNTERS[type] || ENCOUNTERS.normal1);
+}
 
 function makeEnemy(c, kind, mult) {
   const def = C.ENEMIES[kind];
@@ -105,7 +109,7 @@ function createCombat(run, encounterType) {
   const ascMult = 1 + 0.15 * (run.asc || 0);
   const mult = { hp: partyMult * floorMult * ascMult, dmg: (1 + 0.06 * Math.max(0, depth - 1)) * (1 + 0.12 * (run.asc || 0)) };
   const c = { enemies: [], round: 0, phase: 'player', roundEndsAt: 0, phaseEndsAt: 0, nextId: 0, type: encounterType, mult, events: 0 };
-  const kinds = pick(ENCOUNTERS[encounterType] || ENCOUNTERS.normal1);
+  const kinds = encounterKinds(run, encounterType);
   for (const k of kinds) c.enemies.push(makeEnemy(c, k, mult));
   for (const h of heroList(run)) {
     h.block = 0; h.st = {}; h.acted = false; h.readyAction = null; h.focus = h.focus || 0;
@@ -162,6 +166,31 @@ const AI = {
     return { move: 'crush', type: 'attackAll', dmg: 14, label: 'Earthshatter', qte: 1, warn: 'Quick-time: answer fast to dodge!' };
   },
   shard() { return { move: 'zap', type: 'attack', dmg: 4, label: 'Crystal Zap' }; },
+  thrall() { return chance(0.7) ? { move: 'claw', type: 'attack', dmg: 5, label: 'Bone Claw' } : { move: 'rattle', type: 'debuff', status: 'weak', label: 'Rattle (Weak)' }; },
+  colossus(e) {
+    const m = e.mem;
+    if (m.i == null) m.i = ri(0, 1);
+    if (!m.enraged && e.hp <= e.maxHp * 0.5) { m.enraged = true; return { move: 'overheat', type: 'buff', str: 4, block: 18, label: 'Overheat', warn: 'The Colossus overheats: it hits harder now!' }; }
+    const cycle = ['hammer', 'quake', 'plate', 'overcharge', 'meltdown'];
+    const mv = cycle[m.i++ % cycle.length];
+    if (mv === 'hammer') return { move: 'hammer', type: 'attack', dmg: 14, label: 'Piston Hammer' };
+    if (mv === 'quake') return { move: 'quake', type: 'attackAll', dmg: 7, label: 'Quake' };
+    if (mv === 'plate') return { move: 'plate', type: 'block', block: 18, label: 'Iron Plating' };
+    if (mv === 'overcharge') return { move: 'overcharge', type: 'charge', label: 'Overcharging…', warn: 'Meltdown next round: get ready to dodge!' };
+    return { move: 'meltdown', type: 'attackAll', dmg: 15, label: 'Meltdown', qte: 1, warn: 'Quick-time: answer fast to dodge!' };
+  },
+  hollowking(e, c) {
+    const m = e.mem;
+    if (m.i == null) m.i = ri(0, 2);
+    const thralls = aliveEnemies(c).filter(x => x.kind === 'thrall').length;
+    const cycle = ['cleave', 'raise', 'drain', 'cleave', 'knell'];
+    let mv = cycle[m.i++ % cycle.length];
+    if (mv === 'raise' && thralls >= 2) mv = 'drain';
+    if (mv === 'cleave') return { move: 'cleave', type: 'attack', dmg: 15, label: 'Royal Cleave' };
+    if (mv === 'raise') return { move: 'raise', type: 'summon', minion: 'thrall', count: 2, label: 'Raise the Dead', warn: 'The Hollow King raises two Bone Thralls' };
+    if (mv === 'drain') return { move: 'drain', type: 'attackAll', dmg: 6, drain: true, label: 'Soul Drain' };
+    return { move: 'knell', type: 'attackAll', dmg: 8, label: 'Death Knell', qte: 3, warn: 'Three quick-time strikes in a row!' };
+  },
   voidmaw(e) {
     const cycle = ['rend', 'wave', 'cascade', 'rend', 'gaze', 'cataclysm'];
     if (e.mem.i == null) e.mem.i = ri(0, 5);
@@ -313,7 +342,7 @@ function heroAction(run, hero, action, targetId, out) {
       case 'sanctuary': for (const h of allH()) { ev.targets.push(healHero(hero, h, p.heal * m)); touched.add(h.id); } break;
       case 'shadow_strike': { const e = pickEnemy(); hero.lastTarget = e.id; const dbl = e.st.poison || e.st.burn; const r = hitEnemy(hero, e, p.dmg * m * (dbl ? 2 : 1)); if (dbl) r.crit = true; ev.targets.push(r); touched.add(e.id); break; }
       case 'battle_cry': for (const h of allH()) { addStatus(h, 'str', { v: Math.round(p.str * m), t: p.strT }); ev.targets.push({ id: h.id, status: ['str'] }); touched.add(h.id); } break;
-      case 'frost_nova': for (const e of allE()) { const r = hitEnemy(hero, e, p.dmg * m); if (!e.dead) { if (e.tier === 'boss') addStatus(e, 'chill', { t: 1 }); else addStatus(e, 'freeze', { t: 1 }); r.status = [e.tier === 'boss' ? 'chill' : 'freeze']; } ev.targets.push(r); touched.add(e.id); } break;
+      case 'frost_nova': for (const e of allE()) { const r = hitEnemy(hero, e, p.dmg * m); if (!e.dead) { const big = e.tier === 'boss' || e.tier === 'raid'; if (big) addStatus(e, 'chill', { t: 1 }); else addStatus(e, 'freeze', { t: 1 }); r.status = [big ? 'chill' : 'freeze']; } ev.targets.push(r); touched.add(e.id); } break;
       case 'meteor': for (const e of allE()) { const r = hitEnemy(hero, e, p.dmg * m); if (!e.dead) { addStatus(e, 'burn', { v: Math.round(p.burn * m), t: p.burnT }); r.status = ['burn']; } ev.targets.push(r); touched.add(e.id); } break;
       case 'phoenix_feather': {
         const a = pickAlly(true);
@@ -338,7 +367,7 @@ function heroAction(run, hero, action, targetId, out) {
 
   // A boss dying takes its crystals with it.
   const boss = c.enemies.find(e => e.tier === 'boss');
-  if (boss && boss.dead) for (const e of c.enemies) if (e.kind === 'shard' && !e.dead) { e.dead = true; e.hp = 0; ev.targets.push({ id: e.id, dmg: 0, killed: true, shatter: true }); touched.add(e.id); }
+  if (boss && boss.dead) for (const e of c.enemies) if (e.tier === 'minion' && !e.dead) { e.dead = true; e.hp = 0; ev.targets.push({ id: e.id, dmg: 0, killed: true, shatter: true }); touched.add(e.id); }
   hero.acted = true;
   done();
   return { ok: true };
@@ -386,7 +415,7 @@ function enemyTurn(run) {
     }
   }
   const boss = c.enemies.find(e => e.tier === 'boss');
-  if (boss && boss.dead) for (const e of c.enemies) if (e.kind === 'shard' && !e.dead) { e.dead = true; e.hp = 0; }
+  if (boss && boss.dead) for (const e of c.enemies) if (e.tier === 'minion' && !e.dead) { e.dead = true; e.hp = 0; }
 
   for (const e of c.enemies) {
     if (e.dead || !e.intent) continue;
@@ -441,7 +470,9 @@ function enemyTurn(run) {
         snapAll(cur, ids);
         continue;
       }
-      for (const h of heroesAlive()) { o.targets.push(hitHero(e, h, dmg, { chilled })); ids.add(h.id); }
+      let drained = 0;
+      for (const h of heroesAlive()) { const r = hitHero(e, h, dmg, { chilled }); drained += r.dmg; o.targets.push(r); ids.add(h.id); }
+      if (it.drain && drained) { const before = e.hp; e.hp = Math.min(e.maxHp, e.hp + drained); if (e.hp > before) o.targets.push({ id: e.id, heal: e.hp - before }); }
       if (it.perShard) {
         for (const s of aliveEnemies(c).filter(x => x.kind === 'shard')) { s.dead = true; s.hp = 0; o.targets.push({ id: s.id, dmg: 0, killed: true, shatter: true }); ids.add(s.id); }
       }
@@ -458,13 +489,19 @@ function enemyTurn(run) {
       if (it.block) { e.block += it.block; o.targets.push({ id: e.id, block: it.block }); }
       o.warn = it.warn;
     } else if (it.type === 'summon') {
-      for (const x of c.enemies) if (x.st) { delete x.st.weak; delete x.st.vuln; delete x.st.chill; }
-      for (let i = 0; i < 2; i++) {
-        const s = makeEnemy(c, 'shard', c.mult);
+      const kind = it.minion || 'shard';
+      if (kind === 'shard') for (const x of c.enemies) if (x.st) { delete x.st.weak; delete x.st.vuln; delete x.st.chill; }
+      for (let i = 0; i < (it.count || 2); i++) {
+        const s = makeEnemy(c, kind, c.mult);
         c.enemies.push(s); ids.add(s.id);
         o.targets.push({ id: s.id, summoned: true });
       }
-      o.spawn = c.enemies.filter(x => x.kind === 'shard' && !x.dead).map(publicEnemy);
+      o.spawn = c.enemies.filter(x => x.kind === kind && !x.dead).map(publicEnemy);
+    } else if (it.type === 'buff') {
+      addStatus(e, 'str', { v: it.str || 3, t: 99 });
+      if (it.block) e.block += it.block;
+      o.targets.push({ id: e.id, block: it.block || 0, status: ['str'] });
+      o.warn = it.warn;
     }
     snapAll(o, ids);
   }

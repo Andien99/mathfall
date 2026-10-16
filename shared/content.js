@@ -128,6 +128,9 @@
     hexer:    { name: 'Goblin Hexer', hp: 20, size: 's', kind: 'normal' },
     sentinel: { name: 'Ironbound Sentinel', hp: 84, size: 'l', kind: 'elite' },
     wyrm:     { name: 'Gravemaw', title: 'the Crystal Wyrm', hp: 230, size: 'xl', kind: 'boss' },
+    colossus: { name: 'The Iron Colossus', title: 'Warden of the Middle Floors', hp: 250, size: 'xl', kind: 'boss' },
+    hollowking: { name: 'The Hollow King', title: 'Lord of the High Crypt', hp: 240, size: 'xl', kind: 'boss' },
+    thrall:   { name: 'Bone Thrall', hp: 14, size: 's', kind: 'minion' },
     voidmaw:  { name: 'Voidmaw', title: 'Heart of the Tower', hp: 80, size: 'xl', kind: 'raid' },
     shard:    { name: 'Crystal Shard', hp: 16, size: 's', kind: 'minion' }
   };
@@ -258,6 +261,11 @@
     const b = r(2, hard ? 12 : 9), a = r(2, 12); return { q: `${a * b} ÷ ${b}`, a };
   }
 
+  // Each map ends in a boss; beating it starts the next act on a new map with the next boss.
+  const BOSS_ORDER = ['wyrm', 'colossus', 'hollowking'];
+  const ACT_NAMES = ['The Crumbling Spire', 'The Iron Galleries', 'The Hollow Crown', 'The Sunless Heights', 'The Shattered Crown', 'The Last Stair'];
+  function bossForAct(act) { return BOSS_ORDER[act % BOSS_ORDER.length]; }
+
   const NODE_TYPES = {
     enemy:    { name: 'Monsters' },
     elite:    { name: 'Elite' },
@@ -268,5 +276,5 @@
     boss:     { name: 'Boss' }
   };
 
-  return { STATS, STAT_STEP, CAMP, EVENTS, qteQuestion, ENERGY, RARITY, HEROES, HERO_ORDER, SKILLS, ENEMIES, STATUS_INFO, NODE_TYPES, skillParams, skillDesc, skillName };
+  return { BOSS_ORDER, ACT_NAMES, bossForAct, STATS, STAT_STEP, CAMP, EVENTS, qteQuestion, ENERGY, RARITY, HEROES, HERO_ORDER, SKILLS, ENEMIES, STATUS_INFO, NODE_TYPES, skillParams, skillDesc, skillName };
 });

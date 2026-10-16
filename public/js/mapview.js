@@ -68,8 +68,11 @@ export class MapView {
     const scroll = h('div', { class: 'scroll tall' });
     scroll.style.backgroundImage = `radial-gradient(ellipse at 50% 50%, rgba(255,250,230,0.35), rgba(120,80,40,0.25) 80%, rgba(80,50,20,0.5)), url(${paperTexture()})`;
     const floorNow = run.floor || 0;
-    const title = h('div', { class: 'map-title' }, h('h2', null, (ACTS[run.length] || ACTS.quick)),
-      h('div', { class: 'map-act' }, (run.asc ? `Ascension ${run.asc} · ` : '') + (floorNow ? `Floor ${floorNow} of ${top}` : `${top} floors to the top`)));
+    const C = window.MF_Content;
+    const bossNode = map.nodes.find(n => n.type === 'boss');
+    const bossName = bossNode && bossNode.boss && C.ENEMIES[bossNode.boss] ? C.ENEMIES[bossNode.boss].name : 'the boss';
+    const title = h('div', { class: 'map-title' }, h('h2', null, C.ACT_NAMES[(run.asc || 0) % C.ACT_NAMES.length]),
+      h('div', { class: 'map-act' }, `Act ${(run.asc || 0) + 1} · ` + (floorNow ? `Floor ${floorNow} of ${top}` : `${top} floors to ${bossName}`)));
     const tower = h('div', { class: 'tower' });
     const field = h('div', { class: 'field tall', style: { height: H + 'px' } });
     // faint floor numbers up the left edge
@@ -106,7 +109,7 @@ export class MapView {
       const cls = ['node', n.type, isOpt ? 'option' : '', n.visited ? 'visited' : '', here ? 'here' : '', run.map.goNode === n.id ? 'going' : '', votes[myId] === n.id ? 'myvote' : '', n.row < floorNow - 1 && !n.visited ? 'past' : ''].join(' ');
       const btn = h('button', { class: cls, style: { left: x + '%', top: y + 'px' }, title: NAMES[n.type], 'aria-label': NAMES[n.type] + (isOpt ? ' – vote' : ''), disabled: !isOpt || !!run.map.goNode });
       if (n.type === 'boss') {
-        btn.appendChild(h('img', { src: SP.enemyPortraitURL('wyrm', 1), alt: '' }));
+        btn.appendChild(h('img', { src: SP.enemyPortraitURL(n.boss || 'wyrm', 1), alt: '' }));
         btn.appendChild(h('span', { class: 'boss-label' }, 'Boss'));
       } else btn.innerHTML = svgIcon(n.type);
       if (n.visited && !here) btn.appendChild(h('span', { class: 'cross' }));

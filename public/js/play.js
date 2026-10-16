@@ -203,7 +203,7 @@ function renderHUD() {
   const run = state.run;
   const node = run.map.nodes.find(n => n.id === run.map.pos);
   const nodeName = node ? (C.NODE_TYPES[node.type] || {}).name : 'Entrance';
-  $('#floorInfo').innerHTML = run.raidMode ? 'Raid<span class="sub">All teams vs Voidmaw</span>' : `<span class="fl-full">Floor ${Math.max(1, run.floor)} of ${run.rows - 1}</span><span class="fl-short">F${Math.max(1, run.floor)}/${run.rows - 1}</span><span class="sub">${nodeName}${run.asc ? ' · Ascension ' + run.asc : ''}</span>`;
+  $('#floorInfo').innerHTML = run.raidMode ? 'Raid<span class="sub">All teams vs Voidmaw</span>' : (run.floor >= run.rows ? `<span class="fl-full">Boss floor</span><span class="fl-short">Boss</span>` : `<span class="fl-full">Floor ${Math.max(1, run.floor)} of ${run.rows - 1}</span><span class="fl-short">F${Math.max(1, run.floor)}/${run.rows - 1}</span>`) + `<span class="sub">Act ${(run.asc || 0) + 1} · ${nodeName}</span>`;
   $('#teamChip').innerHTML = `<span class="chip" style="border-color:${state.team.color};color:${state.team.color}">${state.team.name}</span>`;
   const mh = myHero();
   $('#goldChip').textContent = mh ? mh.gold : 0;
@@ -451,7 +451,7 @@ function renderRoom() {
     panel.append(h('p', { class: 'result-big lose' }, 'Your party has fallen'), h('p', { class: 'lead' }, `You reached floor ${room.floor}. Every run teaches you something. Try again with a new map.`),
       h('div', { class: 'center' }, h('button', { class: 'btn primary', disabled: ready, onclick: () => roomOp('ready') }, ready ? 'Waiting for team…' : 'Try again')), readyLine(room));
   } else if (room.type === 'complete') {
-    panel.append(h('p', { class: 'result-big' }, 'Gravemaw falls!'), h('p', { class: 'lead' }, `Your team conquered the tower. +${room.gold} gold each. Your heroes keep their upgrades and skills for Ascension ${room.asc + 1}.`),
+    panel.append(h('p', { class: 'result-big' }, `${room.boss || 'The boss'} falls!`), h('p', { class: 'lead' }, `Act ${room.asc + 1} complete. +${room.gold} gold each. Next: Act ${room.asc + 2}, ${room.nextAct || 'a new map'}, with ${room.nextBoss || 'a new boss'} waiting at the top. Your heroes keep their upgrades, skills and gold.`),
       statPicker(room, hero), readyLine(room));
   } else if (room.type === 'raidEnd') {
     const raid = state.raid || {};

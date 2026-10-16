@@ -664,6 +664,43 @@ const ENEMY_DEF = {
   shard: { w: 30, h: 40, ax: 15, ay: 38, draw: drawShard, poses: { idle0: { dy: 0 }, idle1: { dy: -1 }, idle2: { dy: -2 }, idle3: { dy: -1 }, windup: { dy: -3 }, attack: { dy: 1 }, hurt: { hurt: 1 } } }
 };
 ENEMY_DEF.voidmaw.poses = ENEMY_DEF.wyrm.poses;
+// Act bosses and minions built from existing rigs: scaled up, recoloured, crowned.
+Object.assign(ENEMY_DEF, {
+  colossus: { w: 192, h: 184, ax: 92, ay: 178, base: 'sentinel', scale: 2, tint: ['#d0612a', 0.28], poses: ENEMY_DEF.sentinel.poses },
+  hollowking: { w: 128, h: 132, ax: 60, ay: 126, base: 'skeleton', scale: 2, tint: ['#6a3aa8', 0.32], crown: true, poses: ENEMY_DEF.skeleton.poses },
+  thrall: { w: 64, h: 66, ax: 30, ay: 63, base: 'skeleton', scale: 1, tint: ['#5a8a6a', 0.35], poses: ENEMY_DEF.skeleton.poses }
+});
+function derivedFrame(d, poseName, white) {
+  const src = enemyFrame(d.base, poseName, false);
+  const k = d.scale || 1;
+  // crown on the king: find the top of the skull and draw a small gold crown above it
+  let base = src;
+  if (d.crown) {
+    const c0 = document.createElement('canvas'); c0.width = src.width; c0.height = src.height + 6;
+    const x0 = c0.getContext('2d'); x0.drawImage(src, 0, 6);
+    const data = src.getContext('2d').getImageData(0, 0, src.width, src.height).data;
+    let top = -1, minX = 1e9, maxX = -1;
+    for (let y = 0; y < src.height && top < 0; y++) for (let x = 0; x < src.width; x++) if (data[(y * src.width + x) * 4 + 3] > 0) { top = y; break; }
+    if (top >= 0) for (let x = 0; x < src.width; x++) if (data[(top + 2) * src.width * 4 + x * 4 + 3] > 0) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+    if (maxX > 0) {
+      const cx = Math.round((minX + maxX) / 2), y = top + 6;
+      x0.fillStyle = '#7a4a10'; x0.fillRect(cx - 5, y - 3, 11, 3);
+      x0.fillStyle = '#ffd24a'; x0.fillRect(cx - 4, y - 3, 9, 2); x0.fillRect(cx - 4, y - 6, 1, 3); x0.fillRect(cx, y - 7, 1, 4); x0.fillRect(cx + 4, y - 6, 1, 3);
+      x0.fillStyle = '#ff4a6a'; x0.fillRect(cx, y - 2, 1, 1);
+    }
+    base = c0;
+  }
+  const c = document.createElement('canvas'); c.width = d.w; c.height = d.h;
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  const srcDef = ENEMY_DEF[d.base];
+  // keep the feet on the anchor
+  const dx = Math.round(d.ax - srcDef.ax * k), dy = Math.round(d.ay - (srcDef.ay + (d.crown ? 6 : 0)) * k);
+  x.drawImage(base, dx, dy, base.width * k, base.height * k);
+  x.globalCompositeOperation = 'source-atop';
+  if (d.tint && !white) { x.globalAlpha = d.tint[1]; x.fillStyle = d.tint[0]; x.fillRect(0, 0, c.width, c.height); }
+  if (white) { x.globalAlpha = 1; x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); }
+  return c;
+}
 export function enemyInfo(kind) { const d = ENEMY_DEF[kind] || ENEMY_DEF.slime; return { w: d.w, h: d.h, ax: d.ax, ay: d.ay }; }
 
 // ------------------------------------------------------------------ chests
@@ -796,6 +833,7 @@ export function heroWhite(cls, variant, poseName) {
 export function enemyFrame(kind, poseName, white) {
   return cached(`e:${kind}:${poseName}:${white ? 1 : 0}`, () => {
     const d = ENEMY_DEF[kind] || ENEMY_DEF.slime;
+    if (d.base) return derivedFrame(d, d.poses[poseName] ? poseName : 'idle0', white);
     const ps = d.poses[poseName] || d.poses.idle0;
     const s = d.draw(ps);
     if (white) s.tint('#ffffff', 1);

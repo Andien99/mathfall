@@ -178,7 +178,8 @@ class Session {
       p.pending = null;
     }
     run.seenEvents = [];
-    this.event(team, { kind: 'system', text: asc ? `A taller tower. Ascension ${asc}` : 'The climb begins' });
+    run.map.nodes.forEach(n => { if (n.type === 'boss') n.boss = C.bossForAct(run.asc); });
+    this.event(team, { kind: 'system', text: `Act ${run.asc + 1}: ${C.ACT_NAMES[run.asc % C.ACT_NAMES.length]}` });
     this.flush(team);
   }
   addHeroIfPossible(team, p) {
@@ -245,7 +246,8 @@ class Session {
     run.activeCount = Math.max(1, team.members.filter(id => { const p = this.players.get(id); return p && p.connected && run.heroes[id]; }).length);
     run.combat = CB.createCombat(run, type);
     CB.beginRound(run, now(), this.settings.timer);
-    this.event(team, { kind: 'system', text: type === 'boss' ? 'Gravemaw awakens' : type === 'elite' ? 'An elite foe blocks the way' : 'Monsters!', battle: type });
+    const bossName = C.ENEMIES[C.bossForAct(run.asc || 0)].name;
+    this.event(team, { kind: 'system', text: type === 'boss' ? `${bossName} awakens` : type === 'elite' ? 'An elite foe blocks the way' : 'Monsters!', battle: type });
   }
 
   // ------------------------------------------------------------ combat flow
@@ -344,7 +346,8 @@ class Session {
     if (type === 'boss') {
       team.history.bossKills++;
       team.history.bestAsc = Math.max(team.history.bestAsc, run.asc + 1);
-      this.openRoom(team, { type: 'complete', gold, asc: run.asc, ready: {}, stats: {} });
+      const beat = C.bossForAct(run.asc || 0), next = C.bossForAct((run.asc || 0) + 1);
+      this.openRoom(team, { type: 'complete', gold, asc: run.asc, boss: C.ENEMIES[beat].name, nextBoss: C.ENEMIES[next].name, nextAct: C.ACT_NAMES[((run.asc || 0) + 1) % C.ACT_NAMES.length], ready: {}, stats: {} });
     } else {
       this.openRoom(team, { type: 'victory', gold, elite: type === 'elite', ready: {}, stats: {} });
     }
@@ -598,7 +601,7 @@ class Session {
     const order = team.members.filter(id => run.heroes[id]);
     base.run = {
       asc: run.asc, floor: run.floor, rows: run.map.rows, length: run.length, phase: run.phase,
-      map: { nodes: run.map.nodes.map(n => ({ id: n.id, row: n.row, type: n.type, x: n.x, y: n.y, next: n.next, visited: !!n.visited })), pos: run.pos, options: run.phase === 'map' ? this.mapOptions(run) : [], votes: run.votes, voteDeadline: run.voteDeadline, goNode: run.goNode },
+      map: { nodes: run.map.nodes.map(n => ({ id: n.id, row: n.row, type: n.type, x: n.x, y: n.y, next: n.next, visited: !!n.visited, boss: n.boss })), pos: run.pos, options: run.phase === 'map' ? this.mapOptions(run) : [], votes: run.votes, voteDeadline: run.voteDeadline, goNode: run.goNode },
       heroes: order.map(id => {
         const h = run.heroes[id]; const p = this.players.get(id);
         return { id, name: h.name, cls: h.cls, variant: h.variant, hp: h.hp, maxHp: h.maxHp, block: h.block, st: h.st, skills: h.skills, focus: h.focus, energy: h.energy || 0, downed: h.downed, acted: h.acted, ready: !!h.readyAction, gold: h.gold, lv: h.lv, free: !!h.free, nextFight: h.nextFight,
@@ -616,7 +619,7 @@ class Session {
     if (room.type === 'treasure') { o.kind = room.kind; o.event = room.event; o.chests = {}; for (const [k, v] of Object.entries(room.chests)) o.chests[k] = { rarity: v.rarity, opened: v.opened, decided: v.decided, choice: v.choice || null }; }
     if (room.type === 'rest') o.choices = room.choices;
     if (room.type === 'event') { o.event = room.event; o.choices = room.choices; o.results = room.results; }
-    if (room.type === 'victory' || room.type === 'complete') { o.gold = room.gold; o.elite = room.elite; o.asc = room.asc; o.stats = room.stats || {}; }
+    if (room.type === 'victory' || room.type === 'complete') { o.gold = room.gold; o.elite = room.elite; o.asc = room.asc; o.stats = room.stats || {}; o.boss = room.boss; o.nextBoss = room.nextBoss; o.nextAct = room.nextAct; }
     if (room.type === 'raidEnd') { o.won = room.won; }
     if (room.type === 'defeat') o.floor = room.floor;
     return o;
@@ -662,7 +665,7 @@ class Session {
       const run = t.run;
       const o = { id: t.id, name: t.name, color: t.color, members: t.members, history: t.history };
       if (run) {
-        o.phase = run.phase; o.floor = run.floor; o.rows = run.map.rows; o.asc = run.asc; o.length = run.length;
+        o.phase = run.phase; o.floor = run.floor; o.rows = run.map.rows; o.asc = run.asc; o.length = run.length; o.boss = C.bossForAct(run.asc || 0);
         o.heroCls = Object.values(run.heroes).map(h => ({ cls: h.cls, variant: h.variant, downed: h.downed }));
         o.node = run.pos ? (run.map.nodes.find(n => n.id === run.pos) || {}).type : null;
         o.room = run.room ? run.room.type : null;
@@ -1178,12 +1181,15 @@ function attach(io, banks) {
       socket.on('dev:room', student((s, p, t, d, cb) => {
         const run = t && t.run; if (!run) return reply(cb, { ok: false });
         const ty = d.type;
+        if (d.asc != null) run.asc = d.asc;
+        if (d.floor != null) run.floor = d.floor;
         if (ty === 'boss' || ty === 'elite' || ty === 'normal1' || ty === 'normal2') { s.startCombat(t, ty); }
         else if (ty === 'treasure') s.openRoom(t, RUN.makeTreasureRoom(run, d.kind || 'treasure'));
         else if (ty === 'rest') s.openRoom(t, RUN.makeRestRoom(run));
         else if (ty === 'merchant') { Object.values(run.heroes).forEach(h => { h.gold = 200; }); s.openRoom(t, RUN.makeMerchantRoom(run)); }
         else if (ty === 'shrine' || ty === 'event') { const r = RUN.makeEventRoom(run); if (d.event && C.EVENTS[d.event]) r.event = d.event; else if (ty === 'shrine') r.event = 'shrine'; run.ambushTier = 'normal1'; s.openRoom(t, r); }
         else if (ty === 'raid') { s.startRaid(); return reply(cb, { ok: true }); }
+        else if (ty === 'summon' && run.combat) { const e = CB.aliveEnemies(run.combat)[0]; if (e) e.intent = { move: 'raise', type: 'summon', minion: 'thrall', count: 2, label: 'Raise the Dead' }; }
         else if (ty === 'forceqte' && run.combat) { const e = CB.aliveEnemies(run.combat)[0]; if (e) e.intent = { move: 'cataclysm', type: 'attackAll', dmg: 9, label: 'Cataclysm', qte: d.n || 1, warn: 'Quick-time!' }; }
         else if (ty === 'victory' || ty === 'complete' || ty === 'defeat') s.openRoom(t, { type: ty, gold: 24, asc: 0, floor: 3, ready: {}, stats: {} });
         else if (ty === 'end') { s.end(); return reply(cb, { ok: true }); }

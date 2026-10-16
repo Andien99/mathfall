@@ -125,8 +125,12 @@ export class BattleScene {
     if (boss) { boss.x = Math.round(ex - 4); boss.y = Math.round(ft + 14 + span * 0.78); }
     const ES = smalls.length === 1 ? [[0, 0.6]] : smalls.length === 2 ? [[22, 0.25], [-24, 0.85]] : [[30, 0.18], [-36, 0.48], [26, 0.98]];
     smalls.forEach((e, i) => {
-      if (boss) { // crystals float above the wyrm's back
+      if (boss && e.kind === 'shard') { // crystals float above the wyrm's back
         e.x = Math.round(boss.x - 52 + i * 46); e.y = Math.round(boss.y - 70 - (i % 2) * 14);
+        return;
+      }
+      if (boss) { // minions stand in front of the boss
+        e.x = Math.round(boss.x + 64 + (i % 2) * 22); e.y = Math.round(boss.y - 26 + i * 30);
         return;
       }
       const [dx, fy] = ES[i % ES.length];
