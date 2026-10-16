@@ -78,39 +78,73 @@ function rollRarity(weights) {
   for (const k of Object.keys(weights)) { r -= weights[k]; if (r <= 0) return k; }
   return 'common';
 }
-const CHEST_WEIGHTS = { treasure: { common: 50, rare: 35, epic: 12, legendary: 3 }, elite: { common: 0, rare: 55, epic: 35, legendary: 10 }, cache: { common: 70, rare: 30, epic: 0, legendary: 0 } };
+// Every chest and shop slot rolls its rarity 50 / 30 / 20.
+const LOOT_WEIGHTS = Object.fromEntries(C.RARITY_ORDER.map(r => [r, C.RARITY[r].weight]));
 
-function skillOffer(hero, rarity) {
-  const owned = new Set(hero.skills.map(s => s.id));
-  let pool = Object.keys(C.SKILLS).filter(id => C.SKILLS[id].rarity === rarity && !owned.has(id));
-  if (!pool.length) pool = Object.keys(C.SKILLS).filter(id => !owned.has(id));
-  return { id: pick(pool), lvl: 1 };
+// A random skill of the hero's own class, of that rarity if one is left (else any rarity), that they don't
+// already have or have just been offered. null once the class pool is used up.
+function skillOffer(hero, rarity, skip) {
+  const owned = new Set([...hero.skills.map(s => s.id), ...(skip || [])]);
+  const mine = C.classSkills(hero.cls).filter(id => !owned.has(id));
+  const pool = mine.filter(id => C.SKILLS[id].rarity === rarity);
+  const from = pool.length ? pool : mine;
+  return from.length ? { id: pick(from), lvl: 1 } : null;
+}
+// Same for items (passives): any class, never one the hero already carries.
+function itemOffer(hero, rarity, skip) {
+  const owned = new Set([...(hero.items || []), ...(skip || [])]);
+  const all = Object.keys(C.ITEMS).filter(id => !owned.has(id));
+  const pool = all.filter(id => C.ITEMS[id].rarity === rarity);
+  const from = pool.length ? pool : all;
+  return from.length ? pick(from) : null;
 }
 
+// Each hero gets a chest of one rarity. Inside: a skill, an item and a pile of gold; they keep one.
 function makeTreasureRoom(run, kind) {
-  const weights = CHEST_WEIGHTS[kind] || CHEST_WEIGHTS.treasure;
   const chests = {};
   for (const h of Object.values(run.heroes)) {
-    const rarity = rollRarity(weights);
-    chests[h.id] = { rarity, opened: false, offer: skillOffer(h, rarity), gold: ri(15, 30) + (kind === 'elite' ? 15 : 0), decided: false };
+    const rarity = rollRarity(LOOT_WEIGHTS);
+    const gold = C.RARITY[rarity].gold + ri(-5, 5) + (kind === 'elite' ? 15 : 0);
+    chests[h.id] = { rarity, opened: false, skill: skillOffer(h, rarity), item: itemOffer(h, rarity), gold, decided: false };
   }
   return { type: 'treasure', kind, chests, ready: {} };
 }
 
+// Pip sells each hero two skills of their class and two items, each rolled 50 / 30 / 20.
 function makeMerchantRoom(run) {
   const stock = {};
+  const price = r => C.RARITY[r].price + ri(-5, 5);
   for (const h of Object.values(run.heroes)) {
-    const items = [];
-    const used = new Set(h.skills.map(s => s.id));
-    for (const rarity of shuffle(['common', 'rare', rollRarity({ rare: 50, epic: 40, legendary: 10 })])) {
-      let pool = Object.keys(C.SKILLS).filter(id => C.SKILLS[id].rarity === rarity && !used.has(id));
-      if (!pool.length) continue;
-      const id = pick(pool); used.add(id);
-      items.push({ id, lvl: 1, price: C.RARITY[rarity].price + ri(-5, 5), sold: false });
+    const skills = [], items = [];
+    for (let i = 0; i < 2; i++) {
+      const sk = skillOffer(h, rollRarity(LOOT_WEIGHTS), skills.map(s => s.id));
+      if (sk) skills.push({ ...sk, price: price(C.SKILLS[sk.id].rarity), sold: false });
+      const it = itemOffer(h, rollRarity(LOOT_WEIGHTS), items.map(s => s.id));
+      if (it) items.push({ id: it, price: price(C.ITEMS[it].rarity), sold: false });
     }
-    stock[h.id] = { items, mend: { price: 30, sold: false } };
+    stock[h.id] = { skills, items, mend: { price: 30, sold: false } };
   }
   return { type: 'merchant', stock, ready: {} };
+}
+
+// Adds an item to a hero (Troll's Belt raises max HP straight away). False if they already have it.
+function giveItem(h, id) {
+  const it = C.ITEMS[id]; if (!it) return false;
+  h.items = h.items || [];
+  if (h.items.includes(id)) return false;
+  h.items.push(id);
+  if (it.maxHp) { h.maxHp += it.maxHp; h.hp += it.maxHp; }
+  return true;
+}
+// Puts a skill into the hero's free slot, or over the given slot when all three are full.
+// Returns the replaced skill id ('' if it went into a free slot), or null if it can't be placed.
+function giveSkill(h, sk, slot) {
+  if (!sk || !C.SKILLS[sk.id] || h.skills.some(s => s.id === sk.id)) return null;
+  if (h.skills.length < C.MAX_SKILLS) { h.skills.push({ id: sk.id, lvl: sk.lvl || 1 }); return ''; }
+  if (!(slot >= 0 && slot < h.skills.length)) return null;
+  const old = h.skills[slot].id;
+  h.skills[slot] = { id: sk.id, lvl: sk.lvl || 1 };
+  return old;
 }
 
 function makeRestRoom() { return { type: 'rest', choices: {}, ready: {} }; }
@@ -125,4 +159,4 @@ function makeEventRoom(run) {
   return { type: 'event', event: id, choices: {}, results: {}, correct: {}, ready: {} };
 }
 
-module.exports = { FLOORS, generateMap, makeTreasureRoom, makeMerchantRoom, makeRestRoom, makeEventRoom, skillOffer, ri, pick, shuffle };
+module.exports = { FLOORS, generateMap, makeTreasureRoom, makeMerchantRoom, makeRestRoom, makeEventRoom, skillOffer, itemOffer, giveItem, giveSkill, ri, pick, shuffle };

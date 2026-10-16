@@ -32,7 +32,7 @@ body.bare #wrap { grid-template-columns:1fr; } body.bare #side { display:none; }
   <h2>Hero</h2><div class="row" id="cls"></div>
   <h2>Look</h2><div class="row" id="gender"></div><div class="row" id="variant" style="margin-top:6px"></div>
   <h2>Move</h2><div class="moves" id="moves"></div>
-  <h2>Other skills (from treasure)</h2><div class="moves" id="extra"></div>
+  <h2>Skills from chests and shops</h2><div class="moves" id="extra"></div>
   <h2>Enemy</h2><select id="enemy"></select>
   <div class="row" style="margin-top:6px"><button id="enemyHit">Enemy attacks you</button></div>
   <h2>Enemy moves</h2><div class="moves" id="emoves"></div>
@@ -46,6 +46,8 @@ body.bare #wrap { grid-template-columns:1fr; } body.bare #side { display:none; }
 import { BattleScene } from '/js/scene.js';
 const C = window.MF_Content;
 const $ = s => document.querySelector(s);
+// real events from the server's combat rules (tools/skill_events.js)
+const EV = await fetch('/dev/skill-events.json', { cache: 'no-cache' }).then(r => r.json()).catch(() => ({}));
 const cv = $('#cv');
 const scene = new BattleScene(cv, { myId: 'h1' });
 window.scene = scene;
@@ -86,6 +88,13 @@ function eventFor(move) {
   if (move === 'attack') { const [fx, name] = BASIC[S.cls]; return { kind: 'hero', actor: 'h1', act: 'attack', fx, name, energy: 3, targets: [{ id: 'e1', dmg: 7 }], after }; }
   if (move === 'defend') return { kind: 'hero', actor: 'h1', act: 'defend', fx: 'defend', name: C.HEROES[S.cls].defend.name, energy: 3, targets: [{ id: 'h1', block: C.HEROES[S.cls].defend.block }], after };
   const def = C.SKILLS[move];
+  if (EV[move]) {   // the real event, trimmed to the heroes and enemies on stage
+    const ev = JSON.parse(JSON.stringify(EV[move]));
+    const here = new Set([...state.heroes.map(x => x.id), ...state.combat.enemies.map(x => x.id)]);
+    ev.targets = ev.targets.filter(t => here.has(t.id));
+    for (const k of Object.keys(ev.after)) if (!here.has(k)) delete ev.after[k];
+    return ev;
+  }
   const ev = { kind: 'hero', actor: 'h1', act: 'skill0', skill: move, fx: def.fx, name: def.name, rarity: def.rarity, targets: [], after };
   if (def.target === 'enemy') ev.targets = [{ id: 'e1', dmg: 11, status: def.fx === 'proj_fire' ? ['burn'] : def.fx === 'proj_poison' ? ['poison'] : def.fx === 'proj_ice' ? ['chill'] : undefined }];
   else if (def.target === 'allEnemies') ev.targets = ens.map(id => ({ id, dmg: 8 }));
@@ -137,7 +146,7 @@ function render() {
   moveBtn(mv, 'defend', C.HEROES[S.cls].defend.name, 'defend');
   for (const id of C.HEROES[S.cls].skills) moveBtn(mv, id, C.SKILLS[id].name, 'skill');
   const ex = $('#extra'); ex.innerHTML = '';
-  for (const [id, d] of Object.entries(C.SKILLS)) if (!C.HEROES[S.cls].skills.includes(id) && d.fx) moveBtn(ex, id, d.name, d.rarity);
+  for (const id of C.classSkills(S.cls)) if (!C.HEROES[S.cls].skills.includes(id)) moveBtn(ex, id, C.SKILLS[id].name, C.SKILLS[id].rarity + ' · ' + C.SKILLS[id].cost);
   $('#loop').checked = S.loop;
   btns($('#party'), [[2, '2 heroes'], [4, 'Full party (4)']], 'party', play);
   const em = $('#emoves'); em.innerHTML = '';

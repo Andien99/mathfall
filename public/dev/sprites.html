@@ -17,7 +17,7 @@ if (!only || only==='enemies') {
 for (const k of ['slime','goblin','hexer','skeleton','sentinel','wyrm','shard']) { const row=document.createElement('div'); row.className='row'; out.appendChild(row);
   for (const p of SP.ENEMY_POSES.concat(k==='wyrm'?['roar','tail']:[])) show(row, SP.enemyFrame(k,p), k+' '+p, k==='wyrm'?2:S); }
 const row=document.createElement('div'); row.className='row'; out.appendChild(row);
-for (const r of ['common','rare','epic','legendary']) { show(row, SP.chestFrame(r,false), r); show(row, SP.chestFrame(r,true), r+' open'); }
+for (const r of ['common','rare','legendary']) { show(row, SP.chestFrame(r,false), r); show(row, SP.chestFrame(r,true), r+' open'); }
 const row2=document.createElement('div'); row2.className='row'; out.appendChild(row2);
 for (const n of SP.ICON_NAMES) show(row2, SP.iconCanvas(n), n, 4);
 }

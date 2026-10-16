@@ -11,13 +11,15 @@ function aliveEnemies(c) { return c.enemies.filter(e => !e.dead); }
 function heroList(run) { return Object.values(run.heroes); }
 function aliveHeroes(run) { return heroList(run).filter(h => !h.downed); }
 function st(ent, k) { return ent.st[k]; }
+const has = C.hasItem;
 function addStatus(ent, k, v) {
   const cur = ent.st[k];
   if (k === 'poison') ent.st.poison = { v: (cur ? cur.v : 0) + v.v };
-  else if (k === 'burn') ent.st.burn = { v: Math.max(cur ? cur.v : 0, v.v), t: Math.max(cur ? cur.t : 0, v.t) };
   else if (k === 'str') ent.st.str = { v: (cur ? cur.v : 0) + v.v, t: Math.max(cur ? cur.t : 0, v.t || 99) };
+  else if (v.v != null) ent.st[k] = { v: Math.max(cur && cur.v ? cur.v : 0, v.v), t: Math.max(cur ? cur.t : 0, v.t || 1) };   // burn, mark, regen, thorns
   else ent.st[k] = { t: Math.max(cur ? cur.t : 0, v.t || 1) };
 }
+const isBig = e => e.tier === 'boss' || e.tier === 'raid';
 function gainEnergy(hero, n, ev) {
   const before = hero.energy || 0;
   hero.energy = Math.min(C.ENERGY.max, before + n);
@@ -39,6 +41,7 @@ function lowestHero(run, includeDowned) {
 // Damage from hero to enemy (or enemy to hero).
 function hitEnemy(src, e, base, opts = {}) {
   let d = base + (opts.noStr ? 0 : (src && src.st.str ? src.st.str.v : 0));
+  if (src && e.st.mark) d += e.st.mark.v;   // Hunter's Mark: every hero hit lands harder
   if (src && src.lv && src.lv.atk) d *= 1 + C.STAT_STEP.atk * src.lv.atk;
   if (src && src.st.weak) d *= 0.75;
   if (e.st.vuln) d *= 1.5;
@@ -58,18 +61,34 @@ function hitHero(e, h, base, opts = {}) {
   if (opts.chilled) d *= 0.5;
   if (h.st.vuln) d *= 1.5;
   if (h.lv && h.lv.def) d *= 1 - Math.min(C.STAT_STEP.defCutMax, C.STAT_STEP.defCut * h.lv.def);
+  if (h.st.unbreak) d *= 0.5;
   d = Math.max(0, Math.round(d));
+  const r = { id: h.id, dmg: 0, blocked: 0, downed: false };
+  if (h.st.divine) { r.shielded = true; d = 0; }   // Divine Shield
   const blocked = Math.min(h.block, d);
   h.block -= blocked;
   const dmg = d - blocked;
+  r.dmg = dmg; r.blocked = blocked;
   if (!h.invincible) h.hp = Math.max(0, h.hp - dmg);   // teacher test games can make heroes invincible
-  let downed = false;
-  if (h.hp <= 0 && !h.downed) { h.downed = true; h.block = 0; h.st = {}; downed = true; h.focus = 0; }
+  if (h.st.unbreak && h.hp < 1) h.hp = 1;
+  if (h.hp <= 0 && !h.downed) {
+    if (has(h, 'phoenix_plume') && !h.plumeUsed) { h.plumeUsed = true; h.hp = Math.round(h.maxHp * 0.5); r.plume = h.hp; }
+    else { h.downed = true; h.block = 0; h.st = {}; r.downed = true; h.focus = 0; }
+  } else if (!h.downed && dmg > 0 && has(h, 'spare_potion') && !h.potionUsed && h.hp < h.maxHp * 0.25) {
+    h.potionUsed = true; r.potion = healHero(null, h, 10).heal;
+  }
   if (h.stats) h.stats.taken += dmg;
-  return { id: h.id, dmg, blocked, downed };
+  // the attacker pays: Riposte and Thorned Mail hit back, Frost Armour chills
+  if (e && e.st && !e.dead && !opts.noReact) {
+    const back = (h.st.thorns ? h.st.thorns.v : 0) + (has(h, 'thorned_mail') ? 3 : 0);
+    if (back > 0) { const t = hitEnemy(null, e, back, { noStr: true }); r.thorns = t.dmg; r.attacker = e.id; if (h.stats) h.stats.dmg += t.dmg; }
+    if (h.st.frost && !e.dead) { addStatus(e, 'chill', { t: 2 }); r.chilled = e.id; r.attacker = e.id; }
+  }
+  return r;
 }
 function healHero(src, h, amt) {
   if (h.downed) return { id: h.id, heal: 0 };
+  if (has(h, 'healers_satchel')) amt *= 1.3;
   const before = h.hp;
   h.hp = Math.min(h.maxHp, h.hp + Math.round(amt));
   const heal = h.hp - before;
@@ -113,7 +132,8 @@ function createCombat(run, encounterType) {
   for (const k of kinds) c.enemies.push(makeEnemy(c, k, mult));
   for (const h of heroList(run)) {
     h.block = 0; h.st = {}; h.acted = false; h.readyAction = null; h.focus = h.focus || 0;
-    h.energy = C.ENERGY.start;
+    h.energy = C.ENERGY.start + (has(h, 'energy_crystal') ? 2 : 0);
+    h.potionUsed = false; h.chalkUsed = false;
     if (h.nextFight) {
       h.energy = Math.min(C.ENERGY.max, h.energy + (h.nextFight.energy || 0));
       h.focus = Math.min(3, h.focus + (h.nextFight.focus || 0));
@@ -139,7 +159,7 @@ function createRaidCombat(run, raid, teamId) {
   Object.defineProperty(e, 'maxHp', { enumerable: true, get: () => raid.maxHp });
   Object.defineProperty(e, 'dead', { enumerable: true, get: () => raid.hp <= 0, set: () => {} });
   c.enemies.push(e);
-  for (const h of heroList(run)) { h.block = 0; h.st = {}; h.acted = false; h.readyAction = null; h.energy = Math.max(h.energy || 0, C.ENERGY.start + 2); h.free = false; }
+  for (const h of heroList(run)) { h.block = 0; h.st = {}; h.acted = false; h.readyAction = null; h.energy = Math.max(h.energy || 0, C.ENERGY.start + 2); h.free = false; h.potionUsed = false; h.chalkUsed = false; }
   return c;
 }
 
@@ -253,13 +273,149 @@ function beginRound(run, now, timerSec) {
   c.phase = 'player';
   c.roundEndsAt = timerSec > 0 ? now + timerSec * 1000 : 0;
   for (const h of heroList(run)) {
-    h.block = 0;
+    if (!h.st.steady) h.block = 0;   // Iron Skin keeps last round's block
     h.acted = false;
+    if (c.round === 1 && !h.downed && has(h, 'sturdy_boots')) h.block += 5;
   }
   planIntents(run);
 }
 
 function needsToAct(h, player) { return player && player.connected && !h.acted; }
+
+// ---------------------------------------------------------------- skills
+// Each skill is a small function over these helpers. Damage, healing, block and status strength all
+// take the hero's Focus multiplier (X.m); hit() pushes one target record per hit, the rest merge into
+// the target's latest record so a heal and a block on one hero show together.
+function skillCtx(run, hero, ev, touched, pickEnemy, pickAlly, m, usedFocus) {
+  const c = run.combat;
+  const X = {
+    run, hero, ev, m, usedFocus,
+    enemies: () => aliveEnemies(c),
+    heroes: () => aliveHeroes(run),
+    enemy() { const e = pickEnemy(); hero.lastTarget = e.id; return e; },
+    ally: allowDowned => pickAlly(allowDowned),
+    rec(id) { let r = null; for (let i = ev.targets.length - 1; i >= 0; i--) if (ev.targets[i].id === id) { r = ev.targets[i]; break; } if (!r) ev.targets.push(r = { id }); touched.add(id); return r; },
+    hit(e, base, opts = {}) { const r = hitEnemy(hero, e, base * m, opts); ev.targets.push(r); touched.add(e.id); return r; },
+    status(ent, k, v, r) { if (ent.dead || ent.downed) return r; addStatus(ent, k, v); r = r || X.rec(ent.id); (r.status = r.status || []).push(k); return r; },
+    heal(h, amt, raw) { const n = healHero(hero, h, raw ? amt : amt * m).heal; const r = X.rec(h.id); r.heal = (r.heal || 0) + n; return n; },
+    block(h, amt) { const n = blockHero(h, amt * m).block; const r = X.rec(h.id); r.block = (r.block || 0) + n; return n; },
+    n: v => Math.round(v * m),
+    // the next living enemy for multi-hit skills, sticking to the first target while it stands
+    next(e) { return e && !e.dead ? e : aliveEnemies(c)[0]; }
+  };
+  return X;
+}
+const burn = (X, e, p, r) => X.status(e, 'burn', { v: X.n(p.burn), t: p.burnT }, r);
+const SKILL_FX = {
+  // ---- knight
+  power_strike(X, p) { const e = X.enemy(); X.status(e, 'vuln', { t: p.vulnT }, X.hit(e, p.dmg)); },
+  shield_wall(X, p) { for (const h of X.heroes()) X.block(h, p.block); },
+  shield_bash(X, p) { const e = X.enemy(); X.status(e, 'weak', { t: p.weakT }, X.hit(e, p.dmg)); },
+  cleave(X, p) { const e = X.enemy(), list = X.enemies(), i = list.indexOf(e), nb = list[i + 1] || list[i - 1]; X.hit(e, p.dmg); if (nb) X.hit(nb, p.dmg); },
+  iron_skin(X, p) { X.block(X.hero, p.block); X.status(X.hero, 'steady', { t: 2 }); },
+  rallying_shout(X, p) { X.block(X.hero, p.block); for (const h of X.heroes()) if (h !== X.hero) X.block(h, p.ally); },
+  pommel_strike(X, p) { X.hit(X.enemy(), p.dmg); X.block(X.hero, p.block); },
+  sunder(X, p) { const e = X.enemy(), had = e.block; e.block = 0; const r = X.hit(e, p.dmg); if (had) r.sundered = had; },
+  whirlwind(X, p) { for (const e of X.enemies()) X.hit(e, p.dmg); },
+  guardian_oath(X, p) { X.block(X.hero, p.block); X.status(X.hero, 'taunt', { t: 1 }); },
+  battle_cry(X, p) { for (const h of X.heroes()) X.status(h, 'str', { v: X.n(p.str), t: p.strT }); },
+  shield_slam(X, p) { const r = X.hit(X.enemy(), p.dmg + X.hero.block); r.slam = X.hero.block; },
+  riposte(X, p) { X.block(X.hero, p.block); X.status(X.hero, 'thorns', { v: X.n(p.thorns), t: 1 }); },
+  aegis(X, p) { for (const h of X.heroes()) { X.heal(h, p.heal); X.block(h, p.block); } },
+  unbreakable(X, p) { X.block(X.hero, p.block); X.status(X.hero, 'taunt', { t: 1 }); X.status(X.hero, 'unbreak', { t: 1 }); },
+  earthshatter(X, p) { for (const e of X.enemies()) X.status(e, 'weak', { t: p.weakT }, X.hit(e, p.dmg)); },
+  champions_combo(X, p) {
+    let e = X.enemy();
+    for (let i = 0; i <= p.hitsN; i++) { e = X.next(e); if (!e) break; const r = X.hit(e, i < p.hitsN ? p.dmg : p.finisher); r.hit = i; if (i === p.hitsN) r.finisher = true; }
+  },
+  // ---- mage
+  fireball(X, p) { const e = X.enemy(); burn(X, e, p, X.hit(e, p.dmg)); },
+  ice_shard(X, p) { const e = X.enemy(); X.status(e, 'chill', { t: 1 }, X.hit(e, p.dmg)); },
+  arcane_missiles(X, p) { for (let i = 0; i < p.boltsN; i++) { const list = X.enemies(); if (!list.length) break; X.hit(pick(list), p.dmg); } },
+  spark(X, p) { X.hit(X.enemy(), p.dmg); },
+  frost_armour(X, p) { X.block(X.hero, p.block); X.status(X.hero, 'frost', { t: 1 }); },
+  kindle(X, p) {
+    const e = X.enemy(), r = X.hit(e, p.dmg);
+    if (e.dead) return;
+    if (e.st.burn) { e.st.burn.v *= 2; e.st.burn.t = Math.max(e.st.burn.t, p.burnT); (r.status = r.status || []).push('burn'); r.doubled = true; }
+    else burn(X, e, p, r);
+  },
+  flame_wave(X, p) { for (const e of X.enemies()) burn(X, e, p, X.hit(e, p.dmg)); },
+  frostbite(X, p) {
+    const e = X.enemy(), was = !!e.st.chill, r = X.hit(e, p.dmg);
+    if (was && !isBig(e)) { delete e.st.chill; X.status(e, 'freeze', { t: 1 }, r); } else X.status(e, 'chill', { t: 1 }, r);
+  },
+  lightning_bolt(X, p) {
+    const e = X.enemy(); X.hit(e, p.dmg);
+    const others = X.enemies().filter(o => o !== e);
+    if (others.length) { const r = X.hit(pick(others), p.chain, { noStr: true }); r.chain = true; }
+  },
+  frost_nova(X, p) { for (const e of X.enemies()) X.status(e, isBig(e) ? 'chill' : 'freeze', { t: 1 }, X.hit(e, p.dmg)); },
+  mana_surge(X) { X.status(X.hero, 'surge', { t: 99 }); },
+  combust(X, p) {
+    const e = X.enemy(), burning = !!e.st.burn; X.hit(e, p.dmg);
+    if (burning) for (const o of X.enemies()) if (o !== e) { const r = X.hit(o, p.blast, { noStr: true }); r.splash = true; }
+  },
+  blizzard(X, p) { for (const e of X.enemies()) X.status(e, 'chill', { t: 1 }, X.hit(e, p.dmg)); },
+  meteor(X, p) { for (const e of X.enemies()) burn(X, e, p, X.hit(e, p.dmg)); },
+  dragons_wrath(X, p) { const e = X.enemy(); burn(X, e, p, X.hit(e, p.dmg)); },
+  time_stop(X, p) {
+    for (const e of X.enemies()) {
+      const r = X.hit(e, p.dmg);
+      if (isBig(e)) { X.status(e, 'chill', { t: 1 }, r); X.status(e, 'weak', { t: 1 }, r); } else X.status(e, 'freeze', { t: 1 }, r);
+    }
+  },
+  // ---- ranger
+  poison_arrow(X, p) { const e = X.enemy(); X.status(e, 'poison', { v: X.n(p.poison) }, X.hit(e, p.dmg)); },
+  volley(X, p) { for (const e of X.enemies()) X.hit(e, p.dmg); },
+  aimed_shot(X, p) { const r = X.hit(X.enemy(), p.dmg + (X.usedFocus ? p.bonus : 0)); if (X.usedFocus) r.crit = true; },
+  twin_shot(X, p) { let e = X.enemy(); for (let i = 0; i < p.arrowsN; i++) { e = X.next(e); if (!e) break; X.hit(e, p.dmg); } },
+  hunters_mark(X, p) { X.status(X.enemy(), 'mark', { v: X.n(p.mark), t: p.markT }); },
+  smoke_bomb(X, p) { for (const h of X.heroes()) X.block(h, p.block); },
+  fire_arrow(X, p) { const e = X.enemy(); burn(X, e, p, X.hit(e, p.dmg)); },
+  crippling_shot(X, p) { const e = X.enemy(); X.status(e, 'weak', { t: p.weakT }, X.hit(e, p.dmg)); },
+  shadow_strike(X, p) { const e = X.enemy(), dbl = e.st.poison || e.st.burn, r = X.hit(e, p.dmg * (dbl ? 2 : 1)); if (dbl) r.crit = true; },
+  venom_storm(X, p) { for (const e of X.enemies()) X.status(e, 'poison', { v: X.n(p.poison) }); },
+  pinning_shot(X, p) { const e = X.enemy(); X.status(e, isBig(e) ? 'weak' : 'stun', { t: 1 }, X.hit(e, p.dmg)); },
+  arrow_rain(X, p) { for (let w = 0; w < p.wavesN; w++) for (const e of X.enemies()) X.hit(e, p.dmg).wave = w; },
+  ricochet(X, p) {
+    let prev = null; const first = X.enemy();
+    [1, 0.7, 0.5].forEach((k, i) => {
+      const list = X.enemies(); if (!list.length) return;
+      const t = i === 0 && !first.dead ? first : (list.find(o => o !== prev) || list[0]);
+      X.hit(t, Math.round(p.dmg * k)).bounce = i; prev = t;
+    });
+  },
+  starfall(X, p) { for (let i = 0; i < p.hits; i++) for (const e of X.enemies()) X.hit(e, p.dmg).wave = i; },
+  phantom_volley(X, p) { for (let i = 0; i < p.arrowsN; i++) { const list = X.enemies(); if (!list.length) break; const e = pick(list); X.status(e, 'poison', { v: X.n(p.poison) }, X.hit(e, p.dmg)); } },
+  deadeye(X, p) { const e = X.enemy(), dbl = e.st.poison || e.st.burn || e.st.mark, r = X.hit(e, p.dmg * (dbl ? 2 : 1)); if (dbl) r.crit = true; },
+  // ---- cleric
+  healing_light(X, p) { X.heal(X.ally(false), p.heal); },
+  blessing(X, p) { for (const h of X.heroes()) { X.heal(h, p.heal); X.block(h, p.block); } },
+  holy_smite(X, p) { X.hit(X.enemy(), p.dmg); X.heal(X.hero, p.heal); },
+  purify(X, p) { const a = X.ally(false); const bad = ['weak', 'vuln'].filter(k => a.st[k]); bad.forEach(k => delete a.st[k]); X.heal(a, p.heal); if (bad.length) X.rec(a.id).cleansed = bad; },
+  ward_of_light(X, p) { X.block(X.ally(false), p.block); },
+  prayer_of_mending(X, p) { const a = X.ally(false); X.heal(a, p.heal); X.status(a, 'regen', { v: X.n(p.heal), t: 1 }); },
+  radiance(X, p) { for (const e of X.enemies()) X.hit(e, p.dmg); for (const h of X.heroes()) X.heal(h, p.heal); },
+  empower(X, p) { const a = X.ally(false); X.heal(a, p.heal); X.status(a, 'str', { v: X.n(p.str), t: p.strT }); },
+  sanctuary(X, p) { for (const h of X.heroes()) X.heal(h, p.heal); },
+  phoenix_feather(X, p) {
+    const a = X.ally(true);
+    if (a.downed) { a.downed = false; a.hp = Math.round(a.maxHp * 0.5); Object.assign(X.rec(a.id), { heal: a.hp, revived: true }); }
+    else X.heal(a, p.heal);
+  },
+  judgement(X, p) { const e = X.enemy(), u = C.UNDEAD.includes(e.kind), r = X.hit(e, p.dmg * (u ? 2 : 1)); if (u) r.crit = true; },
+  renewal(X, p) { for (const h of X.heroes()) { X.heal(h, p.heal); X.status(h, 'regen', { v: X.n(p.heal), t: p.regenT }); } },
+  sacred_flame(X, p) { const r = X.hit(X.enemy(), p.dmg); const a = lowestHero(X.run); if (a && r.dmg) X.heal(a, r.dmg, true); },
+  resurrection(X, p) {
+    for (const h of heroList(X.run)) {
+      if (h.downed) { h.downed = false; h.hp = Math.round(h.maxHp * 0.5); Object.assign(X.rec(h.id), { heal: h.hp, revived: true }); }
+      else X.heal(h, p.heal);
+    }
+  },
+  divine_shield(X) { for (const h of X.heroes()) X.status(h, 'divine', { t: 1 }); },
+  wrath_of_heaven(X, p) { X.hit(X.enemy(), p.dmg); for (const h of X.heroes()) X.heal(h, p.heal); }
+};
 
 // ---------------------------------------------------------------- hero actions
 // Returns { ok, msg } and pushes events into out[]
@@ -296,14 +452,14 @@ function heroAction(run, hero, action, targetId, out) {
   }
   if (hero.downed) return { ok: false, msg: 'You are knocked out.' };
 
-  const focusMult = 1 + 0.3 * (hero.focus || 0);
+  const focusMult = 1 + C.focusStep(hero) * (hero.focus || 0);
   const usedFocus = hero.focus || 0;
 
   if (action === 'attack') {
     const e = pickEnemy(); hero.lastTarget = e.id;
     ev.fx = { knight: 'slash', mage: 'proj_arcane', ranger: 'proj_arrow', cleric: 'smite' }[hero.cls];
     ev.name = H.attack.name;
-    ev.targets.push(hitEnemy(hero, e, H.attack.dmg * focusMult)); touched.add(e.id);
+    ev.targets.push(hitEnemy(hero, e, (H.attack.dmg + (has(hero, 'whetstone') ? 2 : 0)) * focusMult)); touched.add(e.id);
     if (H.attack.heal) {
       const a = lowestHero(run);
       if (a) { const r = healHero(hero, a, H.attack.heal * focusMult); if (r.heal) { ev.targets.push(r); touched.add(a.id); } }
@@ -316,59 +472,27 @@ function heroAction(run, hero, action, targetId, out) {
     ev.targets.push(blockHero(t, H.defend.block)); touched.add(t.id);
     if (t !== hero) ev.guard = t.id;
     gainEnergy(hero, C.ENERGY.defend, ev);
-  } else if (action === 'skill0' || action === 'skill1') {
-    const slot = action === 'skill0' ? 0 : 1;
-    const sk = hero.skills[slot];
+  } else if (/^skill[0-2]$/.test(action)) {
+    const sk = hero.skills[+action.slice(5)];
     if (!sk) return { ok: false, msg: 'No skill in that slot.' };
-    const def = C.SKILLS[sk.id];
-    if ((hero.energy || 0) < def.cost) return { ok: false, msg: `${C.skillName(sk.id, sk.lvl)} needs ${def.cost} energy (you have ${hero.energy || 0}).` };
-    const p = C.skillParams(sk.id, sk.lvl);
-    const m = focusMult;
+    const def = C.SKILLS[sk.id], fn = SKILL_FX[sk.id];
+    if (!def || !fn) return { ok: false, msg: 'Unknown skill.' };
+    const cost = C.skillCost(sk.id, hero);
+    if ((hero.energy || 0) < cost) return { ok: false, msg: `${C.skillName(sk.id, sk.lvl)} needs ${cost} energy (you have ${hero.energy || 0}).` };
     ev.skill = sk.id; ev.name = C.skillName(sk.id, sk.lvl); ev.fx = def.fx; ev.rarity = def.rarity;
-    const allE = () => aliveEnemies(c);
-    const allH = () => aliveHeroes(run);
-    switch (sk.id) {
-      case 'power_strike': { const e = pickEnemy(); hero.lastTarget = e.id; const r = hitEnemy(hero, e, p.dmg * m); if (!e.dead) { addStatus(e, 'vuln', { t: p.vulnT }); r.status = ['vuln']; } ev.targets.push(r); touched.add(e.id); break; }
-      case 'shield_wall': for (const h of allH()) { ev.targets.push(blockHero(h, p.block * m)); touched.add(h.id); } break;
-      case 'fireball': { const e = pickEnemy(); hero.lastTarget = e.id; const r = hitEnemy(hero, e, p.dmg * m); if (!e.dead) { addStatus(e, 'burn', { v: Math.round(p.burn * m), t: p.burnT }); r.status = ['burn']; } ev.targets.push(r); touched.add(e.id); break; }
-      case 'ice_shard': { const e = pickEnemy(); hero.lastTarget = e.id; const r = hitEnemy(hero, e, p.dmg * m); if (!e.dead) { addStatus(e, 'chill', { t: 1 }); r.status = ['chill']; } ev.targets.push(r); touched.add(e.id); break; }
-      case 'poison_arrow': { const e = pickEnemy(); hero.lastTarget = e.id; const r = hitEnemy(hero, e, p.dmg * m); if (!e.dead) { addStatus(e, 'poison', { v: Math.round(p.poison * m) }); r.status = ['poison']; } ev.targets.push(r); touched.add(e.id); break; }
-      case 'volley': case 'whirlwind': for (const e of allE()) { ev.targets.push(hitEnemy(hero, e, p.dmg * m)); touched.add(e.id); } break;
-      case 'healing_light': { const a = pickAlly(false); ev.targets.push(healHero(hero, a, p.heal * m)); touched.add(a.id); break; }
-      case 'blessing': for (const h of allH()) { const r = healHero(hero, h, p.heal * m); r.block = blockHero(h, p.block * m).block; ev.targets.push(r); touched.add(h.id); } break;
-      case 'guardian_oath': { ev.targets.push(blockHero(hero, p.block * m)); addStatus(hero, 'taunt', { t: 1 }); ev.targets[0].status = ['taunt']; break; }
-      case 'lightning_bolt': {
-        const e = pickEnemy(); hero.lastTarget = e.id;
-        ev.targets.push(hitEnemy(hero, e, p.dmg * m)); touched.add(e.id);
-        const others = allE().filter(o => o !== e);
-        if (others.length) { const o = pick(others); const r = hitEnemy(hero, o, p.chain * m, { noStr: true }); r.chain = true; ev.targets.push(r); touched.add(o.id); }
-        break;
-      }
-      case 'sanctuary': for (const h of allH()) { ev.targets.push(healHero(hero, h, p.heal * m)); touched.add(h.id); } break;
-      case 'shadow_strike': { const e = pickEnemy(); hero.lastTarget = e.id; const dbl = e.st.poison || e.st.burn; const r = hitEnemy(hero, e, p.dmg * m * (dbl ? 2 : 1)); if (dbl) r.crit = true; ev.targets.push(r); touched.add(e.id); break; }
-      case 'battle_cry': for (const h of allH()) { addStatus(h, 'str', { v: Math.round(p.str * m), t: p.strT }); ev.targets.push({ id: h.id, status: ['str'] }); touched.add(h.id); } break;
-      case 'frost_nova': for (const e of allE()) { const r = hitEnemy(hero, e, p.dmg * m); if (!e.dead) { const big = e.tier === 'boss' || e.tier === 'raid'; if (big) addStatus(e, 'chill', { t: 1 }); else addStatus(e, 'freeze', { t: 1 }); r.status = [big ? 'chill' : 'freeze']; } ev.targets.push(r); touched.add(e.id); } break;
-      case 'meteor': for (const e of allE()) { const r = hitEnemy(hero, e, p.dmg * m); if (!e.dead) { addStatus(e, 'burn', { v: Math.round(p.burn * m), t: p.burnT }); r.status = ['burn']; } ev.targets.push(r); touched.add(e.id); } break;
-      case 'phoenix_feather': {
-        const a = pickAlly(true);
-        if (a.downed) { a.downed = false; a.hp = Math.round(a.maxHp * 0.5); ev.targets.push({ id: a.id, heal: a.hp, revived: true }); }
-        else ev.targets.push(healHero(hero, a, p.heal * m));
-        touched.add(a.id); break;
-      }
-      case 'venom_storm': for (const e of allE()) { addStatus(e, 'poison', { v: Math.round(p.poison * m) }); ev.targets.push({ id: e.id, status: ['poison'] }); touched.add(e.id); } break;
-      case 'starfall': {
-        ev.hits = [];
-        for (let i = 0; i < p.hits; i++) { const wave = []; for (const e of allE()) { wave.push(hitEnemy(hero, e, p.dmg * m)); touched.add(e.id); } ev.hits.push(wave); }
-        ev.targets = ev.hits.flat(); break;
-      }
-      case 'aegis': for (const h of allH()) { const r = healHero(hero, h, p.heal * m); r.block = blockHero(h, p.block * m).block; ev.targets.push(r); touched.add(h.id); } break;
-      case 'dragons_wrath': { const e = pickEnemy(); hero.lastTarget = e.id; const r = hitEnemy(hero, e, p.dmg * m); if (!e.dead) { addStatus(e, 'burn', { v: Math.round(p.burn * m), t: p.burnT }); r.status = ['burn']; } ev.targets.push(r); touched.add(e.id); break; }
-      default: return { ok: false, msg: 'Unknown skill.' };
-    }
-    hero.energy -= def.cost; ev.energy = -def.cost;
+    const free = hero.st.surge && sk.id !== 'mana_surge';
+    fn(skillCtx(run, hero, ev, touched, pickEnemy, pickAlly, focusMult, usedFocus), C.skillParams(sk.id, sk.lvl));
+    if (free) { delete hero.st.surge; ev.surged = true; }   // Mana Surge's free cast is used up
+    hero.energy = Math.max(0, (hero.energy || 0) - cost); ev.energy = -cost;
     hero.focus = 0; ev.focus = usedFocus;
     if (hero.stats) hero.stats.skills++;
   } else return { ok: false, msg: 'Unknown action.' };
+
+  // Vampire Fang: a little life back from any action that drew blood
+  if (action !== 'defend' && has(hero, 'vampire_fang') && !hero.downed && ev.targets.some(t => t.dmg > 0 && !run.heroes[t.id])) {
+    const r = healHero(hero, hero, 2);
+    if (r.heal) { let rec = ev.targets.find(t => t.id === hero.id); if (!rec) ev.targets.push(rec = { id: hero.id }); rec.heal = (rec.heal || 0) + r.heal; rec.fang = true; }
+  }
 
   // A boss dying takes its crystals with it.
   const boss = c.enemies.find(e => e.tier === 'boss');
@@ -427,9 +551,10 @@ function enemyTurn(run) {
     if (!heroesAlive().length) break;
     const it = e.intent;
     e.mem.last = it.move;
-    if (e.st.freeze) {
-      delete e.st.freeze;
-      const o = ev({ kind: 'enemy', actor: e.id, act: 'frozen', fx: 'frozen', name: 'Frozen solid', targets: [], dur: MS.small });
+    if (e.st.freeze || e.st.stun) {
+      const stun = !e.st.freeze;
+      delete e.st.freeze; delete e.st.stun;
+      const o = ev({ kind: 'enemy', actor: e.id, act: 'frozen', fx: stun ? 'stun' : 'frozen', name: stun ? 'Stunned' : 'Frozen solid', targets: [], dur: MS.small });
       snapAll(o, [e.id]);
       continue;
     }
@@ -446,7 +571,7 @@ function enemyTurn(run) {
     if (it.type === 'attack') {
       const hits = it.hits || 1;
       for (let i = 0; i < hits; i++) {
-        const h = targetHero(); if (!h) break;
+        const h = targetHero(); if (!h || e.dead) break;   // Riposte can finish an attacker mid-combo
         const r = hitHero(e, h, it.dmg, { chilled });
         if (it.status && !h.downed) { addStatus(h, it.status, { t: 2 }); r.status = [it.status]; }
         o.targets.push(r); ids.add(h.id);
@@ -509,6 +634,16 @@ function enemyTurn(run) {
       o.warn = it.warn;
     }
     snapAll(o, ids);
+  }
+
+  // a boss felled by Riposte or Thorned Mail takes its minions with it
+  if (boss && boss.dead && out.length) for (const e of c.enemies) if (e.tier === 'minion' && !e.dead) { e.dead = true; e.hp = 0; snapAll(out[out.length - 1], [e.id]); }
+
+  // Prayer of Mending and Renewal heal once the enemies have attacked.
+  for (const h of aliveHeroes(run)) if (h.st.regen) {
+    const r = healHero(null, h, h.st.regen.v);
+    const o = ev({ kind: 'tick', actor: h.id, fx: 'regen', targets: [r], dur: MS.tick });
+    snapAll(o, [h.id]);
   }
 
   // Durations tick down at the end of the round.

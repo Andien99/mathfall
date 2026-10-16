@@ -714,9 +714,8 @@ function drawChest(rarity, open) {
   const m = () => new Mask(40, 34);
   const mats = {
     common: { wood: P.wood, band: P.iron, lock: P.gold },
-    rare: { wood: R('#2f5f9e'), band: R('#c9d6e6'), lock: R('#9fe8ff') },
-    epic: { wood: R('#4a2f7a'), band: R('#c0a0ff', { k: 0.8 }), lock: R('#ff7ad0') },
-    legendary: { wood: R('#8a2f2a'), band: P.gold, lock: R('#ffffff', { k: 0.6 }) }
+    rare: { wood: R('#4a2f7a'), band: R('#c0a0ff', { k: 0.8 }), lock: R('#ff7ad0') },
+    legendary: { wood: R('#a8501f'), band: P.gold, lock: R('#ffffff', { k: 0.6 }) }
   }[rarity] || { wood: P.wood, band: P.iron, lock: P.gold };
   const base = m().rect(6, 16, 28, 14);
   S.stamp(base, mats.wood, { r: 3, dither: true });
@@ -776,6 +775,84 @@ const ICONS = {
   gold: (S, m) => { S.stamp(m().circle(9, 9, 6.5), P.gold, { r: 2 }); S.stamp(m().circle(9, 9, 6.5).sub(m().circle(9, 9, 5)), P.gold.map(c => shift(c, -0.1)), { r: 1, sel: false }); S.vline(9, 5, 13, '#a8622a'); },
   heart: (S, m) => { S.stamp(m().circle(6, 7, 4).circle(12, 7, 4).poly([[2, 8], [16, 8], [9, 16]]), R('#e0414f'), { r: 2 }); S.dot(5, 5, '#ffffff'); }
 };
+
+// ---- icons for the class skill pools and the items (same 18x18 style)
+const steel = P.steel, earth = R('#9a6a3a'), teal = ['#e8fff8', '#a8ffe0', '#3fc8a0', '#1f6a6a'], red = R('#d8343f'), energyY = ['#fffbe0', '#ffe27a', '#e0a82a', '#8a5a1a'];
+const arrowIcon = (S, m, x1, y1, x2, y2, head = blade, shaft = '#c99a62') => {
+  S.line(x1, y1, x2, y2, shaft);
+  const a = Math.atan2(y2 - y1, x2 - x1), c = Math.cos(a), s = Math.sin(a);
+  S.stamp(m().poly([[x2 + c * 2, y2 + s * 2], [x2 - c * 3 - s * 2.4, y2 - s * 3 + c * 2.4], [x2 - c * 3 + s * 2.4, y2 - s * 3 - c * 2.4]]), head, { r: 1 });
+  S.dots([[x1 - s, y1 + c], [x1 + s, y1 - c]], '#f2f0ff');
+};
+const shieldShape = (m, x, y, w, h) => m().poly([[x, y], [x + w, y], [x + w, y + h * 0.55], [x + w / 2, y + h], [x, y + h * 0.55]]);
+const starPts = (x, y, r, k = 0.38) => { const pts = []; for (let i = 0; i < 8; i++) { const a = -Math.PI / 2 + i * Math.PI / 4, rr = i % 2 ? r * k : r; pts.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr]); } return pts; };
+const flameShape = (m, cx, cy, r) => m().circle(cx, cy + r * 0.3, r * 0.8).poly([[cx - r * 0.8, cy + r * 0.2], [cx, cy - r * 1.4], [cx + r * 0.8, cy + r * 0.2]]);
+Object.assign(ICONS, {
+  // knight
+  shield_bash: (S, m) => { S.stamp(shieldShape(m, 1, 3, 9, 12), R('#3f7ad8'), { r: 2 }); S.stamp(m().poly(starPts(13.5, 8, 4.5)), ['#ffffff', '#fff2a8', '#ffb347', '#a8622a'], { r: 1 }); S.dots([[11, 3], [16, 13], [12, 15]], '#ffe27a'); },
+  cleave: (S, m) => { S.stamp(m().circle(9, 10, 8).sub(m().circle(9, 12, 7)).and(m().rect(0, 0, 18, 11)), ['#ffffff', '#ffd0a0', '#ff8a4a', '#a8402a'], { r: 1 }); S.stamp(m().poly([[4, 16], [12, 6], [14, 7], [6, 17]]), blade, { r: 1 }); },
+  iron_skin: (S, m) => { S.stamp(m().poly([[3, 3], [7, 2], [9, 4], [11, 2], [15, 3], [16, 8], [13, 16], [5, 16], [2, 8]]), steel, { r: 2 }); S.dots([[5, 6], [13, 6], [6, 12], [12, 12]], '#434a69'); S.vline(9, 6, 14, '#6f7f99'); },
+  rally: (S, m) => { S.vline(3, 1, 17, '#8f5a3a'); S.vline(4, 1, 17, '#643a2c'); S.stamp(m().poly([[5, 2], [16, 3], [13, 6.5], [16, 10], [5, 10]]), red, { r: 1 }); S.stamp(m().rect(5, 2, 11, 1.5), P.gold, { r: 1, sel: false }); S.dots([[9, 5], [10, 6], [9, 7], [8, 6]], '#fff2a8'); },
+  pommel: (S, m) => { S.stamp(m().poly([[8, 9], [15, 2], [16, 3], [9, 10]]), blade, { r: 1 }); S.stamp(m().capsule(5, 9, 10, 14, 1), P.gold, { r: 1 }); S.stamp(m().circle(5, 13, 3.4), P.gold, { r: 1 }); S.dots([[1, 13], [2, 16], [5, 17], [1, 10]], '#ffffff'); },
+  sunder: (S, m) => { S.stamp(shieldShape(m, 2, 2, 14, 15).sub(m().poly([[8, 0], [10, 0], [8, 7], [11, 10], [8, 18], [7, 18], [9, 10], [6, 7]])), R('#7a7f99'), { r: 2 }); S.dots([[16, 1], [17, 4], [15, 16], [1, 16]], '#ff9a7a'); },
+  shield_slam: (S, m) => { for (let k = 0; k < 8; k++) { const p = limb(9, 9, k * 45 + 22, 8.5); S.line(9, 9, p[0], p[1], '#ffb347'); } S.stamp(shieldShape(m, 4, 3, 10, 13), R('#5aa8ff'), { r: 2 }); S.stamp(m().circle(9, 8, 1.6), P.gold, { r: 1, sel: false }); },
+  riposte: (S, m) => { S.stamp(m().poly([[2, 15], [14, 2], [16, 3], [4, 16]]), blade, { r: 1 }); S.stamp(m().poly([[16, 15], [4, 2], [2, 3], [14, 16]]), blade, { r: 1 }); S.stamp(m().poly(starPts(9, 9, 4)), ['#ffffff', '#fff2a8', '#ffd25a', '#c4822f'], { r: 1, sel: false }); },
+  unbreakable: (S, m) => { S.stamp(shieldShape(m, 2, 1, 14, 16), holy, { r: 2 }); S.stamp(m().circle(7, 7.5, 2.3).circle(11, 7.5, 2.3).poly([[4.8, 8.4], [13.2, 8.4], [9, 13]]), R('#e0414f'), { r: 1, sel: false }); S.dot(6, 6, '#ffffff'); },
+  earthshatter: (S, m) => { S.stamp(m().rect(0, 13, 18, 5), earth, { r: 1 }); S.stamp(m().poly([[2, 13], [5, 5], [7, 13]]).poly([[7, 13], [10, 1], [13, 13]]).poly([[12, 13], [15, 7], [17, 13]]), R('#a89a8a'), { r: 1 }); S.line(3, 15, 9, 17, '#2a1a10'); S.line(11, 14, 16, 16, '#2a1a10'); },
+  combo: (S, m) => { for (const [o, c] of [[0, '#ffffff'], [4, '#d7e3ef'], [8, '#d7e3ef']]) S.line(1 + o, 7 - o * 0.4, 6 + o, 1 - o * 0.4 + 0.5, c); S.stamp(m().poly([[3, 17], [15, 5], [17, 6], [5, 18]]), fire, { r: 1 }); S.dots([[12, 3], [16, 9], [9, 6]], '#ffb347'); },
+  // mage
+  missiles: (S, m) => { for (const [x, y] of [[13, 4], [14, 10], [9, 14]]) { S.line(x - 7, y + 3, x, y, '#7a6aff'); S.stamp(m().circle(x, y, 2.3), violet, { r: 1 }); S.dot(x, y - 1, '#ffffff'); } },
+  spark: (S, m) => { S.stamp(m().poly(starPts(9, 9, 8, 0.28)), ['#ffffff', '#fff27a', '#f2c14e', '#a8762f'], { r: 1 }); S.dots([[3, 3], [15, 15], [15, 3]], '#fff27a'); },
+  frost_armour: (S, m) => { S.stamp(shieldShape(m, 2, 2, 14, 15), ice, { r: 2 }); S.line(9, 4, 9, 13, '#ffffff'); S.line(5, 6, 13, 11, '#ffffff'); S.line(13, 6, 5, 11, '#ffffff'); },
+  kindle: (S, m) => { S.stamp(m().capsule(3, 14, 15, 14, 2), P.wood, { r: 1 }); S.stamp(flameShape(m, 9, 7, 4.5), fire, { r: 2 }); S.stamp(flameShape(m, 9, 9, 2), ['#ffffff', '#fff6a8', '#ffd25a', '#ffb347'], { r: 1, sel: false }); },
+  flame_wave: (S, m) => { const pts = [[0, 17]]; for (let x = 0; x <= 18; x += 2) pts.push([x, 9 + Math.sin(x * 0.7) * 3 - (x % 4 ? 2 : 0)]); pts.push([18, 17]); S.stamp(m().poly(pts), fire, { r: 2 }); S.dots([[4, 5], [10, 3], [15, 5]], '#ffb347'); },
+  frostbite: (S, m) => { for (const x of [3, 8, 13]) S.stamp(m().poly([[x, 0], [x + 4, 0], [x + 2, 8]]), ice, { r: 1 }); for (const x of [5, 10]) S.stamp(m().poly([[x, 18], [x + 4, 18], [x + 2, 10]]), ice, { r: 1 }); },
+  mana_surge: (S, m) => { S.stamp(m().circle(9, 9, 7).sub(m().circle(9, 9, 5)).sub(m().rect(9, 0, 9, 7)), ['#ffffff', '#9fd8ff', '#3a8ad8', '#1a3a7a'], { r: 1 }); S.stamp(m().poly([[9, 3], [13, 7], [10.5, 7], [10.5, 12], [7.5, 12], [7.5, 7], [5, 7]]), ['#ffffff', '#cfe8ff', '#7ab8ff', '#3a6ad8'], { r: 1 }); },
+  combust: (S, m) => { S.stamp(m().poly(starPts(9, 9, 8.5, 0.5)), fire, { r: 2 }); S.stamp(m().circle(9, 9, 3), ['#ffffff', '#fff6a8', '#ffd25a', '#ffb347'], { r: 1, sel: false }); },
+  blizzard: (S, m) => { S.stamp(m().circle(6, 6, 4).circle(11, 5, 4.5).circle(14, 8, 3).rect(4, 6, 12, 4), ['#ffffff', '#e8f4ff', '#a8c8e8', '#5a7aa8'], { r: 2 }); S.dots([[4, 13], [8, 15], [12, 13], [15, 16], [6, 17], [10, 12]], '#bff6ff'); },
+  time_stop: (S, m) => { S.stamp(m().rect(3, 1, 12, 2).rect(3, 15, 12, 2), P.gold, { r: 1 }); S.stamp(m().poly([[4, 3], [14, 3], [10, 9], [14, 15], [4, 15], [8, 9]]), ['#ffffff', '#e8f4ff', '#a8c8e8', '#5a7aa8'], { r: 1 }); S.stamp(m().poly([[6, 15], [12, 15], [9, 11]]).poly([[6, 4], [12, 4], [9, 7]]), ice, { r: 1, sel: false }); },
+  // ranger
+  aimed_shot: (S, m) => { S.stamp(m().circle(9, 9, 7).sub(m().circle(9, 9, 5.6)), R('#e0414f'), { r: 1 }); S.hline(1, 6, 9, '#e0414f'); S.hline(12, 17, 9, '#e0414f'); S.vline(9, 1, 6, '#e0414f'); S.vline(9, 12, 17, '#e0414f'); S.dot(9, 9, '#ffffff'); },
+  twin_shot: (S, m) => { arrowIcon(S, m, 1, 9, 15, 2); arrowIcon(S, m, 3, 16, 17, 9); },
+  mark: (S, m) => { S.stamp(m().circle(9, 9, 8), R('#e0414f'), { r: 2 }); S.stamp(m().circle(9, 9, 5.5), P.white, { r: 1, sel: false }); S.stamp(m().circle(9, 9, 3), R('#e0414f'), { r: 1, sel: false }); S.dot(9, 9, '#ffffff'); },
+  smoke: (S, m) => { S.stamp(m().circle(6, 11, 4.5).circle(11, 8, 5).circle(13, 13, 4).circle(5, 5, 2.5), ['#ffffff', '#d8d4e8', '#9a96b0', '#5a5670'], { r: 2 }); S.stamp(m().circle(14, 3, 2.4), R('#3a3a4a'), { r: 1 }); S.dot(15, 1, '#ffb347'); },
+  fire_arrow: (S, m) => { arrowIcon(S, m, 2, 16, 13, 5, fire); S.stamp(flameShape(m, 14, 4, 2.6), fire, { r: 1, sel: false }); S.dots([[16, 7], [11, 2]], '#ffd25a'); },
+  crippling: (S, m) => { arrowIcon(S, m, 2, 16, 15, 3); S.dots([[13, 8], [13, 10], [12, 12], [16, 7], [16, 10]], '#c08aff'); },
+  pinning: (S, m) => { S.stamp(m().rect(0, 14, 18, 4), earth, { r: 1 }); arrowIcon(S, m, 9, 1, 9, 13); for (const [x, y] of [[3, 8], [15, 8]]) S.stamp(m().poly(starPts(x, y, 2.6)), holy, { r: 1 }); },
+  arrow_rain: (S, m) => { for (const [x, y] of [[3, 2], [8, 6], [13, 1], [5, 10], [11, 11], [16, 8]]) { S.vline(x, y, y + 4, '#c99a62'); S.dots([[x, y + 5], [x - 1, y + 4], [x + 1, y + 4]], '#d7e3ef'); } },
+  ricochet: (S, m) => { S.line(1, 4, 6, 15, '#fff2c0'); S.line(6, 15, 11, 4, '#fff2c0'); arrowIcon(S, m, 11, 4, 16, 14, blade, '#fff2c0'); S.dots([[6, 16], [11, 3]], '#ffe27a'); },
+  phantom: (S, m) => { arrowIcon(S, m, 1, 12, 14, 2, teal, '#7affd8'); arrowIcon(S, m, 3, 17, 17, 8, teal, '#7affd8'); S.dots([[4, 5], [9, 16], [16, 15]], '#c8fff0'); },
+  deadeye: (S, m) => { S.stamp(m().ellipse(9, 9, 8, 4.6), P.white, { r: 2 }); S.stamp(m().circle(9, 9, 3.4), R('#e0414f'), { r: 1, sel: false }); S.stamp(m().circle(9, 9, 1.5), ['#1a1020', '#1a1020', '#1a1020', '#1a1020'], { r: 1, sel: false }); S.dot(8, 8, '#ffffff'); S.vline(9, 0, 3, '#e0414f'); S.vline(9, 15, 17, '#e0414f'); },
+  // cleric
+  holy_smite: (S, m) => { S.stamp(m().capsule(3, 16, 9, 9, 1), P.wood, { r: 1 }); S.stamp(m().circle(11, 7, 4.5), holy, { r: 2 }); S.dots([[11, 1], [17, 7], [15, 2], [16, 12]], '#fff2a8'); },
+  purify: (S, m) => { S.stamp(m().circle(9, 11, 5.5).poly([[3.8, 10], [9, 1], [14.2, 10]]), ['#ffffff', '#d8fff0', '#7ad8c8', '#2a7a8a'], { r: 2 }); S.dots([[7, 9], [7, 10], [8, 8]], '#ffffff'); S.dots([[15, 2], [16, 3], [15, 4], [14, 3]], '#ffffff'); },
+  ward: (S, m) => { S.stamp(m().circle(9, 9, 8.5).sub(m().circle(9, 9, 7.3)), holy, { r: 1, sel: false }); S.stamp(shieldShape(m, 5, 4, 8, 10), holy, { r: 2 }); S.dot(9, 7, '#ffffff'); },
+  mending: (S, m) => { S.stamp(m().circle(6, 7, 4).circle(12, 7, 4).poly([[2, 8], [16, 8], [9, 16]]), R('#3fc86a'), { r: 2 }); S.stamp(m().rect(8, 5, 2, 6).rect(6, 7, 6, 2), P.white, { r: 1, sel: false }); },
+  radiance: (S, m) => { for (let k = 0; k < 8; k++) { const p = limb(9, 9, k * 45, 8.5); S.line(9, 9, p[0], p[1], '#ffe27a'); } S.stamp(m().circle(9, 9, 4.5), holy, { r: 2 }); },
+  empower: (S, m) => { S.stamp(m().poly([[9, 1], [16, 9], [12, 9], [12, 17], [6, 17], [6, 9], [2, 9]]), R('#ff7a5a'), { r: 1 }); S.dots([[2, 3], [16, 3], [1, 14], [17, 15]], '#fff2a8'); },
+  judgement: (S, m) => { S.vline(9, 2, 16, '#c4822f'); S.hline(3, 15, 4, '#f2c14e'); S.stamp(m().rect(6, 15, 7, 2), P.gold, { r: 1 }); for (const x of [4, 14]) { S.line(x, 4, x - 2, 10, '#c4822f'); S.line(x, 4, x + 2, 10, '#c4822f'); S.stamp(m().ellipse(x, 10.5, 3, 1.4), P.gold, { r: 1 }); } S.stamp(m().circle(9, 2, 1.5), holy, { r: 1 }); },
+  renewal: (S, m) => { S.line(9, 17, 9, 8, '#4aa83a'); S.stamp(m().ellipse(5, 7, 4.5, 2.6, 1, -0.5).ellipse(13, 5, 4.5, 2.6, 1, 0.5), green, { r: 1 }); S.dots([[3, 13], [15, 12], [14, 15]], '#b6ffcf'); },
+  sacred_flame: (S, m) => { S.stamp(flameShape(m, 9, 9, 6.5), holy, { r: 2 }); S.stamp(flameShape(m, 9, 12, 2.6), ['#ffffff', '#ffffff', '#fff6c8', '#fff2a8'], { r: 1, sel: false }); },
+  resurrection: (S, m) => { S.stamp(m().ellipse(9, 5, 4, 4.5).sub(m().ellipse(9, 5.5, 2, 2.6)).rect(2, 8, 14, 3).rect(7.5, 9, 3, 9), holy, { r: 1 }); S.dots([[1, 2], [17, 3], [16, 15], [2, 15]], '#fff6c8'); },
+  divine_shield: (S, m) => { S.stamp(m().circle(9, 12, 8.5).sub(m().circle(9, 12, 7)).and(m().rect(0, 0, 18, 15)), ['#ffffff', '#fff6c8', '#ffe27a', '#c4822f'], { r: 1, sel: false }); S.stamp(m().rect(0, 14, 18, 2), P.gold, { r: 1 }); S.stamp(m().circle(9, 10, 2.2).rect(7.5, 11, 3, 3), P.white, { r: 1, sel: false }); S.dots([[4, 6], [14, 5]], '#ffffff'); },
+  wrath: (S, m) => { S.stamp(m().rect(6, 0, 6, 15), ['#ffffff', '#fff6c8', '#ffe27a', '#e0a82a'], { r: 2 }); S.stamp(m().ellipse(9, 15, 8, 2.6), holy, { r: 1 }); S.vline(9, 0, 13, '#ffffff'); S.dots([[2, 11], [16, 10], [3, 6], [15, 4]], '#fff2a8'); },
+  // items
+  lucky_coin: (S, m) => { S.stamp(m().circle(9, 9, 7), P.gold, { r: 2 }); S.stamp(m().circle(9, 7, 1.8).circle(7, 9.5, 1.8).circle(11, 9.5, 1.8), green, { r: 1, sel: false }); S.vline(9, 10, 13, '#24603a'); },
+  whetstone: (S, m) => { S.stamp(m().poly([[1, 11], [13, 5], [17, 8], [5, 15]]), R('#8a8fa6'), { r: 2 }); S.line(4, 11, 13, 7, '#e8eef6'); S.dots([[15, 2], [16, 4], [13, 1]], '#ffffff'); },
+  energy_crystal: (S, m) => { S.stamp(m().poly([[9, 1], [14, 6], [12, 16], [6, 16], [4, 6]]), energyY, { r: 1 }); S.line(9, 2, 9, 15, '#fffbe0'); S.dots([[16, 3], [2, 12]], '#ffe27a'); },
+  boots: (S, m) => { S.stamp(m().poly([[5, 1], [11, 1], [11, 11], [16, 13], [16, 17], [4, 17], [4, 11]]), P.leather, { r: 2 }); S.stamp(m().rect(4, 15, 13, 2), R('#3e2732'), { r: 1, sel: false }); S.hline(5, 10, 3, '#c98d5a'); },
+  chalk: (S, m) => { S.stamp(m().poly([[3, 13], [12, 4], [15, 7], [6, 16]]), P.white, { r: 1 }); S.dots([[2, 16], [1, 13], [4, 17], [16, 2], [14, 1]], '#e4e2f0'); },
+  bandage: (S, m) => { S.stamp(m().ellipse(8, 9, 6, 6), ['#ffffff', '#f2ece0', '#d8cdb8', '#9a8a70'], { r: 2 }); S.stamp(m().circle(8, 9, 2), R('#c8b89a'), { r: 1, sel: false }); S.stamp(m().rect(13, 10, 5, 4), ['#ffffff', '#f2ece0', '#d8cdb8', '#9a8a70'], { r: 1 }); S.dots([[15, 11], [16, 12]], '#e0414f'); },
+  thorned_mail: (S, m) => { const sp = [[1, 4, 4, 6], [17, 4, 14, 6], [0, 11, 4, 11], [18, 11, 14, 11], [9, 0, 9, 4], [4, 17, 6, 14], [14, 17, 12, 14]]; for (const [x, y, bx, by] of sp) { const dx = by - y, dy = x - bx, l = Math.hypot(dx, dy) || 1; S.stamp(m().poly([[x, y], [bx + dx / l * 2, by + dy / l * 2], [bx - dx / l * 2, by - dy / l * 2]]), R('#9aa0b8'), { r: 1 }); } S.stamp(m().poly([[4, 4], [14, 4], [15, 9], [12, 15], [6, 15], [3, 9]]), steel, { r: 2 }); S.dots([[7, 7], [11, 7], [9, 11]], '#434a69'); },
+  focus_lens: (S, m) => { S.stamp(m().capsule(11, 11, 16, 16, 1.4), P.wood, { r: 1 }); S.stamp(m().circle(7, 7, 6), P.gold, { r: 1 }); S.stamp(m().circle(7, 7, 4.4), ['#ffffff', '#b8f2ff', '#7a8aff', '#3a3fa8'], { r: 2, sel: false }); S.dots([[5, 5], [6, 4]], '#ffffff'); },
+  satchel: (S, m) => { S.stamp(m().circle(9, 4, 4).sub(m().circle(9, 4, 2.6)).and(m().rect(0, 0, 18, 5)), P.leather, { r: 1 }); S.stamp(m().rect(2, 5, 14, 11), P.leather, { r: 2 }); S.stamp(m().rect(8, 7, 2, 7).rect(6, 9.5, 6, 2), ['#ffffff', '#9dffb0', '#3fc86a', '#1f7a4a'], { r: 1, sel: false }); },
+  fang: (S, m) => { S.stamp(m().poly([[4, 2], [14, 2], [13, 6], [10, 17], [8, 11], [5, 6]]), P.bone, { r: 2 }); S.dots([[10, 15], [9, 16]], '#e0414f'); S.vline(9, 3, 9, '#fffbe8'); },
+  potion: (S, m) => { S.stamp(m().rect(7, 1, 4, 4), P.wood, { r: 1 }); S.stamp(m().circle(9, 11, 6).rect(7, 4, 4, 4), ['#ffffff', '#d8e4f2', '#9aaac8', '#5a6a8a'], { r: 2 }); S.stamp(m().circle(9, 11.5, 4.5).and(m().rect(0, 9, 18, 9)), R('#e0414f'), { r: 1, sel: false }); S.dots([[6, 9], [7, 8]], '#ffffff'); },
+  belt: (S, m) => { S.stamp(m().rect(0, 6, 18, 6), P.leather, { r: 1 }); S.stamp(m().rect(6, 4, 7, 10).sub(m().rect(8, 6, 3, 6)), P.gold, { r: 1 }); S.hline(9, 13, 9, '#c4822f'); },
+  plume: (S, m) => { S.stamp(m().poly([[3, 17], [6, 9], [11, 2], [16, 1], [14, 7], [9, 13]]), fire, { r: 2 }); S.line(3, 17, 14, 3, '#fff6a8'); S.dots([[16, 4], [12, 1]], '#ffd25a'); },
+  crown: (S, m) => { S.stamp(m().poly([[1, 6], [5, 10], [9, 3], [13, 10], [17, 6], [15, 15], [3, 15]]), P.gold, { r: 2 }); S.dots([[9, 10]], '#e0414f'); S.dots([[5, 12], [13, 12]], '#5aa8ff'); S.dots([[1, 5], [9, 2], [17, 5]], '#ffffff'); },
+  pencil: (S, m) => { S.stamp(m().poly([[13, 1], [17, 5], [7, 15], [3, 11]]), energyY, { r: 1 }); S.stamp(m().poly([[13, 1], [17, 5], [15.5, 6.5], [11.5, 2.5]]), R('#ff8ab0'), { r: 1, sel: false }); S.stamp(m().poly([[3, 11], [7, 15], [1, 17]]), ['#ffe8c8', '#e8c8a0', '#c8a070', '#8a6a4a'], { r: 1, sel: false }); S.dot(1, 17, '#2a2030'); }
+});
 
 // ------------------------------------------------------------------ cache & public API
 const cache = new Map();

@@ -226,7 +226,7 @@ function renderLobby() {
         h('h3', null, H.name), h('div', { class: 'role' }, H.role + ' · ' + H.hp + ' HP'),
         h('p', { class: 'blurb' }, H.blurb),
         h('div', { class: 'sk' }, ...H.skills.flatMap(id => [h('img', { src: SP.iconURL(C.SKILLS[id].icon, 2), alt: '' }), h('div', null, h('b', null, C.SKILLS[id].name, h('span', { class: 'skcost' }, C.SKILLS[id].cost + ' energy')), C.skillDesc(id, 1))])),
-        h('div', { class: 'entip' }, `Attack or Defend to charge energy (+${C.ENERGY.attack} each). Skills spend it.`),
+        h('div', { class: 'entip' }, `Attack or Defend to charge energy (+${C.ENERGY.attack} each). Skills spend it. Find a third skill and items in chests and shops.`),
         taken[cls] ? h('span', { class: 'taken' }, taken[cls].join(', ')) : null);
       box.appendChild(card);
     }
@@ -325,7 +325,7 @@ function renderParty(fromScene) {
       h('div', { class: 'nm' }, hdat.name, h('small', null, C.HEROES[hdat.cls].name)),
       h('div', { class: 'hpbar' }, h('i', { class: pct < 30 ? 'lo' : '', style: { width: pct + '%' } })),
       h('div', { class: 'hpline' }, h('span', null, `${hp}/${maxHp}`), block ? h('span', { class: 'blk' }, `🛡 ${block}`) : h('span')),
-      h('div', { class: 'stt' }, ...Object.entries(st).map(([k, v]) => h('span', { style: { '--c': (C.STATUS_INFO[k] || {}).color || '#fff' }, title: (C.STATUS_INFO[k] || {}).desc }, (C.STATUS_INFO[k] || { name: k }).name + (v.v ? ' ' + v.v : v.t > 1 ? ' ' + v.t : '')))),
+      h('div', { class: 'stt' }, ...Object.entries(st).map(([k, v]) => h('span', { style: { '--c': (C.STATUS_INFO[k] || {}).color || '#fff' }, title: (C.STATUS_INFO[k] || {}).desc }, (C.STATUS_INFO[k] || { name: k }).name + (v.v ? ' ' + v.v : v.t > 1 && v.t < 50 ? ' ' + v.t : '')))),
       run.phase === 'combat' ? h('div', { class: 'enline', title: 'Energy' }, h('i', { style: { width: (100 * (hdat.energy || 0) / C.ENERGY.max) + '%' } })) : null,
       hdat.focus ? h('div', { class: 'focus' }, '✦'.repeat(hdat.focus) + '✧'.repeat(3 - hdat.focus)) : null,
       stLabel);
@@ -333,19 +333,20 @@ function renderParty(fromScene) {
   }
 }
 
-const ACTION_KEYS = ['attack', 'defend', 'skill0', 'skill1'];
+// Attack, Defend, then one button per skill (heroes carry up to three).
+const actionKeys = hero => ['attack', 'defend', ...hero.skills.map((_, i) => 'skill' + i)];
 function actionInfo(hero, action) {
   const H = C.HEROES[hero.cls];
-  if (action === 'attack') return { name: H.attack.name, desc: H.attack.desc, icon: 'attack', color: '#ffb08a', cls: 'attack', gain: C.ENERGY.attack };
+  if (action === 'attack') return { name: H.attack.name, desc: H.attack.desc.replace(/\d+ damage/, d => C.hasItem(hero, 'whetstone') ? (parseInt(d, 10) + 2) + ' damage' : d), icon: 'attack', color: '#ffb08a', cls: 'attack', gain: C.ENERGY.attack };
   if (action === 'defend') return { name: H.defend.name, desc: H.defend.desc.replace(/ Tap an ally.*$/, ''), icon: 'defend', color: '#a8d0ff', cls: 'defend', gain: C.ENERGY.defend };
-  const sk = hero.skills[action === 'skill0' ? 0 : 1];
+  const sk = hero.skills[+action.slice(5)];
   const def = C.SKILLS[sk.id];
-  return { name: C.skillName(sk.id, sk.lvl), desc: C.skillDesc(sk.id, sk.lvl), icon: def.icon, color: def.color, cls: 'rarity-' + def.rarity, cost: def.cost, target: def.target, rarity: def.rarity };
+  return { name: C.skillName(sk.id, sk.lvl), desc: C.skillDesc(sk.id, sk.lvl), icon: def.icon, color: def.color, cls: 'rarity-' + def.rarity + ' sk' + action.slice(5), cost: C.skillCost(sk.id, hero), target: def.target, rarity: def.rarity };
 }
 function metaFor(intent) {
   const hero = myHero();
   if (!intent) return {};
-  if (intent.kind === 'focus') return { title: 'Focus', subtitle: 'Each correct answer powers your next attack or skill by 30%.', icon: SP.iconURL('focus', 3), color: '#b8c8ff', go: 'Focus', yes: 'Focused!' };
+  if (intent.kind === 'focus') return { title: 'Focus', subtitle: `Each correct answer powers your next attack or skill by ${focusPct()}%.`, icon: SP.iconURL('focus', 3), color: '#b8c8ff', go: 'Focus', yes: 'Focused!' };
   if (intent.kind === 'rise') return { title: 'Get back up', subtitle: 'Answer correctly to return with 30% health.', icon: SP.iconURL('rise', 3), color: '#ffe2a0', go: 'Rise', yes: 'Back up!', noSwitch: true };
   if (intent.kind === 'event') { const ev = C.EVENTS[intent.event] || {}; const opt = (ev.options || []).find(o => o.id === intent.opt) || {}; return { title: opt.label || 'Answer', subtitle: ev.title || '', icon: SP.iconURL('blessing', 3), color: '#ffe9a0', go: 'Answer', yes: 'Correct!', noSwitch: true, retry: 'Close' }; }
   if (!hero) return {};
@@ -380,33 +381,40 @@ function renderActions() {
   const head = h('div', { class: 'am-head' }, h('img', { src: SP.portraitURL(hero.skin || hero.cls, hero.variant, 'determined', 2), alt: '' }), h('div', null, h('div', null, hero.name), h('div', { class: 'hint' },
     over ? 'Battle over' : hero.downed ? 'You are knocked out' : hero.acted ? 'Done for this round' : hero.ready ? 'Your action fires next round' : enemyTurn ? 'Enemies are acting. Plan your next move.' : 'Choose an action')));
   head.appendChild(energyMeter(hero.energy || 0));
+  if ((hero.items || []).length) head.appendChild(itemStrip(hero.items));
   const list = h('div', { class: 'am-list' });
   if (hero.downed) {
     list.appendChild(h('button', { class: 'act rise', disabled: over, onclick: () => act('rise') }, h('img', { src: SP.iconURL('rise', 2), alt: '' }), h('div', null, h('div', { class: 'an' }, 'Get back up'), h('div', { class: 'ad' }, 'Answer a question to return with 30% health.')), h('span', { class: 'ak' }, '1')));
   } else if (hero.acted || hero.ready) {
     list.appendChild(h('div', { class: 'am-done' }, hero.ready ? 'Ready! Your action fires at the start of next round.' : 'Done. Waiting for your team.'));
-    if (hero.focus < 3 && !over) list.appendChild(h('button', { class: 'act focus', onclick: () => act('focus') }, h('img', { src: SP.iconURL('focus', 2), alt: '' }), h('div', null, h('div', { class: 'an' }, `Focus ${'✦'.repeat(hero.focus)}${'✧'.repeat(3 - hero.focus)}`), h('div', { class: 'ad' }, 'Bonus question: +30% power on your next attack or skill.')), h('span', { class: 'ak' }, 'F')));
+    if (hero.focus < 3 && !over) list.appendChild(h('button', { class: 'act focus', onclick: () => act('focus') }, h('img', { src: SP.iconURL('focus', 2), alt: '' }), h('div', null, h('div', { class: 'an' }, `Focus ${'✦'.repeat(hero.focus)}${'✧'.repeat(3 - hero.focus)}`), h('div', { class: 'ad' }, `Bonus question: +${focusPct()}% power on your next attack or skill.`)), h('span', { class: 'ak' }, 'F')));
     else if (hero.focus >= 3) list.appendChild(h('div', { class: 'am-tip' }, 'Focus is full ✦✦✦. Use it next round.'));
   } else {
-    ACTION_KEYS.forEach((k, i) => {
+    actionKeys(hero).forEach((k, i) => {
       const info = actionInfo(hero, k);
       const short = info.cost ? Math.max(0, info.cost - (hero.energy || 0)) : 0;
-      const free = hero.free && (k === 'attack' || k === 'defend');
+      const free = (hero.free && (k === 'attack' || k === 'defend')) || (k.startsWith('skill') && info.cost === 0);
       const allyNote = (k === 'defend' || info.target === 'ally') && scene.allyTarget ? ' → ' + (run.heroes.find(x => x.id === scene.allyTarget) || {}).name : '';
       list.appendChild(h('button', { class: 'act ' + info.cls + (short ? ' low' : '') + (free ? ' freeact' : ''), disabled: over || short > 0, onclick: () => act(k), title: info.desc },
         h('img', { src: SP.iconURL(info.icon, 2), alt: '' }),
         h('div', null, h('div', { class: 'an' }, info.name + allyNote), h('div', { class: 'ad' }, info.desc)),
-        free ? h('span', { class: 'freetag', title: 'No question needed' }, h('b', null, 'FREE'), h('small', null, 'no question'))
+        free ? h('span', { class: 'freetag', title: k.startsWith('skill') ? 'Mana Surge: no energy needed' : 'No question needed' }, h('b', null, 'FREE'), h('small', null, k.startsWith('skill') ? 'no energy' : 'no question'))
           : info.cost ? h('span', { class: 'cost' + (short ? ' short' : ''), title: short ? `Need ${short} more energy` : `Costs ${info.cost} energy` }, h('b', null, info.cost), h('small', null, 'energy'))
           : h('span', { class: 'gain', title: `Charges ${info.gain} energy` }, h('b', null, '+' + info.gain), h('small', null, 'energy'))));
     });
+    if (hero.skills.length < C.MAX_SKILLS) list.appendChild(h('div', { class: 'act empty', title: 'Find more skills in chests and shops' }, h('span', { class: 'slot' }, '+'), h('div', null, h('div', { class: 'an' }, 'Empty skill slot'), h('div', { class: 'ad' }, 'Find a third skill in a chest or shop.'))));
     if (hero.free) list.appendChild(h('div', { class: 'am-tip free' }, 'You answered correctly: your next Attack or Defend is free. After that, answer again.'));
-    if (hero.focus) list.appendChild(h('div', { class: 'am-tip' }, `Focus ${'✦'.repeat(hero.focus)}: your next attack or skill is ${Math.round(30 * hero.focus)}% stronger.`));
+    if (hero.focus) list.appendChild(h('div', { class: 'am-tip' }, `Focus ${'✦'.repeat(hero.focus)}: your next attack or skill is ${focusPct() * hero.focus}% stronger.`));
     else list.appendChild(h('div', { class: 'am-tip' }, 'Tap an enemy to target it. Tap a teammate to guard or heal them.'));
   }
   box.append(head, list);
 }
 
+const focusPct = () => Math.round(100 * C.focusStep(myHero()));
+// the hero's items as small icons; tap one to read what it does
+function itemStrip(items) {
+  return h('div', { class: 'am-items' }, ...items.map(id => { const it = C.ITEMS[id]; return h('button', { class: 'itm', style: { '--rc': C.RARITY[it.rarity].color }, title: `${it.name}: ${it.desc}`, onclick: () => toast(`${it.name}: ${it.desc}`) }, h('img', { src: SP.iconURL(it.icon, 2), alt: it.name })); }));
+}
 function energyMeter(n) {
   const max = C.ENERGY.max;
   return h('div', { class: 'energy', title: `Energy ${n}/${max}. Attack and Defend charge it; skills spend it.` },
@@ -421,7 +429,7 @@ function act(action) {
   unlockAudio(); sfx('click');
   let target = scene.target;
   if (action === 'defend') target = scene.allyTarget || null;
-  if (action.startsWith('skill')) { const info = actionInfo(hero, action); if (info.target === 'ally') target = scene.allyTarget || null; }
+  if (action.startsWith('skill')) { const info = actionInfo(hero, action); if (info.target === 'ally') target = scene.allyTarget || null; else if (info.target === 'self' || info.target === 'party') target = null; }
   socket.emit('act', { action, target }, res => {
     if (!res || !res.ok) { if (res && res.msg) toast(res.msg); return; }
     if (res.free) { sfx('correct'); banner(res.queued ? 'Free action ready for next round!' : 'Free action!', 'free'); renderActions(); return; }
@@ -433,7 +441,7 @@ document.addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT') return;
   const hero = myHero(); if (!hero) return;
   if (hero.downed && e.key === '1') act('rise');
-  else if (!hero.acted && !hero.ready && '1234'.includes(e.key) && e.key.length === 1) act(ACTION_KEYS[+e.key - 1]);
+  else if (!hero.acted && !hero.ready && '12345'.includes(e.key) && e.key.length === 1 && actionKeys(hero)[+e.key - 1]) act(actionKeys(hero)[+e.key - 1]);
   else if ((hero.acted || hero.ready) && (e.key === 'f' || e.key === 'F')) act('focus');
 });
 
@@ -498,15 +506,50 @@ function readyLine(room) {
   const names = run.heroes.filter(x => x.connected && !room.ready[x.id]).map(x => x.id === me.playerId ? 'you' : x.name);
   return h('div', { class: 'readyline' }, h('b', null, `${r}/${n} ready`), names.length ? ' · waiting for ' + listJoin(names) : '');
 }
+// Loot cards. The border colour is the rarity: grey common, purple rare, orange legendary.
 function skillCard(id, lvl, extra) {
   const def = C.SKILLS[id]; const rc = C.RARITY[def.rarity].color;
-  return h('div', { class: 'skcard' + (extra && extra.isNew ? ' new' : ''), style: { '--rc': rc } },
+  const cost = C.skillCost(id, { items: (myHero() || {}).items });
+  return h('div', { class: 'skcard rar-' + def.rarity + (extra && extra.isNew ? ' new' : '') + (extra && extra.small ? ' small' : ''), style: { '--rc': rc } },
     h('img', { src: SP.iconURL(def.icon, 3), alt: '' }),
-    h('div', { class: 'rar' }, C.RARITY[def.rarity].name + (extra && extra.label ? ' · ' + extra.label : '')),
+    h('div', { class: 'rar' }, C.RARITY[def.rarity].name + ' skill' + (extra && extra.label ? ' · ' + extra.label : '')),
     h('h4', null, C.skillName(id, lvl)),
     h('p', null, C.skillDesc(id, lvl)),
-    h('div', { class: 'cd' }, `Costs ${def.cost} energy`),
+    h('div', { class: 'cd' }, `Costs ${cost} energy`),
     extra && extra.button ? extra.button : null);
+}
+function itemCard(id, extra) {
+  const it = C.ITEMS[id]; const rc = C.RARITY[it.rarity].color;
+  return h('div', { class: 'skcard item rar-' + it.rarity + (extra && extra.isNew ? ' new' : '') + (extra && extra.small ? ' small' : ''), style: { '--rc': rc } },
+    h('img', { src: SP.iconURL(it.icon, 3), alt: '' }),
+    h('div', { class: 'rar' }, C.RARITY[it.rarity].name + ' item' + (extra && extra.label ? ' · ' + extra.label : '')),
+    h('h4', null, it.name),
+    h('p', null, it.desc),
+    h('div', { class: 'cd' }, 'Passive: works every fight'),
+    extra && extra.button ? extra.button : null);
+}
+function goldCard(n, extra) {
+  return h('div', { class: 'skcard gold' + (extra && extra.isNew ? ' new' : ''), style: { '--rc': '#ffd25a' } },
+    h('img', { src: SP.iconURL('gold', 3), alt: '' }),
+    h('div', { class: 'rar' }, 'Gold'),
+    h('h4', null, `${n} gold`),
+    h('p', null, 'Save it for the merchant: skills, items and healing.'),
+    h('div', { class: 'cd' }, `You have ${(myHero() || {}).gold || 0}`),
+    extra && extra.button ? extra.button : null);
+}
+// "Your skills" and "Your items" under the loot, so students can see what they already carry
+function loadout(hero) {
+  const items = hero.items || [];
+  return h('div', { class: 'loadout' },
+    h('div', { class: 'lo-row' }, h('b', null, `Skills ${hero.skills.length}/${C.MAX_SKILLS}`), ...hero.skills.map(s => { const d = C.SKILLS[s.id]; return h('span', { class: 'chipx', style: { '--rc': C.RARITY[d.rarity].color }, title: C.skillDesc(s.id, s.lvl) }, h('img', { src: SP.iconURL(d.icon, 1), alt: '' }), C.skillName(s.id, s.lvl)); })),
+    h('div', { class: 'lo-row' }, h('b', null, 'Items'), ...(items.length ? items.map(id => { const it = C.ITEMS[id]; return h('span', { class: 'chipx', style: { '--rc': C.RARITY[it.rarity].color }, title: it.desc }, h('img', { src: SP.iconURL(it.icon, 1), alt: '' }), it.name); }) : [h('i', { class: 'none' }, 'none yet')])));
+}
+// A new skill when all three slots are full: pick the one it replaces.
+function replaceRow(newId, lvl, label, onPick, onBack) {
+  return [h('p', { class: 'lead' }, `Your ${C.MAX_SKILLS} skill slots are full. Which skill should ${C.SKILLS[newId].name} replace?`),
+    h('div', { class: 'row' }, skillCard(newId, lvl, { isNew: true, label, small: true }), h('div', { class: 'vs' }, '→'),
+      ...myHero().skills.map((s, i) => skillCard(s.id, s.lvl, { small: true, label: `Slot ${i + 1}`, button: h('button', { class: 'btn replace', onclick: () => { sfx('click'); onPick(i); } }, 'Replace') }))),
+    h('div', { class: 'center' }, h('button', { class: 'linkbtn', onclick: onBack }, 'Back'))];
 }
 function roomOp(op, data, cb) { socket.emit('room', { op, ...(data || {}) }, r => { if (!r.ok && r.msg) toast(r.msg); cb && cb(r); }); }
 
@@ -542,22 +585,29 @@ function renderRoom() {
       panel.append(h('p', { class: 'lead' }, `A ${C.RARITY[ch.rarity].name.toLowerCase()} chest. Open it to see what's inside.`));
       const img = h('img', { class: 'chest-big shake', style: { '--rc': rc }, src: chestURL(ch.rarity, false), alt: 'Treasure chest', onclick: openIt });
       panel.append(img, h('div', { class: 'center' }, h('button', { class: 'btn primary', onclick: openIt }, 'Open the chest')));
-      function openIt() { sfx('open'); roomOp('open', {}, r => { if (r.ok) sfx('coin'); }); }
+      function openIt() { sfx('open'); roomOp('open', {}, r => { if (r.ok) sfx('twinkle'); }); }
     } else if (!ch.decided) {
-      panel.append(h('div', { class: 'gold-gain' }, `+${ch.gold} gold`), h('p', { class: 'lead' }, 'You found a new skill. Swap it into a slot, or keep your current two.'));
-      const offer = ch.offer;
-      const row = h('div', { class: 'row' });
-      row.append(skillCard(offer.id, offer.lvl, { isNew: true, label: 'New' }), h('div', { class: 'vs' }, 'or'));
-      hero.skills.forEach((s, i) => row.append(skillCard(s.id, s.lvl, { label: `Slot ${i + 1}`, button: h('button', { class: 'btn replace', onclick: () => { sfx('click'); roomOp('take', { slot: i }); } }, `Replace with ${C.SKILLS[offer.id].name}`) })));
-      panel.append(row, h('div', { class: 'center' }, h('button', { class: 'btn ghost', onclick: () => roomOp('keep') }, 'Keep my skills (+10 gold)')));
+      const take = (pick, slot) => roomOp('take', { pick, slot }, r => { if (r.ok) { sfx(pick === 'gold' ? 'coin' : 'open'); roomUI.chestSkill = false; } });
+      if (roomUI.chestSkill && ch.skill) panel.append(...replaceRow(ch.skill.id, ch.skill.lvl, 'New', i => take('skill', i), () => { roomUI.chestSkill = false; renderRoom(); }));
+      else {
+        panel.append(h('p', { class: 'lead' }, 'Keep one: a new skill, an item, or the gold.'));
+        const row = h('div', { class: 'row' });
+        const fresh = !roomUI.dealt; roomUI.dealt = true;   // the cards fly in once, not on every update
+        if (ch.skill) row.append(skillCard(ch.skill.id, ch.skill.lvl, { isNew: fresh, small: true, button: h('button', { class: 'btn primary', onclick: () => { sfx('click'); if (hero.skills.length < C.MAX_SKILLS) take('skill'); else { roomUI.chestSkill = true; renderRoom(); } } }, 'Take skill') }));
+        if (ch.item) row.append(itemCard(ch.item, { isNew: fresh, small: true, button: h('button', { class: 'btn primary', onclick: () => { sfx('click'); take('item'); } }, 'Take item') }));
+        row.append(goldCard(ch.gold, { isNew: fresh, button: h('button', { class: 'btn', onclick: () => take('gold') }, `Take ${ch.gold} gold`) }));
+        panel.append(row);
+      }
+      panel.append(loadout(hero));
     } else {
-      panel.append(h('p', { class: 'lead' }, 'Loot sorted. Waiting for your team.'));
-      panel.append(h('div', { class: 'row' }, ...hero.skills.map((s, i) => skillCard(s.id, s.lvl, { label: `Slot ${i + 1}` }))));
+      const c = ch.choice || {};
+      panel.append(h('p', { class: 'lead' }, (c.skill ? `You learned ${C.SKILLS[c.skill].name}${c.replaced ? ` (instead of ${C.SKILLS[c.replaced].name})` : ''}.` : c.item ? `You found ${C.ITEMS[c.item].name}.` : c.gold ? `+${c.gold} gold.` : 'Loot sorted.') + ' Waiting for your team.'));
+      panel.append(loadout(hero));
     }
     const feed = h('div', { class: 'feed' });
     for (const [pid, c2] of Object.entries(room.chests || {})) {
-      const who = state.run.heroes.find(x => x.id === pid); if (!who || pid === me.playerId || !c2.choice) continue;
-      feed.appendChild(h('div', null, c2.choice.took ? `${who.name} took ${C.SKILLS[c2.choice.took].name}` : `${who.name} kept their skills`));
+      const who = state.run.heroes.find(x => x.id === pid); const c = c2.choice; if (!who || pid === me.playerId || !c) continue;
+      feed.appendChild(h('div', null, c.skill ? `${who.name} learned ${C.SKILLS[c.skill].name}` : c.item ? `${who.name} found ${C.ITEMS[c.item].name}` : `${who.name} took ${c.gold} gold`));
     }
     panel.append(feed, readyLine(room));
   } else if (room.type === 'rest') {
@@ -565,15 +615,18 @@ function renderRoom() {
     return;
   } else if (room.type === 'merchant') {
     const stock = you.stock;
-    panel.append(h('h2', null, "Pip's Wandering Wares"), h('p', { class: 'lead' }, `"Shiny skills, fair prices!" You have ${hero.gold} gold.`));
+    panel.append(h('h2', null, "Pip's Wandering Wares"), h('p', { class: 'lead' }, `"Shiny skills and trinkets, fair prices!" You have ${hero.gold} gold.`));
     if (stock) {
-      if (roomUI.buy != null) {
-        const it = stock.items[roomUI.buy];
-        panel.append(h('p', { class: 'lead' }, `Which skill should ${C.SKILLS[it.id].name} replace?`));
-        panel.append(h('div', { class: 'row' }, skillCard(it.id, it.lvl, { isNew: true, label: `${it.price} gold` }), h('div', { class: 'vs' }, '→'), ...hero.skills.map((s, i) => skillCard(s.id, s.lvl, { label: `Slot ${i + 1}`, button: h('button', { class: 'btn replace', onclick: () => roomOp('buy', { item: roomUI.buy, slot: i }, r => { if (r.ok) { sfx('coin'); roomUI.buy = null; } }) }, 'Replace') }))));
-        panel.append(h('div', { class: 'center' }, h('button', { class: 'linkbtn', onclick: () => { roomUI.buy = null; renderRoom(); } }, 'Back to the shop')));
+      const buy = (kind, i, slot) => roomOp('buy', { kind, i, slot }, r => { if (r.ok) { sfx('coin'); roomUI.buy = null; } });
+      const priceBtn = (it, onclick) => h('button', { class: 'btn' + (hero.gold >= it.price && !it.sold ? ' primary' : ''), disabled: it.sold || hero.gold < it.price, onclick }, it.sold ? 'Sold' : hero.gold < it.price ? `${it.price} gold (not enough)` : `Buy for ${it.price}`);
+      if (roomUI.buy != null && stock.skills[roomUI.buy] && !stock.skills[roomUI.buy].sold) {
+        const it = stock.skills[roomUI.buy];
+        panel.append(...replaceRow(it.id, it.lvl, `${it.price} gold`, i => buy('skill', roomUI.buy, i), () => { roomUI.buy = null; renderRoom(); }));
       } else {
-        panel.append(h('div', { class: 'row' }, ...stock.items.map((it, i) => skillCard(it.id, it.lvl, { label: it.sold ? 'Sold' : `${it.price} gold`, button: h('button', { class: 'btn' + (hero.gold >= it.price && !it.sold ? ' primary' : ''), disabled: it.sold || hero.gold < it.price, onclick: () => { roomUI.buy = i; renderRoom(); } }, it.sold ? 'Sold' : hero.gold < it.price ? 'Not enough gold' : `Buy for ${it.price}`) }))));
+        panel.append(h('div', { class: 'row shop' },
+          ...stock.skills.map((it, i) => skillCard(it.id, it.lvl, { small: true, label: it.sold ? 'Sold' : '', button: priceBtn(it, () => { if (hero.skills.length < C.MAX_SKILLS) buy('skill', i); else { roomUI.buy = i; renderRoom(); } }) })),
+          ...stock.items.map((it, i) => itemCard(it.id, { small: true, label: it.sold ? 'Sold' : '', button: priceBtn(it, () => buy('item', i)) }))));
+        panel.append(loadout(hero));
         panel.append(h('div', { class: 'center' }, h('button', { class: 'btn', disabled: stock.mend.sold || hero.gold < stock.mend.price || hero.hp >= hero.maxHp, onclick: () => roomOp('mend', {}, r => r.ok && sfx('heal')) }, stock.mend.sold ? 'Mended' : `Mend 40% health (${stock.mend.price} gold)`), ' ',
           h('button', { class: 'btn primary', disabled: ready, onclick: () => roomOp('ready') }, ready ? 'Waiting for team…' : 'Leave the shop')));
       }

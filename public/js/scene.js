@@ -11,10 +11,20 @@ const ease = t => 1 - Math.pow(1 - t, 3);
 const easeIn = t => t * t * t;
 const now = () => performance.now();
 
-const STATUS_COL = { burn: '#ff8a3c', poison: '#8fe05a', weak: '#c7a2ff', vuln: '#ff6b8a', chill: '#8fe3ff', freeze: '#dff8ff', str: '#ff9a7a', taunt: '#ffd36b' };
+const STATUS_COL = { burn: '#ff8a3c', poison: '#8fe05a', weak: '#c7a2ff', vuln: '#ff6b8a', chill: '#8fe3ff', freeze: '#dff8ff', str: '#ff9a7a', taunt: '#ffd36b',
+  mark: '#ff6b6b', stun: '#ffe08a', regen: '#9dffb0', steady: '#c8d4e8', thorns: '#ffe08a', frost: '#a8f0ff', unbreak: '#ffd36b', divine: '#fff6c8', surge: '#9fd8ff' };
+// short labels for the status chips under health bars
+const STATUS_SHORT = { burn: 'B', poison: 'P', str: 'S', mark: 'Mk', regen: '+', thorns: 'Th', weak: 'We', vuln: 'Vu', chill: 'Ch', freeze: 'Fr', taunt: 'Ta', stun: 'St', steady: 'Ir', frost: 'Fa', unbreak: 'Ub', divine: 'Dv', surge: 'Su' };
+// colour of the glow and numbers for each support effect
+const SUP_COL = { heal: '#9dffb0', heal_party: '#9dffb0', revive: '#9dffb0', revive_party: '#ffe27a', bless_party: '#ffe9a0', aegis: '#ffe9a0', buff_party: '#ff9a7a', empower: '#ff9a7a', rally_party: '#ffc08a',
+  taunt: '#ffd36b', counter: '#ffe08a', unbreakable: '#ffd36b', surge: '#9fd8ff', shield_ice: '#a8f0ff', smoke: '#c8c4d8', ward: '#ffe9a0', divine: '#fff6c8', shield_self: '#c8d4e8' };
+const SUPPORT = ['defend', 'shield_party', ...Object.keys(SUP_COL)];
+// which projectile a skill's effect fires
+const projKind = fx => ({ mark: 'proj_arrow', multishot: 'proj_arrow', ricochet: 'proj_arrow', missiles: 'proj_arcane' }[fx] || fx);
 // the Minotaur's Ground Slam: PixelLab earth spikes that burst out of the floor (public/art/fx)
 const SPIKES = [0, 1, 2].map(i => { const im = new Image(); im.src = '/art/fx/earth_spike_' + i + '.png'; return im; });
-const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt' };
+const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
+  mark: 'Marked', stun: 'Stunned', regen: 'Mending', steady: 'Iron Skin', thorns: 'Riposte', frost: 'Frost Armour', unbreak: 'Unbreakable', divine: 'Shielded', surge: 'Mana Surge' };
 
 export class BattleScene {
   constructor(canvas, opts = {}) {
@@ -339,6 +349,17 @@ export class BattleScene {
       if (p && ev.energy != null) { const a = this.actors.get(ev.actor); if (a) a.energy = ev.energy; }
       return 0;
     }
+    if (ev.kind === 'energy') {   // Chalk Pouch / Infinity Pencil
+      const p = this.pos(ev.actor); if (p) this.number(p.x + 6, p.y - 62, '+' + ev.n + ' energy', '#ffd84a', 0.75);
+      const a = this.actors.get(ev.actor); if (a && ev.energy != null) a.energy = ev.energy;
+      return 0;
+    }
+    if (ev.kind === 'tick' && ev.fx === 'regen') {   // Prayer of Mending / Renewal
+      const tg = ev.targets[0]; const p = this.pos(tg.id); if (!p) return 0;
+      this.column(p.x, p.y, '#9dffb0'); sfx('heal');
+      setTimeout(() => { if (tg.heal) this.number(p.x, p.y - 40, '+' + tg.heal, '#8dff9e', 1); this._applyAfter(ev); }, T(200));
+      return T(ev.dur || 500);
+    }
     if (ev.kind === 'tick') {
       const tg = ev.targets[0]; const p = this.pos(tg.id); if (!p) return 0;
       const colr = ev.fx === 'burn' ? '#ff8a3c' : '#8fe05a';
@@ -384,11 +405,11 @@ export class BattleScene {
   _preAnimName(A, fx) {
     const has = n => SP.heroAnim(A.skin || A.cls, n);
     // cleric: reading the book + staff glow + circular swing for guard, heals and blessings
-    if (A.cls === 'cleric' && ['defend', 'heal', 'heal_party', 'revive', 'bless_party'].includes(fx) && has('chant')) return 'chant';
-    if (fx === 'defend') return 'defend';
+    if (A.cls === 'cleric' && ['defend', 'heal', 'heal_party', 'revive', 'bless_party', 'ward', 'empower', 'revive_party'].includes(fx) && has('chant')) return 'chant';
+    if (fx === 'defend' || fx === 'shield_self' || fx === 'shield_ice') return 'defend';
     const big = { knight: 'rally', mage: 'channel', ranger: 'volley', cleric: 'pray' }[A.cls];
-    if (['shield_party', 'taunt', 'aegis', 'heal', 'heal_party', 'bless_party', 'revive', 'buff_party'].includes(fx)) return A.cls === 'ranger' ? null : big;
-    if (['volley', 'starfall', 'meteor', 'nova_ice', 'venom', 'lightning'].includes(fx)) return big;
+    if (SUPPORT.includes(fx)) return A.cls === 'ranger' ? null : big;
+    if (['volley', 'starfall', 'meteor', 'nova_ice', 'venom', 'lightning', 'flamewave', 'arrowrain', 'phantom', 'missiles', 'timestop', 'radiance', 'quake', 'pillar', 'dragon'].includes(fx)) return big;
     return null;
   }
   _heroAnim(ev, T) {
@@ -409,24 +430,30 @@ export class BattleScene {
         return T(Math.max(acc, hitAt + 1100) + 150);
       }
     }
-    const tgt = ev.targets.filter(t => t.dmg != null && !t.shatter);
-    const enemyIds = tgt.map(t => t.id);
+    // enemy records: hits, and status-only ones (Hunter's Mark, Venom Storm)
+    const isEnemy = id => { const a = this.actors.get(id); return !!a && a.type === 'enemy'; };
+    const tgt = ev.targets.filter(t => !t.shatter && isEnemy(t.id) && (t.dmg != null || t.status));
+    const enemyIds = [...new Set(tgt.map(t => t.id))];
     const first = tgt[0] && this.actors.get(tgt[0].id);
-    const melee = ['slash', 'smite', 'slash_heavy', 'shadow', 'dragon', 'whirl'].includes(fx);
-    const support = ['defend', 'shield_party', 'taunt', 'aegis', 'heal', 'heal_party', 'bless_party', 'revive', 'buff_party'].includes(fx);
+    const melee = ['slash', 'smite', 'slash_heavy', 'slash_wide', 'shadow', 'whirl'].includes(fx);
+    const support = SUPPORT.includes(fx);
     if (ev.name && ev.act !== 'attack' && ev.act !== 'defend') this.onBanner(ev.name, 'skill', ev.rarity);
     if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
     if (ev.energy > 0) setTimeout(() => this.number(A.x + 6, A.y - 62, '+' + ev.energy + ' energy', '#ffd84a', 0.75), T(450));
     const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
 
     if (support) {
-      this.pose(A, fx === 'defend' || fx === 'taunt' ? 'defend' : 'cast0', T(650));
-      sfx(fx.includes('heal') || fx === 'bless_party' || fx === 'revive' ? 'heal' : 'shield');
-      const colr = fx.includes('heal') || fx === 'revive' ? '#9dffb0' : fx === 'bless_party' || fx === 'aegis' ? '#ffe9a0' : fx === 'buff_party' ? '#ff9a7a' : fx === 'taunt' ? '#ffd36b' : '#7fc8ff';
+      this.pose(A, ['defend', 'taunt', 'counter', 'unbreakable', 'shield_self', 'shield_ice'].includes(fx) ? 'defend' : 'cast0', T(650));
+      sfx(fx.includes('heal') || fx.includes('revive') || fx === 'bless_party' ? 'heal' : fx === 'surge' ? 'cast' : 'shield');
+      const colr = SUP_COL[fx] || '#7fc8ff';
       this.glows.push({ x: A.x, y: A.y - 20, r: 40, color: colr, t: 0, life: 0.6, a: 0.6 });
+      if (fx === 'surge') { this.rune(A.x, A.y, colr); this.ring(A.x, A.y - 18, colr); }
       setTimeout(() => {
         for (const t of ev.targets) {
           const p = this.pos(t.id); if (!p) continue;
+          if (fx === 'smoke') this.cloud(p.x, p.y - 14, '#c8c4d8');
+          if (fx === 'divine') { this.glows.push({ x: p.x, y: p.y - 20, r: 34, color: '#fff6c8', t: 0, life: 0.9, a: 0.9, ring: true, grow: 8 }); this.burst(p.x, p.y - 24, '#fff6c8', 14, 30); }
+          if (t.cleansed) this.number(p.x, p.y - 68, 'Cleansed', '#d8fff0', 0.8);
           if (t.heal || t.revived) { this.column(p.x, p.y, '#9dffb0'); this.number(p.x, p.y - 44, '+' + (t.heal || 0), '#8dff9e', 1.1); }
           if (t.block) { this.shield(p.x, p.y, colr); this.number(p.x + (t.heal ? 10 : 0), p.y - (t.heal ? 30 : 44), '+' + t.block + ' block', '#8fd0ff', 0.95); }
           if (t.status) for (const s of t.status) { this.number(p.x, p.y - 56, STATUS_ABBR[s] || s, STATUS_COL[s] || '#fff', 0.8); this.column(p.x, p.y, STATUS_COL[s] || '#fff'); }
@@ -439,7 +466,28 @@ export class BattleScene {
 
     // offence
     const home = { x: A.x, y: A.y };
-    const bigMove = melee && first && fx !== 'whirl' && ((fx === 'slash_heavy' && SP.heroAnim(A.skin || A.cls, 'power')) || SP.heroAnim(A.skin || A.cls, ['slash_heavy', 'shadow', 'dragon'].includes(fx) ? 'slash' : fx));   // knight: slash, cleric: smite
+    if (fx === 'combo' && first) return this._combo(A, ev, tgt, rc, T, home);
+    if (['missiles', 'multishot', 'ricochet', 'phantom'].includes(fx) && first) return this._multiShot(A, ev, tgt, fx, rc, T);
+    if (fx === 'quake') {   // Earthshatter: the floor cracks out from the knight, rock spikes burst up under every enemy
+      this.shake = 6; this.shakeT = now(); this.flash = 0.2; sfx('stomp');
+      const ens = enemyIds.map(id => this.actors.get(id)).filter(Boolean);
+      for (const e of ens) this._crack(A.x - 12, A.y + 3, e.x + 6, e.y + 3, T(260), T(1300));
+      setTimeout(() => { for (const e of ens) { this._spike(e.x, e.y + 1, 1.5, 420); this._spike(e.x - 10, e.y, 0.9, 380); this._spike(e.x + 9, e.y + 2, 0.8, 360); } this.impact(ev, tgt, fx, rc); }, T(320));
+      return T(1150);
+    }
+    if (fx === 'pillar' && first) {   // Judgement / Wrath of Heaven: a column of light from the sky
+      setTimeout(() => { for (const id of enemyIds) { const e = this.actors.get(id); if (e && !e.gone) { this.skyStrike(e); this.glows.push({ x: e.x, y: e.y - 40, r: 70, color: '#fff2a8', t: 0, life: 0.6, a: 0.8, tall: true }); } } }, T(120));
+      setTimeout(() => this.impact(ev, tgt, fx, rc), T(300));
+      return T(1050);
+    }
+    if (fx === 'dragon' && first) {   // Dragon's Wrath: a huge fireball from the mage's staff
+      const hand = { x: A.x - 16, y: A.y - 30 };
+      this.pose(A, 'cast1', T(500)); sfx('burn');
+      this.projectile(hand, { x: first.x, y: first.y - 16 }, 'meteor', T(320));
+      setTimeout(() => this.impact(ev, tgt, 'proj_fire', rc), T(330));
+      return T(1100);
+    }
+    const bigMove = melee && first && fx !== 'whirl' && ((fx === 'slash_heavy' && SP.heroAnim(A.skin || A.cls, 'power')) || SP.heroAnim(A.skin || A.cls, ['slash_heavy', 'slash_wide', 'shadow'].includes(fx) ? 'slash' : fx));   // knight: slash, cleric: smite
     if (bigMove) return this._bigSlash(A, first, ev, tgt, fx, rc, bigMove, T, home);
     if (melee && first && fx !== 'whirl') {
       const dest = { x: first.x + (first.size === 'xl' ? 46 : first.size === 'l' ? 26 : 20), y: first.y + 2 };
@@ -466,7 +514,7 @@ export class BattleScene {
       return T(1100);
     }
     // ranged & spells
-    const shootAnim = first && (((fx === 'proj_arrow' || fx === 'proj_poison') && SP.heroAnim(A.skin || A.cls, 'shoot'))
+    const shootAnim = first && ((['proj_arrow', 'proj_poison', 'proj_firearrow', 'mark'].includes(fx) && SP.heroAnim(A.skin || A.cls, 'shoot'))
       || ((fx === 'proj_arcane' || fx === 'proj_fire' || fx === 'proj_ice') && SP.heroAnim(A.skin || A.cls, 'cast')));
     if (shootAnim) return this._bigSlash(A, first, ev, tgt, fx, rc, shootAnim, T, home);
     const castPose = A.cls === 'ranger' && (fx === 'proj_arrow' || fx === 'proj_poison' || fx === 'volley') ? 'windup' : (ev.act === 'attack' ? 'swing1' : 'cast0');
@@ -476,8 +524,8 @@ export class BattleScene {
     this.glows.push({ x: hand.x, y: hand.y, r: 26, color: projColor, t: 0, life: 0.5, a: 0.7 });
     this.rune(A.x, A.y, projColor);
     sfx(fx === 'proj_arrow' || fx === 'proj_poison' || fx === 'volley' ? 'bow' : fx === 'lightning' ? 'zap' : 'cast');
-    if (fx.startsWith('proj_') && first) {
-      setTimeout(() => { if (A.cls === 'ranger') this.pose(A, 'swing2', T(300)); else this.pose(A, 'cast1', T(300)); this.projectile(hand, { x: first.x, y: first.y - 16 }, fx, T(240)); }, T(200));
+    if ((fx.startsWith('proj_') || fx === 'mark') && first) {
+      setTimeout(() => { if (A.cls === 'ranger') this.pose(A, 'swing2', T(300)); else this.pose(A, 'cast1', T(300)); this.projectile(hand, { x: first.x, y: first.y - 16 }, projKind(fx), T(240)); }, T(200));
       setTimeout(() => this.impact(ev, tgt, fx, rc), T(450));
       return T(Math.max(ev.dur || 900, 900));
     }
@@ -491,20 +539,31 @@ export class BattleScene {
       }, T(260));
       return T(950);
     }
-    if (fx === 'volley' || fx === 'starfall' || fx === 'meteor' || fx === 'nova_ice' || fx === 'venom') {
+    if (['volley', 'starfall', 'meteor', 'nova_ice', 'venom', 'flamewave', 'arrowrain', 'timestop', 'radiance'].includes(fx)) {
+      // area skills; multi-wave ones (Arrow Rain, Starfall) land one wave at a time
       const ens = enemyIds.map(id => this.actors.get(id)).filter(Boolean);
-      setTimeout(() => {
+      const waves = Math.max(1, ...tgt.map(t => (t.wave || 0) + 1)), gap = 340;
+      if (fx === 'timestop') { this.flash = 0.55; this.glows.push({ x: A.x - 60, y: A.y - 30, r: 30, grow: 200, color: '#cfe8ff', t: 0, life: 0.9, a: 0.8, ring: true }); sfx('ice'); }
+      for (let w = 0; w < waves; w++) setTimeout(() => {
         this.pose(A, A.cls === 'ranger' ? 'swing2' : 'cast1', T(400));
         for (const e of ens) {
           if (fx === 'volley') for (let k = 0; k < 3; k++) this.projectile({ x: hand.x - 10 - k * 4, y: -10 }, { x: e.x + (k - 1) * 5, y: e.y - 10 }, 'proj_arrow', T(220 + k * 40));
+          if (fx === 'arrowrain') for (let k = 0; k < 4; k++) this.projectile({ x: e.x + 14 - k * 7, y: -12 - k * 6 }, { x: e.x + (k - 1.5) * 5, y: e.y - 8 }, 'proj_arrow', T(200 + k * 35));
           if (fx === 'meteor') this.projectile({ x: e.x + 60, y: -20 }, { x: e.x, y: e.y - 10 }, 'meteor', T(300));
-          if (fx === 'starfall') for (let k = 0; k < 3; k++) this.projectile({ x: e.x + 30 - k * 10, y: -10 - k * 20 }, { x: e.x, y: e.y - 14 }, 'star', T(220 + k * 110));
-          if (fx === 'nova_ice') this.ring(e.x, e.y - 12, '#bff6ff');
+          if (fx === 'flamewave') this.projectile({ x: hand.x, y: hand.y + 10 }, { x: e.x, y: e.y - 8 }, 'proj_fire', T(260));
+          if (fx === 'starfall') for (let k = 0; k < (waves > 1 ? 2 : 3); k++) this.projectile({ x: e.x + 30 - k * 10, y: -10 - k * 20 }, { x: e.x, y: e.y - 14 }, 'star', T(220 + k * 110));
+          if (fx === 'nova_ice' || fx === 'timestop') this.ring(e.x, e.y - 12, fx === 'timestop' ? '#ffffff' : '#bff6ff');
           if (fx === 'venom') this.cloud(e.x, e.y - 12, '#9cff6b');
+          if (fx === 'radiance') this.ring(e.x, e.y - 12, '#fff0a8');
         }
-      }, T(220));
-      setTimeout(() => this.impact(ev, tgt, fx, rc), T(fx === 'starfall' ? 560 : 520));
-      return T(fx === 'starfall' ? 1200 : 1000);
+        if (fx === 'radiance') for (const t of ev.targets) if (t.heal) { const p = this.pos(t.id); if (p) this.column(p.x, p.y, '#fff0a8'); }
+      }, T(220 + w * gap));
+      const landAt = fx === 'starfall' ? 560 : 520;
+      for (let w = 0; w < waves; w++) {
+        const list = waves > 1 ? ev.targets.filter(t => (t.wave || 0) === w || (t.wave == null && w === waves - 1)) : null;
+        setTimeout(() => this.impact(ev, tgt, fx, rc, list, w < waves - 1), T(landAt + w * gap));
+      }
+      return T((fx === 'starfall' ? 1200 : 1000) + (waves - 1) * gap);
     }
     // generic
     setTimeout(() => this.impact(ev, tgt, fx, rc), T(300));
@@ -613,30 +672,141 @@ export class BattleScene {
     const v = (a.variant || 0) % m.d.frames.length;
     return { fr: m.d.frames[v][f], wh: m.d.whites[v][f], ax: m.d.ax, ay: m.d.ay };
   }
-  impact(ev, tgt, fx, rc) {
+  // Shows the hits and heals of a hero action. list: just these records (one arrow of a volley, one wave of
+  // Arrow Rain); hold: don't apply the after-state yet because more hits are still on their way.
+  impact(ev, tgt, fx, rc, list, hold) {
     let big = false;
-    const ids = Object.keys(ev.after || {});
-    for (const t of ev.targets) {
+    const seen = {};
+    for (const t of list || ev.targets) {
       const p = this.pos(t.id); if (!p) continue;
+      const k = seen[t.id] = (seen[t.id] || 0) + 1, dy = (k - 1) * 11;   // repeat hits on one target stack upwards
       if (t.dmg != null && !t.shatter) {
-        const colr = { slash_heavy: '#ff9a3c', proj_fire: '#ff8a3c', proj_arcane: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', proj_poison: '#9cff6b', venom: '#9cff6b', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8' }[fx] || '#ffffff';
+        const colr = { slash_heavy: '#ff9a3c', slash_wide: '#ffd0a0', proj_fire: '#ff8a3c', proj_firearrow: '#ff8a3c', flamewave: '#ff8a3c', proj_arcane: '#b8a6ff', missiles: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', timestop: '#cfe8ff', proj_poison: '#9cff6b', venom: '#9cff6b', phantom: '#a8ffe0', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8', radiance: '#fff0a8', pillar: '#fff2a8', quake: '#e0a060', combo: '#ffb347', ricochet: '#fff2c0' }[fx] || '#ffffff';
         this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy');
-        this.elementHit(p.x, p.y - 16, fx);
+        this.elementHit(p.x, p.y - 16, { proj_firearrow: 'proj_fire', flamewave: 'proj_fire', missiles: 'proj_arcane', timestop: 'proj_ice' }[fx] || fx);
         this.glows.push({ x: p.x, y: p.y - 16, r: 34 + Math.min(40, t.dmg * 1.5), color: colr, t: 0, life: 0.35, a: 0.8 });
-        if (['slash', 'slash_heavy', 'shadow', 'dragon'].includes(fx)) this.arc(p.x, p.y - 18, fx === 'slash_heavy' || fx === 'dragon' ? 20 : 15, colr === '#ffffff' ? '#e8f4ff' : colr);
+        if (['slash', 'slash_heavy', 'slash_wide', 'shadow'].includes(fx)) this.arc(p.x, p.y - 18, fx === 'slash_heavy' ? 20 : 15, colr === '#ffffff' ? '#e8f4ff' : colr);
+        if (t.splash) this.burst(p.x, p.y - 12, '#ff8a3c', 24, 50);
         if (t.dmg > 0) { this.flashActor(p.a); this.pose(p.a, 'hurt', 260); this.hitShake(p.a, t.dmg); }
         if (t.blocked) this.number(p.x + 12, p.y - 28, 'Blocked ' + t.blocked, '#9fb6d8', 0.75);
-        this.number(p.x, p.y - 38, t.dmg, t.crit ? '#ffb347' : '#ffffff', t.dmg >= 15 ? 1.45 : 1.15, true);
-        if (t.status) for (const s of t.status) this.number(p.x - 4, p.y - 52, STATUS_ABBR[s] || s, STATUS_COL[s] || '#fff', 0.78);
+        if (t.sundered) this.number(p.x + 10, p.y - 26, 'Armour broken', '#ff9a7a', 0.75);
+        this.number(p.x, p.y - 38 - dy, t.dmg, t.crit ? '#ffb347' : t.finisher ? '#ffd25a' : '#ffffff', t.dmg >= 15 ? 1.45 : 1.15, true);
         if (t.dmg >= 14 || t.killed) big = true;
+      } else if (t.status && p.a.type === 'enemy') {   // a status without a hit: Hunter's Mark, Venom Storm
+        this.burst(p.x, p.y - 14, STATUS_COL[t.status[0]] || '#fff', 14, 26);
+      }
+      if (t.status && p.a.type === 'enemy') {
+        for (const s of t.status) this.number(p.x - 4, p.y - 52 - dy, STATUS_ABBR[s] || s, STATUS_COL[s] || '#fff', 0.78);
+        if (t.status.includes('mark')) this.ring(p.x, p.y - 14, '#ff6b6b');
       }
       if (t.heal) { this.number(p.x, p.y - 44, '+' + t.heal, '#8dff9e', 1); this.column(p.x, p.y, '#9dffb0'); }
     }
-    if (ev.targets.some(t => t.shatter)) for (const t of ev.targets.filter(t => t.shatter)) { const p = this.pos(t.id); if (p) this.burst(p.x, p.y - 10, '#ffc24a', 30, 40); }
+    if ((list || ev.targets).some(t => t.shatter)) for (const t of (list || ev.targets).filter(t => t.shatter)) { const p = this.pos(t.id); if (p) this.burst(p.x, p.y - 10, '#ffc24a', 30, 40); }
     this.freezeUntil = now() + (big ? 90 : 55);
     if (big) { this.shake = Math.max(this.shake, 3); this.shakeT = now(); }
     sfx(big ? 'hitBig' : 'hit');
-    this._applyAfter(ev);
+    if (!hold) this._applyAfter(ev);
+  }
+
+  // Several projectiles, one per target record: Arcane Missiles, Twin Shot, Phantom Volley, Ricochet (which bounces
+  // from each target to the next). Each hit lands as its own projectile arrives.
+  _multiShot(A, ev, tgt, fx, rc, T) {
+    const hand = { x: A.x - 14, y: A.y - 26 };
+    const kind = fx === 'missiles' ? 'proj_arcane' : fx === 'phantom' ? 'phantom' : 'proj_arrow';
+    const gap = fx === 'phantom' ? 110 : fx === 'missiles' ? 150 : fx === 'ricochet' ? 0 : 190;
+    this.pose(A, A.cls === 'ranger' ? 'windup' : 'cast0', T(300));
+    this.glows.push({ x: hand.x, y: hand.y, r: 26, color: kind === 'proj_arcane' ? '#b8a6ff' : kind === 'phantom' ? '#a8ffe0' : '#efe6d0', t: 0, life: 0.5, a: 0.7 });
+    if (kind === 'proj_arcane') this.rune(A.x, A.y, '#b8a6ff');
+    const last = {}; tgt.forEach((t, i) => { last[t.id] = i; });
+    let at = 200, end = 0, from = hand;
+    tgt.forEach((t, i) => {
+      const e = this.actors.get(t.id); if (!e) return;
+      const to = { x: e.x + (Math.random() - 0.5) * 6, y: e.y - 16 + (Math.random() - 0.5) * 6 };
+      const src = fx === 'ricochet' ? from : { x: hand.x + (Math.random() - 0.5) * 6, y: hand.y + (Math.random() - 0.5) * 6 };
+      const fly = Math.max(140, Math.hypot(to.x - src.x, to.y - src.y) * (kind === 'proj_arcane' ? 1.5 : 1.0));
+      const shoot = at;
+      setTimeout(() => { if (fx !== 'ricochet' || i === 0) this.pose(A, A.cls === 'ranger' ? (i % 2 ? 'swing1' : 'swing2') : 'cast1', T(160)); this.projectile(src, to, kind, T(fly)); sfx(kind === 'proj_arcane' ? 'cast' : 'bow'); }, T(shoot));
+      setTimeout(() => { this.impact(ev, tgt, fx, rc, [t], true); if (last[t.id] === i) this._applyAfter(ev, [t.id]); if (fx === 'ricochet') this.burst(to.x, to.y, '#fff2c0', 10, 40); }, T(shoot + fly));
+      end = Math.max(end, shoot + fly);
+      at += fx === 'ricochet' ? fly : gap;
+      from = to;
+    });
+    setTimeout(() => { const rest = ev.targets.filter(t => !tgt.includes(t) && t.heal); if (rest.length) this.impact(ev, [], fx, rc, rest, true); this._applyAfter(ev); }, T(end + 80));
+    return T(end + 420);
+  }
+
+  // Champion's Combo: dash in, three quick slashes (the slash animation's swing, sped up), then the flaming Power
+  // Strike rising finisher. Each blow lands with its own number.
+  _combo(A, ev, tgt, rc, T, home) {
+    const skin = A.skin || A.cls;
+    const slash = SP.heroAnim(skin, 'slash'), power = SP.heroAnim(skin, 'power');
+    const reach = e => ({ x: e.x + (e.size === 'xl' ? 46 : e.size === 'l' ? 26 : 20), y: e.y + 2 });
+    const sub = (an, from, total) => {   // part of a hand-made move, squeezed into total ms
+      const tl = an.timeline.slice(from), sum = tl.reduce((a, x) => a + x[1], 0), k = total ? total / sum : 1;
+      const d = { ...an, timeline: tl.map(([f, ms]) => [f, ms * k]) };
+      const at = []; let acc = 0; for (const [, ms] of d.timeline) { at.push(acc); acc += ms; }
+      return { d, at, total: acc };
+    };
+    const play = s => { A.anim = { d: s.d, t0: now(), speed: T(1000) / 1000, at: s.at, total: s.total }; };
+    const firstE = this.actors.get(tgt[0].id);
+    const d0 = reach(firstE);
+    this.pose(A, 'windup', T(160)); sfx('whirl');
+    setTimeout(() => this.move(A, d0.x - home.x, d0.y - home.y, T(150), true), T(60));
+    this.cam = { x: (d0.x + firstE.x) / 2 - 6, y: d0.y - 30, t0: now(), dur: T(2600), z: 1.16 };
+    const slashes = tgt.filter(t => !t.finisher), fin = tgt.find(t => t.finisher);
+    let t0 = 240;
+    slashes.forEach((t, i) => {
+      const at = t0 + i * 300;
+      setTimeout(() => {
+        const e = this.actors.get(t.id);
+        if (e && e !== firstE) { const d = reach(e); this.move(A, d.x - home.x, d.y - home.y, T(90), true); }
+        if (slash) play(sub(slash, slash.dashFrames || 3, 270)); else this.pose(A, i % 2 ? 'swing1' : 'swing2', T(220));
+        this.trails.push({ x: A.x + A.ox - 4, y: A.y + A.oy - 30 + (i - 1) * 6, r: 34, t0: now(), life: T(300), up: i === 1 });
+        sfx('slash');
+      }, T(at));
+      setTimeout(() => { this.impact(ev, tgt, 'slash', rc, [t], true); this.shake = Math.max(this.shake, 2); this.shakeT = now(); }, T(at + 170));
+    });
+    let end = t0 + slashes.length * 300;
+    if (fin) {
+      const fAt = end + 40;
+      const start = power ? Math.max(0, (power.dashAt || 2) - 2) : 0;
+      const ps = power ? sub(power, start, 0) : null;
+      const hitIdx = power ? Math.max(0, (power.hit || 0) - start) : 0;
+      const finHit = fAt + (ps ? (ps.at[hitIdx] || ps.total * 0.7) : 300);
+      setTimeout(() => {
+        const e = this.actors.get(fin.id);
+        if (e) { const d = reach(e); this.move(A, d.x - home.x, d.y - home.y, T(90), true); }
+        if (ps) play(ps); else this.pose(A, 'windup', T(260));
+        this.auras.push({ follow: A, t0: performance.now(), until: performance.now() + T(finHit - fAt) }); sfx('burn');
+      }, T(fAt));
+      setTimeout(() => {
+        if (!ps) this.pose(A, 'swing2', T(300));
+        this.trails.push({ x: A.x + A.ox - 10, y: A.y + A.oy - 26, r: 42, t0: now(), life: T(520), up: true, color: 'fire' });
+        const p = { x: A.x + A.ox - 34, y: A.y + A.oy - 20 };
+        for (let i = 0; i < 34; i++) { const a = -Math.PI * (0.15 + Math.random() * 0.75), v = 80 + Math.random() * 120; this.particles.push({ x: p.x, y: p.y, vx: Math.cos(a) * v - 30, vy: Math.sin(a) * v, g: 140, life: 0.6 + Math.random() * 0.5, t: 0, c: ['#ff6a2a', '#ffb347', '#ffd25a', '#fff6c8'][i % 4], streak: 3 + (i % 3), drag: 0.9 }); }
+        this.impact(ev, tgt, 'slash_heavy', rc, [fin], true);
+        this.shake = Math.max(this.shake, 7); this.shakeT = now(); this.flash = 0.35; this.freezeUntil = now() + 140; sfx('heavy');
+      }, T(finHit));
+      end = finHit + 320;
+    }
+    setTimeout(() => { A.anim = null; this._applyAfter(ev); this.move(A, 0, 0, T(260), true); }, T(end));
+    return T(end + 500);
+  }
+
+  // what a hero's gear and buffs did when an enemy hit them
+  _react(h, E) {
+    const p = this.pos(h.id); if (!p) return;
+    if (h.shielded) { this.number(p.x, p.y - 46, 'Shielded!', '#fff6c8', 1); this.glows.push({ x: p.x, y: p.y - 20, r: 30, color: '#fff6c8', t: 0, life: 0.5, a: 0.8, ring: true }); }
+    if (h.potion) setTimeout(() => { this.column(p.x, p.y, '#ff8a9a'); this.number(p.x + 8, p.y - 58, 'Potion +' + h.potion, '#8dff9e', 0.9); sfx('heal'); }, 280);
+    if (h.plume) setTimeout(() => { this.glows.push({ x: p.x, y: p.y - 20, r: 60, color: '#ff9a3c', t: 0, life: 0.9, a: 0.9 }); this.burst(p.x, p.y - 20, '#ffb347', 36, 50); this.number(p.x, p.y - 60, 'Phoenix Plume!', '#ffb347', 1); this.pose(p.a, 'victory', 600); sfx('heal'); }, 300);
+    if (h.thorns || h.chilled) {
+      const e = this.actors.get(h.attacker) || E;
+      setTimeout(() => {
+        const q = e && this.pos(e.id); if (!q) return;
+        if (h.thorns) { this.arc(q.x, q.y - 18, 14, '#ffe08a'); this.burst(q.x, q.y - 18, '#ffe08a', 12, 30); this.number(q.x, q.y - 40, h.thorns, '#ffe08a', 1, true); this.flashActor(e); }
+        if (h.chilled) { this.number(q.x, q.y - 54, 'Chilled', '#8fe3ff', 0.8); this.burst(q.x, q.y - 16, '#bff6ff', 12, 24); }
+      }, 160);
+    }
   }
 
   _whiffAnim(ev, T) {
@@ -668,7 +838,8 @@ export class BattleScene {
   _enemyAnim(ev, T) {
     const E = this.actors.get(ev.actor); if (!E) { this._applyAfter(ev); return 0; }
     if (ev.act === 'frozen') {
-      this.burst(E.x, E.y - 16, '#dff8ff', 24, 30); this.number(E.x, E.y - 40, 'Frozen', '#dff8ff', 1); sfx('ice');
+      const stun = ev.fx === 'stun', col = stun ? '#ffe08a' : '#dff8ff';
+      this.burst(E.x, E.y - 16, col, 24, 30); this.number(E.x, E.y - 40, stun ? 'Stunned' : 'Frozen', col, 1); sfx(stun ? 'twinkle' : 'ice');
       this._applyAfter(ev); return T(600);
     }
     const type = ev.type;
@@ -691,6 +862,7 @@ export class BattleScene {
           if (h.blocked) { this.shield(p.x, p.y, '#7fc8ff'); this.number(p.x - 10, p.y - 30, 'Blocked ' + h.blocked, '#8fd0ff', 0.8); sfx('block'); }
           if (h.dmg > 0) { this.flashActor(p.a); this.pose(p.a, 'hurt', 300); this.knock(p.a, 4); this.number(p.x, p.y - 42, h.dmg, '#ff7a6a', h.dmg >= 12 ? 1.35 : 1.1, true); sfx('hurt'); }
           if (h.status) for (const s of h.status) this.number(p.x, p.y - 54, STATUS_ABBR[s] || s, STATUS_COL[s] || '#fff', 0.78);
+          this._react(h, E);
           if (h.dmg >= 12) { this.shake = 3; this.shakeT = now(); }
           this.freezeUntil = now() + 60;
           this._applyAfter(ev, [h.id, E.id]);
@@ -723,6 +895,7 @@ export class BattleScene {
           this.burst(p.x, p.y - 18, '#ffc24a', 16, 28);
           if (h.blocked) this.shield(p.x, p.y, '#7fc8ff');
           if (h.dmg > 0) { this.flashActor(p.a); this.pose(p.a, 'hurt', 320); this.knock(p.a, 4); this.number(p.x, p.y - 42, h.dmg, '#ff7a6a', 1.2, true); }
+          this._react(h, E);
         }
         this.shake = ev.shards ? 6 : 4; this.shakeT = now(); this.flash = ev.shards ? 0.5 : 0.2;
         sfx('hitBig');
@@ -783,6 +956,7 @@ export class BattleScene {
       this.number(p.x, p.y - 42, h.dmg, '#ff7a6a', h.dmg >= 10 ? 1.35 : 1.2, true); sfx('hurt');
     }
     this.burst(p.x, p.y - 16, opts.color || '#c8a070', 18, 40);
+    this._react(h, E);
     this.shake = Math.max(this.shake, opts.shake || 5); this.shakeT = now(); this.freezeUntil = now() + 50;
     this._applyAfter(ev, [h.id, E.id]);
   }
@@ -1343,6 +1517,10 @@ export class BattleScene {
       case 'proj_poison': tail(8, '#c9a46a'); n.fillStyle = '#9cff6b'; n.fillRect(rx, ry - 1, 2, 3); if (Math.random() < 0.5) this.particles.push({ x, y, vx: 0, vy: 6, g: 20, life: 0.4, t: 0, c: '#9cff6b' }); break;
       case 'proj_arcane': n.fillStyle = '#4a3aa8'; n.fillRect(rx - 3, ry - 2, 6, 4); n.fillRect(rx - 2, ry - 3, 4, 6); n.fillStyle = '#7a6aff'; n.fillRect(rx - 2, ry - 2, 4, 4); n.fillStyle = '#e0d8ff'; n.fillRect(rx - 1, ry - 1, 2, 2); this.particles.push({ x, y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, g: 0, life: 0.3, t: 0, c: '#b8a6ff' }); break;
       case 'star': n.fillStyle = '#fff0a8'; n.fillRect(rx - 2, ry, 5, 1); n.fillRect(rx, ry - 2, 1, 5); n.fillStyle = '#ffffff'; n.fillRect(rx, ry, 1, 1); tail(6, '#ffe27a'); break;
+      case 'proj_firearrow': tail(9, '#c9a46a'); n.fillStyle = '#ff8a3c'; n.fillRect(rx - 1, ry - 1, 3, 3); n.fillStyle = '#fff6c8'; n.fillRect(rx, ry, 1, 1);
+        if (Math.random() < 0.8) this.particles.push({ x, y, vx: -Math.cos(ang) * 16 + (Math.random() - 0.5) * 8, vy: -Math.sin(ang) * 16 - 8, g: -10, life: 0.3, t: 0, c: Math.random() < 0.5 ? '#ff8a3c' : '#ffc24a' }); break;
+      case 'phantom': tail(10, '#3fc8a0'); n.fillStyle = '#c8fff0'; n.fillRect(rx, ry, 2, 1); n.fillStyle = '#7affd8'; n.fillRect(rx - 1, ry - 1, 1, 3);
+        if (Math.random() < 0.6) this.particles.push({ x, y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, g: 0, life: 0.4, t: 0, c: '#a8ffe0', fade: true }); break;
       case 'crystal': n.fillStyle = '#ffc24a'; n.fillRect(rx - 1, ry - 1, 3, 2); n.fillStyle = '#fff6c8'; n.fillRect(rx, ry - 1, 1, 1); tail(4, '#e07a24'); break;
       case 'hex': n.fillStyle = '#b46bff'; n.fillRect(rx - 2, ry - 2, 4, 4); n.fillStyle = '#f0d8ff'; n.fillRect(rx - 1, ry - 1, 2, 2); break;
       default: n.fillStyle = '#ffffff'; n.fillRect(rx - 1, ry - 1, 3, 3);
@@ -1627,7 +1805,8 @@ export class BattleScene {
       ctx.fillStyle = 'rgba(10,6,18,0.85)'; ctx.fillRect(bx, y, 24 * d, 14 * d);
       ctx.fillStyle = c; ctx.fillRect(bx, y, 3 * d, 14 * d);
       ctx.font = `800 ${Math.round(11 * d)}px "Alegreya Sans", sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      const label = k === 'poison' || k === 'burn' || k === 'str' ? (STATUS_ABBR[k][0] + v.v) : (STATUS_ABBR[k].slice(0, 2) + (v.t > 1 ? v.t : ''));
+      const sh = STATUS_SHORT[k] || (STATUS_ABBR[k] || k).slice(0, 2);
+      const label = v.v != null ? sh + v.v : sh + (v.t > 1 && v.t < 50 ? v.t : '');
       ctx.fillStyle = c; ctx.fillText(label, bx + 5 * d, y + 7.5 * d);
       i++;
     }
@@ -1646,6 +1825,7 @@ export class BattleScene {
     else if (it.type === 'charge') { icon = 'battle_cry'; label = (a.kind === 'wyrm' || a.kind === 'minotaur') ? 'Storm next!' : 'Big hit next!'; colr = '#ff8a6a'; }
     else if (it.type === 'summon') { icon = 'starfall'; label = 'Summon'; colr = '#ffd27a'; }
     if (a.st && a.st.freeze) { icon = 'frost_nova'; label = 'Frozen'; colr = '#dff8ff'; }
+    else if (a.st && a.st.stun) { icon = 'pinning'; label = 'Stunned'; colr = '#ffe08a'; }
     // target
     let tname = '';
     if ((it.type === 'attack' || it.type === 'debuff') && it.target) {

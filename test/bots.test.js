@@ -36,7 +36,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Resolve after 5 s even if a reply never comes (a socket closed mid-call during the reconnect test).
 const emit = (s, ev, data) => new Promise(r => { const t0 = Date.now(); const t = setTimeout(() => { (M.lat[ev] = M.lat[ev] || []).push(5000); r({ ok: false, timeout: true }); }, 5000); s.emit(ev, data, x => { clearTimeout(t); (M.lat[ev] = M.lat[ev] || []).push(Date.now() - t0); r(x); }); });
 
-const stats = { answered: 0, wrong: 0, actions: 0, fights: 0, rooms: {}, completes: 0, defeats: 0, swaps: 0, whiffs: 0, free: 0, qte: 0, qteOk: 0, events: {}, statPicks: 0, raid: null, errors: [] };
+const stats = { loot: {}, bought: 0, answered: 0, wrong: 0, actions: 0, fights: 0, rooms: {}, completes: 0, defeats: 0, swaps: 0, whiffs: 0, free: 0, qte: 0, qteOk: 0, events: {}, statPicks: 0, raid: null, errors: [] };
 const RAID_AT = +(process.env.RAID_AT || 45000);
 
 async function main() {
@@ -164,6 +164,7 @@ async function step(b, done) {
       stats.qte++; if (r.ok && r.correct) stats.qteOk++;
       return;
     }
+    if (me && (me.skills.length > C.MAX_SKILLS || me.skills.some(sk => C.SKILLS[sk.id].cls !== me.cls))) stats.errors.push('bad loadout ' + me.cls + ' ' + me.skills.map(x => x.id));
     if (run.phase === 'map' && run.map.options.length && !run.map.votes[b.id]) {
       const opt = run.map.options[Math.floor(Math.random() * run.map.options.length)];
       await emit(b.s, 'vote', { node: opt });
@@ -172,7 +173,7 @@ async function step(b, done) {
       if (me.downed) action = 'rise';
       else if (!me.acted && !me.ready) {
         const opts = ['attack', 'defend'];
-        me.skills.forEach((s, i) => { const d = C.SKILLS[s.id]; if (d && (me.energy || 0) >= d.cost) opts.push('skill' + i); });
+        me.skills.forEach((s, i) => { if (C.SKILLS[s.id] && (me.energy || 0) >= C.skillCost(s.id, me)) opts.push('skill' + i); });
         action = opts[Math.floor(Math.random() * opts.length)];
       } else if (me.acted && me.focus < 3 && Math.random() < 0.3) action = 'focus';
       if (action) {
@@ -192,14 +193,20 @@ async function step(b, done) {
       if (room.ready[b.id]) return;
       stats.rooms[room.type] = (stats.rooms[room.type] || 0) + 1;
       if (room.type === 'treasure') {
-        const o = await emit(b.s, 'room', { op: 'open' });
-        if (o.ok && o.offer && Math.random() < 0.6) { const t = await emit(b.s, 'room', { op: 'take', slot: Math.random() < 0.5 ? 0 : 1 }); if (t.ok) stats.swaps++; }
-        else await emit(b.s, 'room', { op: 'keep' });
+        await emit(b.s, 'room', { op: 'open' });
+        // keep one of the three: a skill (into the free slot, or over a random one), an item, or the gold
+        const pickIt = ['skill', 'item', 'gold'][Math.floor(Math.random() * 3)];
+        let t = await emit(b.s, 'room', { op: 'take', pick: pickIt, slot: Math.floor(Math.random() * 3) });
+        if (!t.ok) t = await emit(b.s, 'room', { op: 'take', pick: 'gold' });
+        if (t.ok) { stats.loot[pickIt] = (stats.loot[pickIt] || 0) + 1; if (pickIt === 'skill') stats.swaps++; } else stats.errors.push('chest take failed ' + t.msg);
       } else if (room.type === 'rest') {
         const rr = Math.random(); await emit(b.s, 'room', rr < 0.4 ? { op: 'rest' } : rr < 0.7 ? { op: 'train', slot: 0 } : { op: 'meditate' });
       } else if (room.type === 'merchant') {
         const stock = st.you.stock;
-        if (stock && stock.items[0] && me.gold >= stock.items[0].price) await emit(b.s, 'room', { op: 'buy', item: 0, slot: 1 });
+        for (const kind of ['skill', 'item']) {
+          const it = stock && (kind === 'item' ? stock.items : stock.skills)[0];
+          if (it && !it.sold && me.gold >= it.price) { const r = await emit(b.s, 'room', { op: 'buy', kind, i: 0, slot: 2 }); if (r.ok) { stats.bought++; me.gold -= it.price; } else stats.errors.push('buy failed ' + r.msg); }
+        }
         await emit(b.s, 'room', { op: 'ready' });
       } else if (room.type === 'event') {
         const ev = C.EVENTS[room.event];

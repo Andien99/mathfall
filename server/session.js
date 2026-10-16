@@ -152,7 +152,7 @@ class Session {
     const variant = Math.max(0, same.findIndex(q => q.id === p.id)) % 3;
     return {
       id: p.id, name: p.name, cls: p.cls, gender, skin, variant, maxHp: H.hp, hp: H.hp, block: 0, st: {},
-      skills: H.skills.map(id => ({ id, lvl: 1 })), focus: 0, energy: 0, downed: false, acted: false, gold: 0,
+      skills: H.skills.map(id => ({ id, lvl: 1 })), items: [], focus: 0, energy: 0, downed: false, acted: false, gold: 0,
       lv: { atk: 0, def: 0, hp: 0 }, free: false, nextFight: null, invincible: !!(this.test && this.test.invincible),
       readyAction: null, lastTarget: null, stats: { dmg: 0, heal: 0, taken: 0, skills: 0 }
     };
@@ -286,7 +286,7 @@ class Session {
     if (fn === 'enemyTurn' && c && c.phase === 'player') {
       // A big move with a quick-time prompt goes first: everyone answers, then it lands.
       if (!c.qteDone) {
-        const big = CB.aliveEnemies(c).find(e => e.intent && e.intent.qte && !e.st.freeze);
+        const big = CB.aliveEnemies(c).find(e => e.intent && e.intent.qte && !e.st.freeze && !e.st.stun);
         if (big) { this.startQTE(team, big); this.flush(team); return; }
       }
       c.qteDone = false;
@@ -341,9 +341,9 @@ class Session {
     const gold = (type === 'boss' ? 80 : type === 'elite' ? RUN.ri(35, 45) : RUN.ri(18, 28)) + (run.ambushBonus || 0);
     run.ambushBonus = 0;
     for (const h of CB.heroList(run)) {
-      h.gold += gold;
+      h.gold += C.hasItem(h, 'lucky_coin') ? Math.round(gold * 1.25) : gold;
       if (h.downed) { h.downed = false; h.hp = Math.round(h.maxHp * 0.25); }
-      else h.hp = Math.min(h.maxHp, h.hp + Math.round(h.maxHp * 0.1));
+      else h.hp = Math.min(h.maxHp, h.hp + Math.round(h.maxHp * 0.1) + (C.hasItem(h, 'bandage_roll') ? 5 : 0));
       h.block = 0; h.st = {}; h.readyAction = null; h.acted = false;
     }
     if (type === 'boss') {
@@ -365,8 +365,7 @@ class Session {
     // anyone who didn't decide on a chest keeps their loadout
     if (room.type === 'treasure') for (const [pid, ch] of Object.entries(room.chests)) {
       const h = run.heroes[pid];
-      if (h && !ch.opened) { ch.opened = true; h.gold += ch.gold; }
-      if (h && !ch.decided) { ch.decided = true; }
+      if (h && !ch.decided) { ch.opened = true; ch.decided = true; h.gold += ch.gold; ch.choice = { gold: ch.gold }; }
     }
     run.phase = 'map'; run.room = null;
     this.admitPending(team);
@@ -607,7 +606,7 @@ class Session {
       map: { nodes: run.map.nodes.map(n => ({ id: n.id, row: n.row, type: n.type, x: n.x, y: n.y, next: n.next, visited: !!n.visited, boss: n.boss })), pos: run.pos, options: run.phase === 'map' ? this.mapOptions(run) : [], votes: run.votes, voteDeadline: run.voteDeadline, goNode: run.goNode },
       heroes: order.map(id => {
         const h = run.heroes[id]; const p = this.players.get(id);
-        return { id, name: h.name, cls: h.cls, skin: h.skin, variant: h.variant, hp: h.hp, maxHp: h.maxHp, block: h.block, st: h.st, skills: h.skills, focus: h.focus, energy: h.energy || 0, downed: h.downed, acted: h.acted, ready: !!h.readyAction, gold: h.gold, lv: h.lv, free: !!h.free, nextFight: h.nextFight,
+        return { id, name: h.name, cls: h.cls, skin: h.skin, variant: h.variant, hp: h.hp, maxHp: h.maxHp, block: h.block, st: h.st, skills: h.skills, items: h.items || [], focus: h.focus, energy: h.energy || 0, downed: h.downed, acted: h.acted, ready: !!h.readyAction, gold: h.gold, lv: h.lv, free: !!h.free, nextFight: h.nextFight,
           connected: !!(p && p.connected), busy: p && p.pending && !p.pending.answered ? (p.pending.intent.action || p.pending.intent.kind) : null };
       }),
       waiting: run.pendingJoin,
@@ -632,7 +631,7 @@ class Session {
     const you = { id: p.id, name: p.name, cls: p.cls, gender: p.gender, track: this.trackFor(p) === 'modified' ? 'support' : 'main', joining: !!(run && !run.heroes[p.id]), test: this.test };
     if (p.pending) you.pendingQ = p.pending.answered ? null : p.pending.pub.qid;
     const room = run && run.room;
-    if (room && room.type === 'treasure' && room.chests[p.id]) { const ch = room.chests[p.id]; you.chest = { rarity: ch.rarity, opened: ch.opened, decided: ch.decided, gold: ch.gold, offer: ch.opened ? ch.offer : null }; }
+    if (room && room.type === 'treasure' && room.chests[p.id]) { const ch = room.chests[p.id]; you.chest = { rarity: ch.rarity, opened: ch.opened, decided: ch.decided, choice: ch.choice || null, gold: ch.opened ? ch.gold : 0, skill: ch.opened ? ch.skill : null, item: ch.opened ? ch.item : null }; }
     if (room && room.type === 'merchant' && room.stock[p.id]) you.stock = room.stock[p.id];
     const c = run && run.combat;
     if (c && c.phase === 'qte' && c.qte && c.qte.per[p.id]) {
@@ -987,7 +986,7 @@ function attach(io, banks) {
       } else if (action === 'rise') {
         if (!h.downed) return reply(cb, { ok: false, msg: 'You are still standing.' });
         kind = 'rise';
-      } else if (['attack', 'defend', 'skill0', 'skill1'].includes(action)) {
+      } else if (['attack', 'defend', 'skill0', 'skill1', 'skill2'].includes(action)) {
         if (h.downed) return reply(cb, { ok: false, msg: 'You are knocked out. Answer to get back up.' });
         if (h.acted || h.readyAction) return reply(cb, { ok: false, msg: 'You have acted this round. Answer Focus questions to power up.' });
         if ((action === 'attack' || action === 'defend') && h.free) {
@@ -1000,7 +999,7 @@ function attach(io, banks) {
           h.readyAction = { action, target };
           reply(cb, { ok: true, free: true, queued: true }); s.flush(t); return;
         }
-        if (action.startsWith('skill')) { const sk = h.skills[action === 'skill0' ? 0 : 1]; const def = sk && C.SKILLS[sk.id]; if (!def) return reply(cb, { ok: false, msg: 'No skill in that slot.' }); if ((h.energy || 0) < def.cost) return reply(cb, { ok: false, msg: `Not enough energy: ${def.cost} needed, you have ${h.energy || 0}. Attack or Defend to charge up.` }); }
+        if (action.startsWith('skill')) { const sk = h.skills[+action.slice(5)]; const def = sk && C.SKILLS[sk.id]; if (!def) return reply(cb, { ok: false, msg: 'No skill in that slot.' }); const cost = C.skillCost(sk.id, h); if ((h.energy || 0) < cost) return reply(cb, { ok: false, msg: `Not enough energy: ${cost} needed, you have ${h.energy || 0}. Attack or Defend to charge up.` }); }
         kind = 'action';
       } else return reply(cb, { ok: false });
       const intent = { kind, action: kind === 'action' ? action : kind, target };
@@ -1064,6 +1063,10 @@ function attach(io, banks) {
       }
       const c = run && run.combat; const h = run && run.heroes[p.id];
       if (!c || !h || c.phase === 'won' || c.phase === 'lost') { resp.note = 'The battle ended.'; reply(cb, resp); s.flush(t); return; }
+      // Chalk Pouch (first right answer of each fight) and Infinity Pencil (every right answer) top up energy
+      const bonus = (C.hasItem(h, 'infinity_pencil') ? 1 : 0) + (C.hasItem(h, 'chalk_pouch') && !h.chalkUsed ? 2 : 0);
+      if (C.hasItem(h, 'chalk_pouch')) h.chalkUsed = true;
+      if (bonus && (h.energy || 0) < C.ENERGY.max) { h.energy = Math.min(C.ENERGY.max, (h.energy || 0) + bonus); s.event(t, { kind: 'energy', actor: h.id, n: bonus, energy: h.energy }); }
       if (intent.kind === 'focus') {
         h.focus = Math.min(3, h.focus + 1);
         h.energy = Math.min(C.ENERGY.max, (h.energy || 0) + C.ENERGY.focus);
@@ -1124,39 +1127,47 @@ function attach(io, banks) {
       const op = String(d.op || '');
       const ok = (extra) => { reply(cb, { ok: true, ...(extra || {}) }); s.flush(t); };
       if (op === 'ready') {
-        if (room.type === 'treasure') { const ch = room.chests[p.id]; if (ch) { if (!ch.opened) { ch.opened = true; h.gold += ch.gold; } ch.decided = true; } }
+        // leaving without choosing takes the chest's gold
+        if (room.type === 'treasure') { const ch = room.chests[p.id]; if (ch && !ch.decided) { ch.opened = true; ch.decided = true; h.gold += ch.gold; ch.choice = { gold: ch.gold }; } }
         room.ready[p.id] = true; s.checkRoomReady(t); return ok();
       }
       if (room.type === 'treasure') {
+        // A chest holds a skill, an item and some gold: the hero keeps one of the three.
         const ch = room.chests[p.id]; if (!ch) return reply(cb, { ok: false });
-        if (op === 'open' && !ch.opened) { ch.opened = true; h.gold += ch.gold; return ok({ offer: ch.offer, gold: ch.gold }); }
-        if (op === 'take' && ch.opened && !ch.decided && (d.slot === 0 || d.slot === 1)) {
-          const old = h.skills[d.slot];
-          h.skills[d.slot] = { id: ch.offer.id, lvl: ch.offer.lvl };
-          ch.decided = true; ch.choice = { took: ch.offer.id, replaced: old.id };
-          room.ready[p.id] = true; s.checkRoomReady(t);
-          return ok();
-        }
-        if (op === 'keep' && ch.opened && !ch.decided) { ch.decided = true; h.gold += 10; ch.choice = { kept: true }; room.ready[p.id] = true; s.checkRoomReady(t); return ok(); }
-        return reply(cb, { ok: false });
+        if (op === 'open' && !ch.opened) { ch.opened = true; return ok(); }
+        if (op !== 'take' || !ch.opened || ch.decided) return reply(cb, { ok: false });
+        const pickIt = String(d.pick || '');
+        if (pickIt === 'skill' && ch.skill) {
+          const old = RUN.giveSkill(h, ch.skill, d.slot);
+          if (old == null) return reply(cb, { ok: false, msg: 'Choose which skill to replace.' });
+          ch.choice = { skill: ch.skill.id, replaced: old || null };
+        } else if (pickIt === 'item' && ch.item) {
+          if (!RUN.giveItem(h, ch.item)) return reply(cb, { ok: false, msg: 'You already have that item.' });
+          ch.choice = { item: ch.item };
+        } else if (pickIt === 'gold') { h.gold += ch.gold; ch.choice = { gold: ch.gold }; }
+        else return reply(cb, { ok: false });
+        ch.decided = true;
+        room.ready[p.id] = true; s.checkRoomReady(t);
+        return ok();
       }
       if (room.type === 'rest') {
         if (room.choices[p.id]) return reply(cb, { ok: false, msg: 'You have already chosen.' });
         if (op === 'rest') { const before = h.hp; h.hp = Math.min(h.maxHp, h.hp + Math.round(h.maxHp * 0.35)); room.choices[p.id] = { rest: h.hp - before }; }
         else if (op === 'meditate') { h.nextFight = { energy: C.ENERGY.max, focus: 1 }; room.choices[p.id] = { meditate: true }; }
-        else if (op === 'train' && (d.slot === 0 || d.slot === 1) && h.skills[d.slot] && h.skills[d.slot].lvl < 2) { h.skills[d.slot].lvl = 2; room.choices[p.id] = { train: h.skills[d.slot].id }; }
+        else if (op === 'train' && h.skills[d.slot | 0] && h.skills[d.slot | 0].lvl < 2) { h.skills[d.slot | 0].lvl = 2; room.choices[p.id] = { train: h.skills[d.slot | 0].id }; }
         else return reply(cb, { ok: false });
         room.ready[p.id] = true; s.checkRoomReady(t); return ok();
       }
       if (room.type === 'merchant') {
         const stock = room.stock[p.id]; if (!stock) return reply(cb, { ok: false });
         if (op === 'buy') {
-          const it = stock.items[d.item | 0];
+          const kind = d.kind === 'item' ? 'item' : 'skill';
+          const it = (kind === 'item' ? stock.items : stock.skills)[d.i | 0];
           if (!it || it.sold) return reply(cb, { ok: false });
           if (h.gold < it.price) return reply(cb, { ok: false, msg: 'Not enough gold.' });
-          if (!(d.slot === 0 || d.slot === 1)) return reply(cb, { ok: false });
+          if (kind === 'item') { if (!RUN.giveItem(h, it.id)) return reply(cb, { ok: false, msg: 'You already have that item.' }); }
+          else if (RUN.giveSkill(h, it, d.slot) == null) return reply(cb, { ok: false, msg: 'Choose which skill to replace.' });
           h.gold -= it.price; it.sold = true;
-          h.skills[d.slot] = { id: it.id, lvl: it.lvl };
           return ok();
         }
         if (op === 'mend') {
@@ -1213,6 +1224,12 @@ function attach(io, banks) {
         else if (ty === 'end') { s.end(); return reply(cb, { ok: true }); }
         else if (ty === 'bosshalf' && run.combat) { const bz = run.combat.enemies.find(e => e.tier === 'boss'); if (bz) bz.hp = Math.floor(bz.maxHp * 0.5); }
         else if (ty === 'energy') { Object.values(run.heroes).forEach(h => { h.energy = 10; }); }
+        else if (ty === 'loadout') {   // { skills: [ids], items: [ids], gold } for the caller's hero
+          const h = run.heroes[p.id];
+          if (h && Array.isArray(d.skills)) h.skills = d.skills.filter(id => C.SKILLS[id]).slice(0, C.MAX_SKILLS).map(id => ({ id, lvl: 1 }));
+          if (h && Array.isArray(d.items)) { h.items = []; d.items.forEach(id => RUN.giveItem(h, id)); }
+          if (h && d.gold != null) h.gold = d.gold | 0;
+        }
         else if (ty === 'hurt') { Object.values(run.heroes).forEach((h, i) => { h.hp = Math.max(1, Math.round(h.maxHp * (i ? 0.5 : 0.2))); }); }
         s.flush(t); reply(cb, { ok: true });
       }));
