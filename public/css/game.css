@@ -558,3 +558,45 @@ body.portrait .qpanel.compact { align-items: flex-end; }
   body.portrait .keypad .key { min-height: 40px; padding: 6px 0; }
   body.portrait .qcard .qhead { padding-top: 8px; padding-bottom: 8px; }
 }
+
+/* ---- Battle result: rewards on the left, the heroes' victory poses on the right of the scene ---- */
+.result-screen { position: absolute; left: 0; top: 0; bottom: 0; width: min(560px, 50vw); pointer-events: auto; padding: 64px 0 20px 0; overflow-y: auto;
+  background: linear-gradient(90deg, rgba(14, 52, 64, 0.88) 0%, rgba(14, 44, 58, 0.72) 55%, rgba(10, 30, 44, 0) 100%);
+  animation: rsIn 0.45s cubic-bezier(.2, .8, .3, 1); }
+.result-screen::before { content: ''; position: absolute; left: 26px; top: 66px; bottom: 24px; width: 1px; background: linear-gradient(180deg, rgba(220, 240, 255, 0.7), rgba(220, 240, 255, 0.05)); }
+@keyframes rsIn { from { transform: translateX(-40px); opacity: 0; } }
+.result-screen.shown { animation: none; }
+.rs-title { position: relative; display: flex; align-items: flex-end; gap: 8px; padding: 0 20px 6px 38px; border-bottom: 1px solid rgba(220, 240, 255, 0.55); margin-bottom: 16px; }
+.rs-title h2 { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 3.4vw, 46px); letter-spacing: 0.06em; text-transform: uppercase; color: #f4f8ff; margin: 0; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }
+.rs-star { position: absolute; left: 18px; top: -10px; font-style: normal; color: #e8f4ff; font-size: 20px; text-shadow: 0 0 10px #9fe8ff; }
+.rs-sub { margin: -6px 22px 14px 40px; color: #d8ecf4; font-size: 15px; }
+.rs-rows { display: grid; gap: 12px; padding-left: 40px; }
+.rs-row { display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: 6px 22px; background: rgba(8, 20, 30, 0.72); border-bottom: 1px solid rgba(220, 240, 255, 0.55);
+  font-size: 19px; color: #eef6ff; opacity: 0; animation: rsRow 0.35s ease forwards; animation-delay: calc(0.25s + var(--i) * 0.16s); }
+@keyframes rsRow { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+.result-screen.shown .rs-row { animation: none; opacity: 1; }
+.rs-v { display: flex; align-items: center; gap: 8px; min-width: 120px; justify-content: flex-end; }
+.rs-v img { width: 30px; height: 30px; image-rendering: pixelated; }
+.rs-v img.rs-chest { width: 40px; height: auto; }
+.rs-num { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; color: #fff; }
+.rs-num.rs-item { font-size: 18px; color: #ffe27a; }
+.rs-none { display: inline-block; width: 150px; height: 1px; background: rgba(220, 240, 255, 0.6); }
+.rs-more { padding: 16px 16px 0 40px; opacity: 0; animation: rsRow 0.35s ease forwards; animation-delay: 0.8s; }
+.result-screen.shown .rs-more { animation: none; opacity: 1; }
+.rs-more .stat-pick h3 { color: #eef6ff; }
+.rs-more .readyline { margin-top: 10px; }
+/* phones / portrait: the heroes celebrate first, then the rewards rise up from the bottom */
+.result-screen.mobile { left: 0; right: 0; width: auto; top: auto; max-height: 64vh; padding: 18px 0 calc(14px + var(--sab));
+  background: linear-gradient(180deg, rgba(14, 52, 64, 0.0) 0%, rgba(14, 52, 64, 0.92) 12%, rgba(8, 24, 34, 0.96) 100%);
+  animation: rsUp 0.42s cubic-bezier(.2, .9, .3, 1); transition: transform 0.42s cubic-bezier(.2, .9, .3, 1), opacity 0.3s; }
+.result-screen.mobile::before { display: none; }
+@keyframes rsUp { from { transform: translateY(60px); opacity: 0; } }
+.result-screen.mobile.wait { transform: translateY(110%); opacity: 0; pointer-events: none; animation: none; }
+.result-screen.mobile .rs-title { padding-left: 34px; margin-bottom: 10px; }
+.result-screen.mobile .rs-rows { padding: 0 10px 0 16px; gap: 8px; }
+.result-screen.mobile .rs-row { min-height: 42px; font-size: 16px; padding: 4px 14px; }
+.result-screen.mobile .rs-num { font-size: 21px; }
+.result-screen.mobile .rs-none { width: 80px; }
+.result-screen.mobile .rs-more { padding: 10px 10px 0 16px; }
+/* phones: the party cards step aside while the result is up, so the celebrating heroes have room above the rewards */
+@media (max-width: 700px) { body:has(.result-screen.mobile) #party { display: none; } }

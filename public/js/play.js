@@ -503,16 +503,10 @@ function renderRoom() {
   clear(layer);
   const panel = h('div', { class: 'room panel' + (['victory', 'defeat', 'complete', 'raidEnd'].includes(room.type) ? ' low' : '') });
   const ready = room.ready && room.ready[me.playerId];
-  if (room.type === 'victory') {
-    panel.append(h('p', { class: 'result-big' }, 'Victory!'), h('div', { class: 'gold-gain' }, `+${room.gold} gold each · heroes recover 10% health`),
-      room.elite ? h('p', { class: 'lead' }, 'The elite dropped a treasure chest for everyone.') : null,
-      statPicker(room, hero), readyLine(room));
-  } else if (room.type === 'defeat') {
+  if (room.type === 'victory' || room.type === 'complete') { resultScreen(layer, room, hero); return; }
+  if (room.type === 'defeat') {
     panel.append(h('p', { class: 'result-big lose' }, 'Your party has fallen'), h('p', { class: 'lead' }, `You reached floor ${room.floor}. Every run teaches you something. Try again with a new map.`),
       h('div', { class: 'center' }, h('button', { class: 'btn primary', disabled: ready, onclick: () => roomOp('ready') }, ready ? 'Waiting for team…' : 'Try again')), readyLine(room));
-  } else if (room.type === 'complete') {
-    panel.append(h('p', { class: 'result-big' }, `${room.boss || 'The boss'} falls!`), h('p', { class: 'lead' }, `Act ${room.asc + 1} complete. +${room.gold} gold each. Next: Act ${room.asc + 2}, ${room.nextAct || 'a new map'}, with ${room.nextBoss || 'a new boss'} waiting at the top. Your heroes keep their upgrades, skills and gold.`),
-      statPicker(room, hero), readyLine(room));
   } else if (room.type === 'raidEnd') {
     const raid = state.raid || {};
     panel.append(h('p', { class: 'result-big' + (room.won ? '' : ' lose') }, room.won ? 'The Inferno Dragon is defeated!' : 'The Inferno Dragon survives…'),
@@ -578,6 +572,49 @@ function markup(t) {
 }
 
 // ------------------------------------------------------------------ stat upgrades after a fight
+// Battle result (after a win and after a boss): rewards on the left, the heroes' victory poses on the right of the
+// battle scene. On phones and portrait screens the heroes celebrate first and the rewards pop up after.
+function resultScreen(layer, room, hero) {
+  const mobile = innerWidth < 700 || isPortrait();
+  const first = !roomUI.resultAt; if (first) roomUI.resultAt = Date.now();
+  const since = Date.now() - roomUI.resultAt;
+  const boss = room.type === 'complete';
+  const row = (label, value, icon, i) => h('div', { class: 'rs-row', style: { '--i': i } }, h('span', { class: 'rs-l' }, label),
+    h('span', { class: 'rs-v' }, value, icon || null));
+  const coin = h('img', { src: SP.iconURL('gold', 2), alt: '' }), heart = h('img', { src: SP.iconURL('heart', 2), alt: '' });
+  const chest = room.elite ? h('img', { class: 'rs-chest', src: SP.chestFrame('rare', false).toDataURL(), alt: '' }) : null;
+  const goldV = h('b', { class: 'rs-num' }, first || since < 1500 ? '0' : String(room.gold));
+  const box = h('div', { class: 'result-screen' + (mobile ? ' mobile' : '') + (since > 1200 ? ' shown' : '') },
+    h('div', { class: 'rs-title' }, h('i', { class: 'rs-star' }, '✦'), h('h2', null, boss ? 'Act Complete' : 'Battle Result')),
+    boss ? h('p', { class: 'rs-sub' }, `${room.boss || 'The boss'} falls! Next: Act ${room.asc + 2}${room.nextAct ? ', ' + room.nextAct : ''}${room.nextBoss ? ', with ' + room.nextBoss + ' at the top' : ''}.`) : null,
+    h('div', { class: 'rs-rows' },
+      row('Gold obtained', h('span', null, '+', goldV), coin, 0),
+      row('Health recovered', h('b', { class: 'rs-num' }, '+10%'), heart, 1),
+      row('Items obtained', room.elite ? h('b', { class: 'rs-num rs-item' }, 'Treasure chest') : h('i', { class: 'rs-none' }), chest, 2)),
+    h('div', { class: 'rs-more' }, statPicker(room, hero), readyLine(room)));
+  layer.append(box);
+  // count the gold up the first time the screen appears
+  const delay = mobile ? 2600 : 500;
+  if (since < delay + 900) {
+    const start = Math.max(0, delay + 350 - since);
+    setTimeout(() => { const t0 = performance.now(); const step = () => { const k = Math.min(1, (performance.now() - t0) / 600);
+      goldV.textContent = String(Math.round(room.gold * k)); if (k < 1) requestAnimationFrame(step); }; step(); }, start);
+  } else goldV.textContent = String(room.gold);
+  // phones: let the victory poses play on their own first; tap to skip
+  if (mobile && since < delay) {
+    box.classList.add('wait');
+    if (first) scene.focusHeroes(1.8, 0.5, 0.42);
+    const show = () => {
+      if (!box.classList.contains('wait')) return;
+      box.classList.remove('wait'); removeEventListener('pointerdown', show);
+      // keep the party framed, smaller, in the gap between the party cards and the rewards
+      const p = $('#party').getBoundingClientRect(), top = box.getBoundingClientRect().top + 30;
+      const y0 = p.height ? p.bottom : 60;
+      scene.focusHeroes(1.3, 0.5, Math.max(0.2, ((y0 + top) / 2 + 20) / innerHeight));
+    };
+    setTimeout(show, delay - since); setTimeout(() => addEventListener('pointerdown', show), 300);
+  }
+}
 function statPicker(room, hero) {
   const mine = room.stats && room.stats[me.playerId];
   const box = h('div', { class: 'stat-pick' });

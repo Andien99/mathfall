@@ -183,7 +183,8 @@ async function step(b, done) {
       } else if ((room.type === 'victory' || room.type === 'complete') && room.stats && !room.stats[b.id]) {
         if (room.type === 'complete') stats.completes++;
         const r = await emit(b.s, 'room', { op: 'stat', stat: ['atk', 'def', 'hp'][Math.floor(Math.random() * 3)] });
-        if (r.ok) stats.statPicks++; else stats.errors.push('stat pick failed');
+        // a bot can see the same victory twice before its pick lands; the server rightly refuses the second pick
+        if (r.ok) stats.statPicks++; else if (!/already chosen/i.test(r.msg || '')) stats.errors.push('stat pick failed');
       } else if (room.type === 'defeat') {
         stats.defeats++;
         await emit(b.s, 'room', { op: 'ready' });

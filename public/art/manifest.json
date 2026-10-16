@@ -120,6 +120,7 @@
       ]
      ],
      "hit": 6,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -175,6 +176,7 @@
       ]
      ],
      "hit": 2,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -239,6 +241,7 @@
       ]
      ],
      "hit": 4,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -378,6 +381,7 @@
       ]
      ],
      "hit": 6,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -433,6 +437,7 @@
       ]
      ],
      "hit": 2,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -497,6 +502,93 @@
       ]
      ],
      "hit": 4,
+     "loop": null,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
+    },
+    "victory": {
+     "sheet": "mage_m_victory.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 12,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       130
+      ],
+      [
+       1,
+       130
+      ],
+      [
+       2,
+       130
+      ],
+      [
+       3,
+       130
+      ],
+      [
+       4,
+       130
+      ],
+      [
+       5,
+       130
+      ],
+      [
+       6,
+       130
+      ],
+      [
+       7,
+       130
+      ],
+      [
+       8,
+       130
+      ],
+      [
+       9,
+       130
+      ],
+      [
+       10,
+       130
+      ]
+     ],
+     "hit": null,
+     "loop": [
+      [
+       10,
+       650
+      ],
+      [
+       11,
+       650
+      ]
+     ],
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -660,6 +752,7 @@
       ]
      ],
      "hit": 10,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -731,6 +824,7 @@
       ]
      ],
      "hit": 3,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -803,6 +897,7 @@
       ]
      ],
      "hit": 7,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -858,6 +953,84 @@
      "swing": null,
      "aura": null,
      "ring": true,
+     "upswing": null,
+     "dashAt": null
+    },
+    "victory": {
+     "sheet": "ranger_victory.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 10,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       130
+      ],
+      [
+       1,
+       130
+      ],
+      [
+       2,
+       130
+      ],
+      [
+       3,
+       130
+      ],
+      [
+       4,
+       130
+      ],
+      [
+       5,
+       130
+      ],
+      [
+       6,
+       130
+      ],
+      [
+       7,
+       130
+      ],
+      [
+       8,
+       130
+      ]
+     ],
+     "hit": null,
+     "loop": [
+      [
+       8,
+       650
+      ],
+      [
+       9,
+       650
+      ]
+     ],
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
      "upswing": null,
      "dashAt": null
     }
@@ -991,6 +1164,7 @@
       ]
      ],
      "hit": 8,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -1062,6 +1236,7 @@
       ]
      ],
      "hit": 3,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -1138,6 +1313,7 @@
       ]
      ],
      "hit": 7,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -1342,6 +1518,7 @@
       ]
      ],
      "hit": 12,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -1402,6 +1579,7 @@
       ]
      ],
      "hit": 3,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -1470,6 +1648,7 @@
       ]
      ],
      "hit": 4,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -1546,6 +1725,7 @@
       ]
      ],
      "hit": 9,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -1753,6 +1933,7 @@
       ]
      ],
      "hit": 12,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -1821,6 +2002,7 @@
       ]
      ],
      "hit": 4,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -1885,6 +2067,7 @@
       ]
      ],
      "hit": 4,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -1965,6 +2148,7 @@
       ]
      ],
      "hit": 10,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -2029,6 +2213,84 @@
       8,
       11
      ],
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
+    },
+    "victory": {
+     "sheet": "cleric_m_victory.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 10,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       130
+      ],
+      [
+       1,
+       130
+      ],
+      [
+       2,
+       130
+      ],
+      [
+       3,
+       130
+      ],
+      [
+       4,
+       130
+      ],
+      [
+       5,
+       130
+      ],
+      [
+       6,
+       130
+      ],
+      [
+       7,
+       130
+      ],
+      [
+       8,
+       130
+      ]
+     ],
+     "hit": null,
+     "loop": [
+      [
+       8,
+       650
+      ],
+      [
+       9,
+       650
+      ]
+     ],
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
      "aura": null,
      "ring": null,
      "upswing": null,
@@ -2172,6 +2434,7 @@
       ]
      ],
      "hit": 10,
+     "loop": null,
      "trail": 9,
      "dashFrames": 3,
      "dash": 16,
@@ -2236,6 +2499,7 @@
       ]
      ],
      "hit": 3,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -2304,6 +2568,7 @@
       ]
      ],
      "hit": 4,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -2376,6 +2641,7 @@
       ]
      ],
      "hit": 9,
+     "loop": null,
      "trail": null,
      "dashFrames": 8,
      "dash": 10,
@@ -2395,6 +2661,92 @@
      "ring": null,
      "upswing": 9,
      "dashAt": 7
+    },
+    "victory": {
+     "sheet": "knight_victory.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 12,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       130
+      ],
+      [
+       1,
+       130
+      ],
+      [
+       2,
+       130
+      ],
+      [
+       3,
+       130
+      ],
+      [
+       4,
+       130
+      ],
+      [
+       5,
+       130
+      ],
+      [
+       6,
+       130
+      ],
+      [
+       7,
+       130
+      ],
+      [
+       8,
+       130
+      ],
+      [
+       9,
+       130
+      ],
+      [
+       10,
+       130
+      ]
+     ],
+     "hit": null,
+     "loop": [
+      [
+       10,
+       650
+      ],
+      [
+       11,
+       650
+      ]
+     ],
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     }
    }
   },
@@ -2542,6 +2894,7 @@
       ]
      ],
      "hit": 12,
+     "loop": null,
      "trail": 11,
      "dashFrames": 5,
      "dash": 16,
@@ -2602,6 +2955,7 @@
       ]
      ],
      "hit": 4,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -2670,6 +3024,7 @@
       ]
      ],
      "hit": 4,
+     "loop": null,
      "trail": null,
      "dashFrames": 4,
      "dash": 16,
@@ -2738,6 +3093,7 @@
       ]
      ],
      "hit": 8,
+     "loop": null,
      "trail": null,
      "dashFrames": 7,
      "dash": 10,

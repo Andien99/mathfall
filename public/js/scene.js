@@ -79,6 +79,47 @@ export class BattleScene {
     const k = this.s / this.dpr;
     return { top: top * k, bottom: bottom * k };
   }
+  // Victory: every hero plays their PixelLab victory animation once (a little staggered), then holds the final pose.
+  set victory(on) {
+    if (!!on === !!this._victory) return;
+    this._victory = !!on;
+    clearTimeout(this._vicT);
+    if (on) this._startVictory(Date.now()); else { this._victoryPoses(false); if (this.cam && this.cam.hold) this.cam = null; }
+  }
+  _startVictory(since) {   // wait for the last blow to finish (at most 3.5 s) before the heroes celebrate
+    if (!this._victory) return;
+    if (this.busyCount > 0 && Date.now() - since < 3500) { this._vicT = setTimeout(() => this._startVictory(since), 150); return; }
+    this._victoryPoses(true);
+  }
+  _victoryPoses(on) {
+    const heroes = [...this.actors.values()].filter(a => a.type === 'hero').sort((a, b) => a.order - b.order);
+    heroes.forEach((A, i) => {
+      if (A.anim && A.anim.d && A.anim.d.loop) A.anim = null;
+      const an = on && !A.downed && SP.heroAnim(A.skin || A.cls, 'victory');
+      if (!an) return;
+      const at = []; let acc = 0; for (const [, ms] of an.timeline) { at.push(acc); acc += ms; }
+      A.anim = { d: an, t0: now() + 250 + i * 180, speed: 1, at, total: acc };
+    });
+    if (on) this.victoryAt = now();
+  }
+  get victory() { return !!this._victory; }
+  // phones: zoom in on the party while they celebrate (the rewards appear when it eases back out)
+  // (z = zoom, tx/ty = where on screen the party's centre is placed, as fractions of the screen). It holds until
+  // the victory ends; calling it again eases from the current framing to the new one.
+  focusHeroes(z, tx, ty) {
+    const hs = [...this.actors.values()].filter(a => a.type === 'hero');
+    if (!hs.length) return;
+    const cx = hs.reduce((s, a) => s + a.x, 0) / hs.length, cy = hs.reduce((s, a) => s + a.y, 0) / hs.length;
+    const c = this.cam && this.cam.hold ? this.cam : null, t = now();
+    const cur = c ? this._camNow(c, t) : null;
+    this.cam = { x: cx, y: cy - 20, t0: c ? c.t0 : t, dur: 1e9, z, tx, ty, hold: true, vig: 0.35,
+      tr: c ? t : 0, z0: cur ? cur.z : 1, tx0: cur ? cur.tx : tx, ty0: cur ? cur.ty : ty };
+  }
+  _camNow(c, t) {
+    if (!c.tr) return { z: c.z, tx: c.tx, ty: c.ty };
+    const p = Math.min(1, (t - c.tr) / 450), e = p * p * (3 - 2 * p);
+    return { z: c.z0 + (c.z - c.z0) * e, tx: c.tx0 + (c.tx - c.tx0) * e, ty: c.ty0 + (c.ty - c.ty0) * e };
+  }
   setTheme(theme) { if (theme !== this.theme) { this.theme = theme; this.paint(); } }
   paint() {
     if (!this.W) return;
@@ -555,9 +596,18 @@ export class BattleScene {
   _animAt(a, t) {
     const m = a.anim; if (!m) return null;
     const el = (t - m.t0) / m.speed;
-    if (el >= m.total + 60) return null;
-    let i = 0; while (i + 1 < m.at.length && el >= m.at[i + 1]) i++;
-    const f = m.d.timeline[i][0], v = (a.variant || 0) % m.d.frames.length;
+    if (el < 0) return null;
+    let f;
+    if (el >= m.total && m.d.loop) {   // held pose (victory): cycle the loop frames for as long as the anim stays set
+      const L = m.d.loop, tot = L.reduce((s, x) => s + x[1], 0);
+      let r = (el - m.total) % tot, i = 0; while (r >= L[i][1]) { r -= L[i][1]; i++; }
+      f = L[i][0];
+    } else {
+      if (el >= m.total + 60) return null;
+      let i = 0; while (i + 1 < m.at.length && el >= m.at[i + 1]) i++;
+      f = m.d.timeline[i][0];
+    }
+    const v = (a.variant || 0) % m.d.frames.length;
     return { fr: m.d.frames[v][f], wh: m.d.whites[v][f], ax: m.d.ax, ay: m.d.ay };
   }
   impact(ev, tgt, fx, rc) {
@@ -852,7 +902,7 @@ export class BattleScene {
     let p = a.pose && t < a.poseUntil ? a.pose : null;
     if (a.type === 'hero') {
       const an = this._animAt(a, t); if (an) return white ? an.wh : an.fr;
-      if (!p) p = a.downed ? 'down' : (this.victory ? 'victory' : 'idle' + Math.floor(((t + a.phase) / 260) % 4));
+      if (!p) p = a.downed ? 'down' : (this.victory && !a.anim ? 'victory' : 'idle' + Math.floor(((t + a.phase) / 260) % 4));
       if (a.downed && p !== 'hurt') p = 'down';
       return white ? SP.heroWhite(a.skin || a.cls, a.variant, p) : SP.heroFrame(a.skin || a.cls, a.variant, p);
     }
@@ -1090,14 +1140,17 @@ export class BattleScene {
     const ease = x => x * x * (3 - 2 * x);
     const k = el < 200 ? ease(el / 200) : el > c.dur - 260 ? ease(Math.max(0, (c.dur - el) / 260)) : 1;
     const Wd = this.cv.width, Hd = this.cv.height, s = this.s;
-    const z = 1 + (c.z - 1) * k;
-    const fx = Math.max(Wd * 0.2, Math.min(Wd * 0.8, c.x * s)), fy = Math.max(Hd * 0.25, Math.min(Hd * 0.75, c.y * s));
+    const cn = c.hold ? this._camNow(c, t) : c;
+    const z = 1 + (cn.z - 1) * k;
+    let fx = Math.max(Wd * 0.2, Math.min(Wd * 0.8, c.x * s)), fy = Math.max(Hd * 0.25, Math.min(Hd * 0.75, c.y * s));
+    let ox = fx, oy = fy;   // where the focus point lands on screen (moves to tx/ty for a held framing)
+    if (c.hold) { fx = c.x * s; fy = c.y * s; ox = fx + (cn.tx * Wd - fx) * k; oy = fy + (cn.ty * Hd - fy) * k; }
     if (!this._zc || this._zc.width !== Wd || this._zc.height !== Hd) { this._zc = document.createElement('canvas'); this._zc.width = Wd; this._zc.height = Hd; }
     const zx = this._zc.getContext('2d'); zx.clearRect(0, 0, Wd, Hd); zx.drawImage(this.cv, 0, 0);
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(this._zc, fx - fx * z, fy - fy * z, Wd * z, Hd * z);
+    ctx.drawImage(this._zc, ox - fx * z, oy - fy * z, Wd * z, Hd * z);
     const vg = ctx.createRadialGradient(fx, fy, Math.min(Wd, Hd) * 0.22, fx, fy, Math.max(Wd, Hd) * 0.72);
-    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, `rgba(2,0,6,${0.62 * k})`);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, `rgba(2,0,6,${(c.vig != null ? c.vig : 0.62) * k})`);
     ctx.fillStyle = vg; ctx.fillRect(0, 0, Wd, Hd);
   }
 

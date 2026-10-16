@@ -65,17 +65,6 @@ PLAN = {
     'knight_power': [0, 2, 3, 4, 5, 6, 7, 8, 9, 11], 'knight_f_power': [0, 2, 4, 5, 6, 7, 8, 9, 10],
 }
 
-# plan positions to mirror about the feet (x=80): the near-vertical volley keyframe came out facing right,
-# away from the enemies, so it and the frames either side of it are flipped back to face left
-MIRROR = {'ranger_volley': [4, 5, 6, 7], 'ranger_f_volley': [4, 5, 6, 7]}
-
-def mirror_feet(im, ax=80):
-    out = Image.new('RGBA', im.size); src = im.load(); o = out.load()
-    for y in range(im.height):
-        for x in range(im.width):
-            nx = 2 * ax - 1 - x
-            if src[x, y][3] and 0 <= nx < im.width: o[nx, y] = src[x, y]
-    return out
 
 def fire_tint(im):
     """Turn PixelLab's bright cyan sword glow orange, so it matches the flame aura."""

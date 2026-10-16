@@ -69,6 +69,12 @@ EXTRA = {
     # volley: bow aimed almost straight up; star + shrinking yellow ring at the tip from 'charge' to 'chargeTo', then the shot
     'ranger:m/volley': dict(base='ranger:m', ms=[50, 60, 60, 70, 80, 120, 900, 90, 90, 120], hit=7, charge=5, chargeTo=7, ring=True, track='top'),
     'ranger:f/volley': dict(base='ranger:f', ms=[50, 60, 60, 70, 80, 120, 900, 90, 90, 90, 120], hit=7, charge=5, chargeTo=7, ring=True, track='top'),
+    # victory: Andy's GIFs (tools/build_victory.py), boys only for now. Every frame plays once at the GIF's 130 ms,
+    # then 'loop' holds the final pose: the last frame and a copy lifted 1px (breathing).
+    'knight:m/victory': dict(base='knight:m', ms=[130] * 11, loop=[[10, 650], [11, 650]]),
+    'cleric:m/victory': dict(base='cleric:m', ms=[130] * 9, loop=[[8, 650], [9, 650]]),
+    'mage:m/victory': dict(base='mage:m', ms=[130] * 11, loop=[[10, 650], [11, 650]]),
+    'ranger:m/victory': dict(base='ranger:m', ms=[130] * 9, loop=[[8, 650], [9, 650]]),
     'knight:m/power': dict(base='knight:m', ms=[60, 70, 90, 110, 120, 130, 140, 110, 90, 380], hit=9, aura=[1, 7], dashAt=7, dashFrames=8, upswing=9, dash=10, cast=False),
     'knight:f/power': dict(base='knight:f', ms=[60, 70, 110, 120, 130, 140, 110, 90, 380], hit=8, aura=[1, 6], dashAt=6, dashFrames=7, upswing=8, dash=10, cast=False),
 }
@@ -81,7 +87,7 @@ def build(skin):
     mv = m.get('move', 'slash')
     src = Image.open(os.path.join(ART_SRC, 'atk', m['sheet'] + '_' + mv + '_src.png')).convert('RGBA')
     n = src.width // AW
-    assert n == len(m['ms']), (skin, n, len(m['ms']))
+    assert n == len(m['ms']) or (m.get('loop') and n > len(m['ms'])), (skin, n, len(m['ms']))
     out = Image.new('RGBA', (AW * n, AH * len(m['variants'])))
     for vi, hs in enumerate(m['variants']):
         for i in range(n):
@@ -99,7 +105,7 @@ def build(skin):
     man = json.load(open(path))
     man['heroes'][m.get('skin', skin)].setdefault('anims', {})[mv] = {
         'sheet': name, 'frame': [AW, AH], 'anchor': [AAX, AAY], 'frames': n, 'variants': len(m['variants']),
-        'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m['hit'], 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
+        'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m.get('hit'), 'loop': m.get('loop'), 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
         'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom'),
         'tips': tips, 'chargeTo': m.get('chargeTo'), 'swing': m.get('swing'), 'aura': m.get('aura'), 'ring': m.get('ring'), 'upswing': m.get('upswing'), 'dashAt': m.get('dashAt')}
     json.dump(man, open(path, 'w'), indent=1)
