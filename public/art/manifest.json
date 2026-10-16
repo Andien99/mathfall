@@ -363,7 +363,82 @@
     15,
     22,
     22
-   ]
+   ],
+   "anims": {
+    "smite": {
+     "sheet": "cleric_smite.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 13,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       60
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       70
+      ],
+      [
+       4,
+       80
+      ],
+      [
+       5,
+       80
+      ],
+      [
+       6,
+       80
+      ],
+      [
+       7,
+       80
+      ],
+      [
+       8,
+       80
+      ],
+      [
+       9,
+       80
+      ],
+      [
+       10,
+       80
+      ],
+      [
+       11,
+       70
+      ],
+      [
+       12,
+       420
+      ]
+     ],
+     "hit": 12,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": 12
+    }
+   }
   },
   "cleric:m": {
    "sheet": "cleric_m.png",
@@ -436,7 +511,82 @@
     19,
     22,
     22
-   ]
+   ],
+   "anims": {
+    "smite": {
+     "sheet": "cleric_m_smite.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 13,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       70
+      ],
+      [
+       2,
+       70
+      ],
+      [
+       3,
+       75
+      ],
+      [
+       4,
+       75
+      ],
+      [
+       5,
+       75
+      ],
+      [
+       6,
+       75
+      ],
+      [
+       7,
+       75
+      ],
+      [
+       8,
+       75
+      ],
+      [
+       9,
+       75
+      ],
+      [
+       10,
+       75
+      ],
+      [
+       11,
+       60
+      ],
+      [
+       12,
+       420
+      ]
+     ],
+     "hit": 12,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": 12
+    }
+   }
   },
   "knight:m": {
    "sheet": "knight.png",
@@ -576,7 +726,9 @@
      "hit": 10,
      "trail": 9,
      "dashFrames": 3,
-     "dash": 16
+     "dash": 16,
+     "cast": false,
+     "strike": null
     }
    }
   },
@@ -726,7 +878,9 @@
      "hit": 12,
      "trail": 11,
      "dashFrames": 5,
-     "dash": 16
+     "dash": 16,
+     "cast": false,
+     "strike": null
     }
    }
   }

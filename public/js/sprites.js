@@ -821,7 +821,7 @@ async function loadArtOverrides() {
       fr.push([]); wh.push([]);
       for (let i = 0; i < an.frames; i++) { const c = crop(im, fw, fh, i, v % rows); fr[v].push(c); wh[v].push(white(c)); }
     }
-    (artAnims[skin] = artAnims[skin] || {})[name] = { frames: fr, whites: wh, ax: an.anchor[0], ay: an.anchor[1], timeline: an.timeline, hit: an.hit, trail: an.trail == null ? null : an.trail, dash: an.dash || 0, dashFrames: an.dashFrames || 4 };
+    (artAnims[skin] = artAnims[skin] || {})[name] = { ...an, frames: fr, whites: wh, ax: an.anchor[0], ay: an.anchor[1], timeline: an.timeline, hit: an.hit, trail: an.trail == null ? null : an.trail, dash: an.dash || 0, dashFrames: an.dashFrames || 4 };
     n++;
   }
   for (const [kind, d] of Object.entries(man.enemies || {})) {

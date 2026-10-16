@@ -284,7 +284,7 @@ export class BattleScene {
       const colr = ev.fx === 'burn' ? '#ff8a3c' : '#8fe05a';
       this.burst(p.x, p.y - 14, colr, 18, 16, ev.fx === 'burn' ? -30 : -12);
       this.glows.push({ x: p.x, y: p.y - 14, r: 34, color: colr, t: 0, life: 0.4, a: 0.5 });
-      setTimeout(() => { this.number(p.x, p.y - 34, tg.dmg, colr, 1); this.flashActor(p.a); this._applyAfter(ev); }, T(220));
+      setTimeout(() => { this.number(p.x, p.y - 34, tg.dmg, colr, 1); this.flashActor(p.a); if (tg.dmg > 0) this.hitShake(p.a, 2); this._applyAfter(ev); }, T(220));
       sfx(ev.fx === 'burn' ? 'burn' : 'poison');
       return T(ev.dur || 500);
     }
@@ -308,6 +308,7 @@ export class BattleScene {
         const jx = (Math.random() - 0.5) * 50, jy = -30 - Math.random() * 40;
         this.arc(boss.x + jx, boss.y + jy, 12, ev.color || '#fff');
         this.number(boss.x + jx, boss.y + jy - 8, '-' + ev.dmg, ev.color || '#ddd', 0.7);
+        if (!boss.hshake || now() - boss.hshake.t0 > 260) boss.hshake = { t0: now(), amp: 1.5 };
       }
       return 0;
     }
@@ -351,7 +352,7 @@ export class BattleScene {
 
     // offence
     const home = { x: A.x, y: A.y };
-    const bigMove = melee && first && fx !== 'whirl' && SP.heroAnim(A.skin || A.cls, 'slash');
+    const bigMove = melee && first && fx !== 'whirl' && SP.heroAnim(A.skin || A.cls, fx === 'slash_heavy' ? 'slash' : fx);   // knight: slash, cleric: smite
     if (bigMove) return this._bigSlash(A, first, ev, tgt, fx, rc, bigMove, T, home);
     if (melee && first && fx !== 'whirl') {
       const dest = { x: first.x + (first.size === 'xl' ? 46 : first.size === 'l' ? 26 : 20), y: first.y + 2 };
@@ -427,19 +428,26 @@ export class BattleScene {
     const at = []; let acc = 0; for (const [, ms] of tl) { at.push(acc); acc += ms; }
     const total = acc;
     const speed = T(1000) / 1000;
-    const dest = { x: first.x + (first.size === 'xl' ? 46 : first.size === 'l' ? 26 : 20) + (anim.dash || 0), y: first.y + 2 };
+    const cast = !!anim.cast;   // casters stay put (cleric smite); fighters dash in
+    const dest = cast ? home : { x: first.x + (first.size === 'xl' ? 46 : first.size === 'l' ? 26 : 20) + (anim.dash || 0), y: first.y + 2 };
     A.anim = { d: anim, t0: now(), speed, at, total };
-    const dashMs = at[Math.min(tl.length - 1, anim.dashFrames || 4)];
-    this.move(A, dest.x - home.x, dest.y - home.y, T(Math.max(120, dashMs)), true);
-    sfx('whirl');
-    this.cam = { x: (dest.x + first.x) / 2 - 6, y: dest.y - 30, t0: now(), dur: T(total + 260), z: 1.14 };
+    if (!cast) {
+      const dashMs = at[Math.min(tl.length - 1, anim.dashFrames || 4)];
+      this.move(A, dest.x - home.x, dest.y - home.y, T(Math.max(120, dashMs)), true);
+      sfx('whirl');
+    } else sfx('cast');
+    this.cam = cast ? { x: (home.x * 0.6 + first.x * 0.4), y: home.y - 34, t0: now(), dur: T(total + 260), z: 1.1 }
+                    : { x: (dest.x + first.x) / 2 - 6, y: dest.y - 30, t0: now(), dur: T(total + 260), z: 1.14 };
+    if (anim.strike != null) setTimeout(() => {
+      for (const t of tgt) { const e = this.actors.get(t.id); if (e && !e.gone) this.skyStrike(e); }
+    }, T(at[anim.strike]));
     const hitAt = at[anim.hit] != null ? at[anim.hit] : total * 0.75;
     if (anim.trail != null) setTimeout(() => {
       this.trails.push({ x: A.x + A.ox - 4, y: A.y + A.oy - 32, r: 38, t0: now(), life: T(460) });
       sfx(fx === 'slash_heavy' || fx === 'dragon' ? 'heavy' : 'slash');
     }, T(at[anim.trail]));
     setTimeout(() => { this.impact(ev, tgt, fx, rc); this.shake = Math.max(this.shake, 4); this.shakeT = now(); }, T(hitAt));
-    setTimeout(() => { A.anim = null; this.move(A, 0, 0, T(240), true); }, T(total + 60));
+    setTimeout(() => { A.anim = null; if (!cast) this.move(A, 0, 0, T(240), true); }, T(total + 60));
     return T(Math.max(ev.dur || 1000, total + 320));
   }
   _animAt(a, t) {
@@ -459,8 +467,8 @@ export class BattleScene {
         const colr = { proj_fire: '#ff8a3c', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', proj_poison: '#9cff6b', venom: '#9cff6b', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8' }[fx] || '#ffffff';
         this.burst(p.x, p.y - 16, colr, 14 + Math.min(30, t.dmg), 34);
         this.glows.push({ x: p.x, y: p.y - 16, r: 34 + Math.min(40, t.dmg * 1.5), color: colr, t: 0, life: 0.35, a: 0.8 });
-        if (['slash', 'slash_heavy', 'smite', 'shadow', 'dragon'].includes(fx)) this.arc(p.x, p.y - 18, fx === 'slash_heavy' || fx === 'dragon' ? 20 : 15, colr === '#ffffff' ? '#e8f4ff' : colr);
-        if (t.dmg > 0) { this.flashActor(p.a); this.pose(p.a, 'hurt', 260); this.knock(p.a, -4); }
+        if (['slash', 'slash_heavy', 'shadow', 'dragon'].includes(fx)) this.arc(p.x, p.y - 18, fx === 'slash_heavy' || fx === 'dragon' ? 20 : 15, colr === '#ffffff' ? '#e8f4ff' : colr);
+        if (t.dmg > 0) { this.flashActor(p.a); this.pose(p.a, 'hurt', 260); this.hitShake(p.a, t.dmg); }
         if (t.blocked) this.number(p.x + 12, p.y - 28, 'Blocked ' + t.blocked, '#9fb6d8', 0.75);
         this.number(p.x, p.y - 38, t.dmg, t.crit ? '#ffb347' : '#ffffff', t.dmg >= 15 ? 1.45 : 1.15, true);
         if (t.status) for (const s of t.status) this.number(p.x - 4, p.y - 52, STATUS_ABBR[s] || s, STATUS_COL[s] || '#fff', 0.78);
@@ -610,6 +618,8 @@ export class BattleScene {
     a.tween = { from, to: { x: dx, y: dy }, t0: now(), ms: Math.max(1, ms) };
   }
   knock(a, dx) { a.knock = { dx, t0: now() }; }
+  // enemies shudder side to side when they take damage (bigger hits shake harder)
+  hitShake(a, dmg = 5) { if (a && a.type === 'enemy') a.hshake = { t0: now(), amp: Math.min(5, 2 + dmg / 6) }; }
   flashActor(a) { if (a) a.flashUntil = now() + 110; }
   burst(x, y, color, n = 16, speed = 30, gy = 30) {
     if (this.lowPower) n = Math.ceil(n / 2);
@@ -633,6 +643,24 @@ export class BattleScene {
     pts.push(b);
     this.arcs.push({ bolt: pts, color: '#fff27a', t: 0, life: 0.3 });
     this.glows.push({ x: b.x, y: b.y, r: 50, color: '#fff27a', t: 0, life: 0.4, a: 0.9 });
+  }
+  // yellow lightning from the top of the screen onto an enemy (cleric smite)
+  skyStrike(e) {
+    const top = { x: e.x + (Math.random() - 0.5) * 30, y: -6 }, hit = { x: e.x, y: e.y - 6 };
+    const zig = (a, b, n, j) => { const pts = [a]; for (let i = 1; i < n; i++) pts.push({ x: lerp(a.x, b.x, i / n) + (Math.random() - 0.5) * j, y: lerp(a.y, b.y, i / n) + (Math.random() - 0.5) * 4 }); pts.push(b); return pts; };
+    const main = zig(top, hit, 12, 16);
+    this.arcs.push({ bolt: main, color: '#ffe23a', w: 3, t: 0, life: 0.32 });
+    setTimeout(() => this.arcs.push({ bolt: zig(top, hit, 12, 18), color: '#fff27a', w: 2, t: 0, life: 0.22 }), 70);
+    for (let b = 0; b < 2; b++) {   // forks
+      const from = main[3 + b * 4] || main[4];
+      this.arcs.push({ bolt: zig(from, { x: from.x + (b ? 18 : -18), y: from.y + 22 }, 4, 8), color: '#ffd23a', w: 1, t: 0, life: 0.25 });
+    }
+    this.glows.push({ x: hit.x, y: hit.y - 20, r: 56, color: '#ffe46a', t: 0, life: 0.3, a: 0.9, tall: true });
+    this.glows.push({ x: hit.x, y: hit.y, r: 26, color: '#fff6c0', t: 0, life: 0.25, a: 0.9, ring: true, grow: 18 });
+    this.burst(hit.x, hit.y - 4, '#ffe23a', 26, 46);
+    this.flash = Math.max(this.flash || 0, 0.28);
+    this.shake = Math.max(this.shake, 4); this.shakeT = now();
+    sfx('zap');
   }
   projectile(from, to, kind, ms) {
     this.projectiles.push({ from, to, kind, t0: now(), ms: Math.max(60, ms), arc: kind === 'proj_arrow' ? -10 : kind === 'crystal' ? -6 : 0 });
@@ -750,6 +778,7 @@ export class BattleScene {
       }
       let kx = 0;
       if (a.knock) { const k = (t - a.knock.t0) / 220; if (k > 1) a.knock = null; else kx = a.knock.dx * Math.sin(k * Math.PI); }
+      if (a.hshake) { const k = (t - a.hshake.t0) / 300; if (k > 1) a.hshake = null; else kx += Math.round(a.hshake.amp * (1 - k) * Math.sin(k * Math.PI * 10)); }   // ~5 quick wobbles
       const fr = this.frameFor(a);
       const anf = a.type === 'hero' ? this._animAt(a, t) : null;
       const info = a.type === 'enemy' ? SP.enemyInfo(a.kind) : anf ? { ax: anf.ax, ay: anf.ay } : { ax: SP.ANCHOR_X, ay: SP.ANCHOR_Y };
@@ -808,7 +837,11 @@ export class BattleScene {
       n.globalAlpha = 1 - k;
       n.fillStyle = a.color;
       if (a.bolt) {
-        for (let j = 0; j < a.bolt.length - 1; j++) this.pxLine(n, a.bolt[j], a.bolt[j + 1], j % 2 ? '#ffffff' : a.color);
+        const w = a.w || 1;
+        for (let j = 0; j < a.bolt.length - 1; j++) {
+          const p0 = a.bolt[j], p1 = a.bolt[j + 1];
+          for (let o = -(w >> 1); o <= (w >> 1); o++) this.pxLine(n, { x: p0.x + o, y: p0.y }, { x: p1.x + o, y: p1.y }, o === 0 && w > 1 ? '#ffffff' : (w > 1 ? a.color : (j % 2 ? '#ffffff' : a.color)));
+        }
       } else {
         const start = a.reverse ? Math.PI * 0.15 : Math.PI * 1.1, sweep = Math.PI * 0.9 * Math.min(1, k * 2.2) * (a.reverse ? 1 : 1);
         for (let th = 0; th < sweep; th += 0.05) {
