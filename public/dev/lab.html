@@ -1,0 +1,142 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Animation Lab</title>
+<link rel="stylesheet" href="/css/fonts.css">
+<style>
+:root { --bg:#0b0a14; --panel:#16142a; --edge:#2d2a52; --text:#f2eaff; --muted:#9a93c0; --brass:#e8b85a; }
+html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font:15px "Alegreya Sans",system-ui,sans-serif; overflow:hidden; }
+#wrap { display:grid; grid-template-columns:1fr 320px; height:100%; }
+#stage { position:relative; min-width:0; }
+canvas { display:block; width:100%; height:100%; }
+#side { background:var(--panel); border-left:1px solid var(--edge); padding:14px 14px 30px; overflow-y:auto; }
+h1 { font-family:"Cinzel",serif; font-size:20px; margin:0 0 4px; color:var(--brass); }
+.sub { color:var(--muted); font-size:13px; margin-bottom:12px; }
+h2 { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:14px 0 6px; }
+.row { display:flex; flex-wrap:wrap; gap:6px; }
+button { font:inherit; color:var(--text); background:#221f3d; border:1px solid var(--edge); border-radius:6px; padding:6px 10px; cursor:pointer; }
+button:hover { border-color:#5a55a0; }
+button.on { background:var(--brass); color:#24160a; border-color:var(--brass); font-weight:700; }
+button.move { width:100%; text-align:left; display:flex; justify-content:space-between; gap:8px; }
+button.move small { color:var(--muted); }
+button.move.on small { color:#4a3410; }
+select { font:inherit; width:100%; background:#221f3d; color:var(--text); border:1px solid var(--edge); border-radius:6px; padding:6px; }
+.big { width:100%; padding:10px; font-weight:800; font-size:16px; background:#3a2f7a; margin-top:12px; }
+label { display:flex; align-items:center; gap:8px; color:var(--muted); margin-top:8px; }
+.moves { display:grid; gap:5px; }
+body.bare #wrap { grid-template-columns:1fr; } body.bare #side { display:none; }
+@media (max-width:800px) { #wrap { grid-template-columns:1fr; grid-template-rows:55vh 1fr; } #side { border-left:0; border-top:1px solid var(--edge); } }
+</style></head>
+<body><div id="wrap"><div id="stage"><canvas id="cv"></canvas></div>
+<aside id="side">
+  <h1>Animation Lab</h1>
+  <div class="sub">Replay any hero move with its full visual effects. Nothing here touches a real game.</div>
+  <h2>Hero</h2><div class="row" id="cls"></div>
+  <h2>Look</h2><div class="row" id="gender"></div><div class="row" id="variant" style="margin-top:6px"></div>
+  <h2>Move</h2><div class="moves" id="moves"></div>
+  <h2>Other skills (from treasure)</h2><div class="moves" id="extra"></div>
+  <h2>Enemy</h2><select id="enemy"></select>
+  <div class="row" style="margin-top:6px"><button id="enemyHit">Enemy attacks you</button></div>
+  <h2>Speed</h2><div class="row" id="speed"></div>
+  <label><input type="checkbox" id="loop" checked> Replay automatically</label>
+  <button class="big" id="play">▶ Play again</button>
+</aside></div>
+<script src="/shared/content.js"></script>
+<script type="module">
+import { BattleScene } from '/js/scene.js';
+const C = window.MF_Content;
+const $ = s => document.querySelector(s);
+const cv = $('#cv');
+const scene = new BattleScene(cv, { myId: 'h1' });
+window.scene = scene;
+const S = { cls: 'knight', gender: 'f', variant: 0, move: 'attack', enemy: 'goblin', speed: 1, loop: true };
+try { Object.assign(S, JSON.parse(localStorage.getItem('mf_lab') || '{}')); } catch (e) {}
+// address-bar overrides, e.g. /dev/lab.html?cls=mage&gender=f&move=fireball&enemy=slime&speed=0.5&loop=0
+const QP = new URLSearchParams(location.search);
+for (const k of ['cls', 'gender', 'move', 'enemy']) if (QP.get(k)) S[k] = QP.get(k);
+if (QP.get('variant')) S.variant = +QP.get('variant');
+if (QP.get('speed')) S.speed = +QP.get('speed');
+if (QP.get('loop')) S.loop = QP.get('loop') !== '0';
+if (QP.get('bare')) document.body.classList.add('bare');
+const save = () => { if (QP.toString()) return; try { localStorage.setItem('mf_lab', JSON.stringify(S)); } catch (e) {} };
+
+const BASIC = { knight: ['slash', 'Slash'], mage: ['proj_arcane', 'Arcane Bolt'], ranger: ['proj_arrow', 'Quick Shot'], cleric: ['smite', 'Smite'] };
+const ENEMIES = ['goblin', 'slime', 'skeleton', 'hexer', 'thrall', 'sentinel', 'wyrm', 'colossus', 'hollowking', 'voidmaw'];
+
+function fit() { const r = $('#stage').getBoundingClientRect(); scene.resize(r.width, r.height, { x: 0, y: 30, w: r.width, h: r.height - 60 }); }
+function run() {
+  const H = C.HEROES;
+  const ek = S.enemy, ed = C.ENEMIES[ek] || {};
+  const hero = { id: 'h1', name: 'You', cls: S.cls, skin: S.cls + ':' + S.gender, variant: S.variant, hp: H[S.cls].hp, maxHp: H[S.cls].hp, block: 0, st: {}, skills: [], focus: 0, downed: false, connected: true };
+  const ally = { id: 'h2', name: 'Ally', cls: S.cls === 'knight' ? 'cleric' : 'knight', skin: (S.cls === 'knight' ? 'cleric' : 'knight') + ':m', variant: 1, hp: 20, maxHp: 44, block: 0, st: {}, skills: [], focus: 0, downed: false, connected: true };
+  const enemies = [{ id: 'e1', kind: ek, name: ed.name || ek, size: ed.size || 'm', tier: ed.size === 'xl' ? 'boss' : 'normal', hp: 90, maxHp: 100, block: 0, st: {}, intent: { type: 'attack', dmg: 6, target: 'h1' } }];
+  if (ed.size !== 'xl') enemies.push({ id: 'e2', kind: 'slime', name: 'Mire Slime', size: 's', hp: 20, maxHp: 24, block: 0, st: {}, intent: { type: 'block', block: 5 } });
+  return { heroes: [hero, ally], combat: { enemies } };
+}
+let state = null;
+function reset() { state = run(); scene.actors.clear(); scene.sync(state, { force: true }); scene.layout && scene.layout(); scene.target = 'e1'; }
+
+function eventFor(move) {
+  const heroAfter = { h1: { ...state.heroes[0], dead: false }, h2: { ...state.heroes[1] } };
+  const enAfter = {}; for (const e of state.combat.enemies) enAfter[e.id] = { hp: e.hp, maxHp: e.maxHp, block: 0, st: {}, dead: false };
+  const after = { ...heroAfter, ...enAfter };
+  const ens = state.combat.enemies.map(e => e.id);
+  if (move === 'attack') { const [fx, name] = BASIC[S.cls]; return { kind: 'hero', actor: 'h1', act: 'attack', fx, name, energy: 3, targets: [{ id: 'e1', dmg: 7 }], after }; }
+  if (move === 'defend') return { kind: 'hero', actor: 'h1', act: 'defend', fx: 'defend', name: C.HEROES[S.cls].defend.name, energy: 3, targets: [{ id: 'h1', block: C.HEROES[S.cls].defend.block }], after };
+  const def = C.SKILLS[move];
+  const ev = { kind: 'hero', actor: 'h1', act: 'skill0', skill: move, fx: def.fx, name: def.name, rarity: def.rarity, targets: [], after };
+  if (def.target === 'enemy') ev.targets = [{ id: 'e1', dmg: 11, status: def.fx === 'proj_fire' ? ['burn'] : def.fx === 'proj_poison' ? ['poison'] : def.fx === 'proj_ice' ? ['chill'] : undefined }];
+  else if (def.target === 'allEnemies') ev.targets = ens.map(id => ({ id, dmg: 8 }));
+  else if (def.target === 'ally') ev.targets = [{ id: 'h2', heal: 12, revived: def.fx === 'revive' }];
+  else ev.targets = ['h1', 'h2'].map(id => (['heal_party', 'bless_party'].includes(def.fx) ? { id, heal: 6, block: def.fx === 'bless_party' ? 4 : 0 } : def.fx === 'buff_party' ? { id, status: ['strength'] } : { id, block: 7 }));
+  return ev;
+}
+function enemyEvent() {
+  const after = { h1: { ...state.heroes[0] } };
+  return { kind: 'enemy', actor: 'e1', type: 'attack', act: 'strike', name: 'Strike', targets: [{ id: 'h1', dmg: 6, blocked: 0 }], after };
+}
+
+let timer = null, lastEv = null;
+function play(ev) {
+  clearTimeout(timer);
+  reset();
+  lastEv = ev || eventFor(S.move);
+  setTimeout(() => scene.play([JSON.parse(JSON.stringify(lastEv))]), 250);
+  if (S.loop) timer = setTimeout(() => play(lastEv), (3200 / S.speed));
+}
+
+function btns(el, items, key, onPick) {
+  el.innerHTML = '';
+  for (const [val, label] of items) {
+    const b = document.createElement('button'); b.textContent = label; if (S[key] === val) b.classList.add('on');
+    b.onclick = () => { S[key] = val; save(); render(); onPick && onPick(); };
+    el.appendChild(b);
+  }
+}
+function moveBtn(el, id, label, note) {
+  const b = document.createElement('button'); b.className = 'move' + (S.move === id ? ' on' : '');
+  b.innerHTML = `<span>${label}</span><small>${note || ''}</small>`;
+  b.onclick = () => { S.move = id; save(); render(); play(); };
+  el.appendChild(b);
+}
+function render() {
+  btns($('#cls'), C.HERO_ORDER.map(c => [c, C.HEROES[c].name]), 'cls', () => { S.move = 'attack'; save(); render(); play(); });
+  btns($('#gender'), [['m', 'Boy'], ['f', 'Girl']], 'gender', play);
+  btns($('#variant'), [[0, 'Colour 1'], [1, 'Colour 2'], [2, 'Colour 3']], 'variant', play);
+  btns($('#speed'), [[1, '1×'], [0.5, '½×'], [0.25, '¼×']], 'speed', () => { scene.slowmo = S.speed; play(); });
+  const mv = $('#moves'); mv.innerHTML = '';
+  moveBtn(mv, 'attack', BASIC[S.cls][1], 'attack');
+  moveBtn(mv, 'defend', C.HEROES[S.cls].defend.name, 'defend');
+  for (const id of C.HEROES[S.cls].skills) moveBtn(mv, id, C.SKILLS[id].name, 'skill');
+  const ex = $('#extra'); ex.innerHTML = '';
+  for (const [id, d] of Object.entries(C.SKILLS)) if (!C.HEROES[S.cls].skills.includes(id) && d.fx) moveBtn(ex, id, d.name, d.rarity);
+  $('#loop').checked = S.loop;
+}
+const sel = $('#enemy');
+for (const k of ENEMIES) { const o = document.createElement('option'); o.value = k; o.textContent = (C.ENEMIES[k] || {}).name || k; sel.appendChild(o); }
+sel.value = S.enemy; sel.onchange = () => { S.enemy = sel.value; save(); play(); };
+$('#loop').onchange = e => { S.loop = e.target.checked; save(); if (S.loop) play(lastEv); else clearTimeout(timer); };
+$('#play').onclick = () => play();
+$('#enemyHit').onclick = () => { reset(); play(enemyEvent()); };
+scene.slowmo = S.speed;
+fit(); addEventListener('resize', fit);
+render(); reset(); setTimeout(() => play(), 900);
+</script></body></html>

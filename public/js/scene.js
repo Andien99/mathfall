@@ -36,6 +36,7 @@ export class BattleScene {
     this.onAfter = opts.onAfter || (() => {});
     this.shake = 0; this.shakeT = 0;
     this.trails = []; this.cam = null; this.stars = [];
+    this.slowmo = 1;   // <1 plays everything in slow motion (used by the /dev/lab.html animation lab)
     this.freezeUntil = 0;
     this.flash = 0;
     this.target = null; this.allyTarget = null;
@@ -230,7 +231,7 @@ export class BattleScene {
     const ev = this.queue.shift();
     if (!ev) { this.playing = false; this.onAnimDone(); return; }
     this.playing = true;
-    const speed = this.queue.length > 4 ? 2.4 : this.queue.length > 1 ? 1.6 : 1;
+    const speed = (this.queue.length > 4 ? 2.4 : this.queue.length > 1 ? 1.6 : 1) * (this.slowmo || 1);
     let dur = 0;
     try { dur = this._animate(ev, speed); } catch (e) { console.error(e); dur = 0; }
     setTimeout(() => this._next(), Math.max(0, dur));
@@ -807,7 +808,7 @@ export class BattleScene {
       if (avg > 0.034) { this.lowPower = true; this.onLowPower && this.onLowPower(); }
     }
     const frozen = t < this.freezeUntil;
-    const sdt = frozen ? 0 : dt;
+    const sdt = frozen ? 0 : dt * (this.slowmo || 1);
     this.draw(t, sdt);
   }
 
@@ -874,7 +875,7 @@ export class BattleScene {
       }
       let kx = 0;
       if (a.knock) { const k = (t - a.knock.t0) / 220; if (k > 1) a.knock = null; else kx = a.knock.dx * Math.sin(k * Math.PI); }
-      if (a.hshake) { const k = (t - a.hshake.t0) / 560; if (k > 1) a.hshake = null; else kx += Math.round(a.hshake.amp * Math.pow(1 - k, 0.7) * Math.sin(k * Math.PI * 14)); }   // 7 side-to-side wobbles over ~0.56 s
+      if (a.hshake) { const k = (t - a.hshake.t0) / (560 / (this.slowmo || 1)); if (k > 1) a.hshake = null; else kx += Math.round(a.hshake.amp * Math.pow(1 - k, 0.7) * Math.sin(k * Math.PI * 14)); }   // 7 side-to-side wobbles over ~0.56 s
       const fr = this.frameFor(a);
       const anf = a.type === 'hero' ? this._animAt(a, t) : null;
       const info = a.type === 'enemy' ? SP.enemyInfo(a.kind) : anf ? { ax: anf.ax, ay: anf.ay } : { ax: SP.ANCHOR_X, ay: SP.ANCHOR_Y };
@@ -1126,7 +1127,7 @@ export class BattleScene {
       }
     }
     // effect glows
-    const dt = 1 / 60;
+    const dt = (1 / 60) * (this.slowmo || 1);
     for (let i = this.glows.length - 1; i >= 0; i--) {
       const G = this.glows[i];
       G.t += dt; if (G.t >= G.life) { this.glows.splice(i, 1); continue; }
