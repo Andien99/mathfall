@@ -109,7 +109,7 @@ export class MapView {
       const cls = ['node', n.type, isOpt ? 'option' : '', n.visited ? 'visited' : '', here ? 'here' : '', run.map.goNode === n.id ? 'going' : '', votes[myId] === n.id ? 'myvote' : '', n.row < floorNow - 1 && !n.visited ? 'past' : ''].join(' ');
       const btn = h('button', { class: cls, style: { left: x + '%', top: y + 'px' }, title: NAMES[n.type], 'aria-label': NAMES[n.type] + (isOpt ? ' – vote' : ''), disabled: !isOpt || !!run.map.goNode });
       if (n.type === 'boss') {
-        btn.appendChild(h('img', { src: SP.enemyPortraitURL(n.boss || 'minotaur', 1), alt: '' }));
+        btn.appendChild(h('img', { src: SP.bossBadgeURL(n.boss || 'minotaur'), alt: (C.ENEMIES[n.boss] || {}).name || 'Boss' }));
         btn.appendChild(h('span', { class: 'boss-label' }, 'Boss'));
       } else btn.innerHTML = svgIcon(n.type);
       if (n.visited && !here) btn.appendChild(h('span', { class: 'cross' }));

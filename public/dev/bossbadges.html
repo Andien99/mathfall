@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Boss badges</title>
+<link rel="stylesheet" href="/css/fonts.css"><link rel="stylesheet" href="/css/game.css">
+<style>body{background:#e6d7b8;margin:0;padding:30px} .wrap{position:relative;height:150px;margin:10px 0} .lab{font:14px sans-serif;color:#3a2414}</style></head><body>
+<div id="out"></div>
+<script src="/shared/content.js"></script>
+<script type="module">
+import * as SP from '/js/sprites.js';
+const C = window.MF_Content, out = document.getElementById('out');
+const kinds = ['minotaur', 'colossus', 'hollowking', 'wyrm', 'voidmaw'];
+const wrap = document.createElement('div'); wrap.className = 'wrap'; out.append(wrap);
+kinds.forEach((k, i) => {
+  const b = document.createElement('button'); b.className = 'node boss';
+  b.style.left = (80 + i * 150) + 'px'; b.style.top = '75px';
+  const img = document.createElement('img'); img.src = SP.bossBadgeURL ? SP.bossBadgeURL(k) : SP.enemyPortraitURL(k, 1); img.alt = '';
+  const lab = document.createElement('span'); lab.className = 'boss-label'; lab.textContent = 'Boss';
+  b.append(img, lab); wrap.append(b);
+  const t = document.createElement('div'); t.className = 'lab'; t.style.cssText = `position:absolute;left:${40 + i * 150}px;top:135px`; t.textContent = C.ENEMIES[k].name; wrap.append(t);
+});
+</script></body></html>

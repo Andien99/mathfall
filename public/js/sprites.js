@@ -990,6 +990,42 @@ export function heroFullURL(skin, variant, poseName = 'idle0', scale = 3) {
     return c.toDataURL();
   });
 }
+// A round badge for a boss on the tower map: head and shoulders cut from its idle frame, centred on the face and
+// filling the circle. The crop is found from the sprite's own pixels, so new boss art lines up by itself.
+// BADGE_FACE pins the crop for the current boss art: [face x, face y, crop size, frame width] in sprite pixels. It
+// only applies while the art keeps that frame width; new art falls back to the automatic crop.
+const BADGE_FACE = { minotaur: [85, 40, 64, 150], colossus: [94, 44, 70, 177], hollowking: [79, 38, 54, 154], voidmaw: [96, 42, 62, 176] };
+export function bossBadgeURL(kind) {
+  return cached(`bb:${kind}`, () => {
+    const fr = enemyFrame(kind, 'idle0');
+    const w = fr.width, hh = fr.height, d = fr.getContext('2d').getImageData(0, 0, w, hh).data;
+    const op = (x, y) => d[(y * w + x) * 4 + 3] > 60;
+    let x0 = w, y0 = hh, x1 = -1, y1 = -1;
+    for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) if (op(x, y)) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) return enemyPortraitURL(kind, 1);
+    const pin = BADGE_FACE[kind] && BADGE_FACE[kind][3] === w ? BADGE_FACE[kind] : null;
+    let side, cx, top;
+    if (pin) { side = pin[2]; cx = pin[0]; top = Math.round(pin[1] - side / 2); }
+    else {
+      side = Math.max(16, Math.round(Math.min(x1 - x0 + 1, y1 - y0 + 1) * 0.6));   // head and shoulders
+      // centre on the bulk of the top of the sprite (the head), not on raised weapons or wings at the edges
+      const cols = new Array(w).fill(0);
+      for (let y = y0; y < Math.min(hh, y0 + side); y++) for (let x = x0; x <= x1; x++) if (op(x, y)) cols[x]++;
+      let best = x0, bestSum = -1; const win = Math.max(4, Math.round(side * 0.45));
+      for (let x = x0; x <= x1 - win + 1; x++) { let sum = 0; for (let k = 0; k < win; k++) sum += cols[x + k]; if (sum > bestSum) { bestSum = sum; best = x; } }
+      cx = best + win / 2; top = Math.round(y0 - side * 0.05);
+    }
+    const K = 4, px = side * K;   // drawn at 4x so the pixels stay crisp when the map scales it down
+    const c = document.createElement('canvas'); c.width = c.height = px;
+    const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+    const g = x.createRadialGradient(px / 2, px / 2, px * 0.1, px / 2, px / 2, px / 2);
+    g.addColorStop(0, '#6a3e28'); g.addColorStop(1, '#25130c');
+    x.beginPath(); x.arc(px / 2, px / 2, px / 2, 0, Math.PI * 2); x.fillStyle = g; x.fill(); x.save(); x.clip();
+    x.drawImage(fr, Math.round(cx - side / 2), top, side, side, 0, 0, px, px);
+    x.restore();
+    return c.toDataURL();
+  });
+}
 export function enemyPortraitURL(kind, scale = 2) {
   return cached(`ep:${kind}:${scale}`, () => {
     const src = enemyFrame(kind, 'idle0');
