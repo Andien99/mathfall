@@ -1,4 +1,4 @@
-"""Builds the heroes' special moves (knight slash, cleric smite) (PixelLab frames) into game sheets.
+"""Builds the heroes' special moves (knight slash, cleric smite, ranger shoot) (PixelLab frames) into game sheets.
 
 Run: python3 tools/build_attack.py
 Source: tools/art-src/atk/<sheet>_slash_src.png - the frames in play order, each 128x112 with the
@@ -27,6 +27,12 @@ MOVES = {
                      ms=[60, 60, 60, 70, 80, 80, 80, 80, 80, 80, 80, 70, 420], hit=12, strike=12, cast=True),
     'cleric:m': dict(sheet='cleric_m', move='smite', shade=lambda im, hs: hue_shift(im, 0.55, 0.75, hs, 0.12, 0.8), variants=[0, 0.16, -0.12],
                      ms=[60, 70, 70, 75, 75, 75, 75, 75, 75, 75, 75, 60, 420], hit=12, strike=12, cast=True),
+    # rangers shoot from where they stand: draw, aim, release ('release' frame spawns the arrow at 'muzzle',
+    # px from the feet), recoil
+    'ranger:m': dict(sheet='ranger', move='shoot', shade=lambda im, hs: hue_shift(im, 0.17, 0.48, hs, 0.12, 0.7), variants=[0, -0.24, 0.30],
+                     ms=[60, 60, 60, 60, 60, 60, 60, 60, 80, 130, 50, 50, 90, 220], hit=10, release=10, muzzle=[-66, -48], cast=True, zoom=1.06),
+    'ranger:f': dict(sheet='ranger_f', move='shoot', shade=lambda im, hs: hue_shift(im, 0.17, 0.48, hs, 0.12, 0.7), variants=[0, -0.24, 0.30],
+                     ms=[60, 60, 60, 60, 60, 60, 60, 140, 70, 280], hit=8, release=8, muzzle=[-44, -40], cast=True, zoom=1.06),
 }
 
 def build(skin):
@@ -46,7 +52,7 @@ def build(skin):
     man['heroes'][skin].setdefault('anims', {})[mv] = {
         'sheet': name, 'frame': [AW, AH], 'anchor': [AAX, AAY], 'frames': n, 'variants': len(m['variants']),
         'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m['hit'], 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
-        'cast': m.get('cast', False), 'strike': m.get('strike')}
+        'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom')}
     json.dump(man, open(path, 'w'), indent=1)
     print('wrote', name, n, 'frames', sum(m['ms']), 'ms')
 

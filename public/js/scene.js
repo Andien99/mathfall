@@ -379,6 +379,8 @@ export class BattleScene {
       return T(1100);
     }
     // ranged & spells
+    const shootAnim = (fx === 'proj_arrow' || fx === 'proj_poison') && first && SP.heroAnim(A.skin || A.cls, 'shoot');
+    if (shootAnim) return this._bigSlash(A, first, ev, tgt, fx, rc, shootAnim, T, home);
     const castPose = A.cls === 'ranger' && (fx === 'proj_arrow' || fx === 'proj_poison' || fx === 'volley') ? 'windup' : (ev.act === 'attack' ? 'swing1' : 'cast0');
     this.pose(A, castPose, T(420));
     const hand = { x: A.x - 14, y: A.y - 26 };
@@ -435,20 +437,27 @@ export class BattleScene {
       const dashMs = at[Math.min(tl.length - 1, anim.dashFrames || 4)];
       this.move(A, dest.x - home.x, dest.y - home.y, T(Math.max(120, dashMs)), true);
       sfx('whirl');
-    } else sfx('cast');
-    this.cam = cast ? { x: (home.x * 0.6 + first.x * 0.4), y: home.y - 34, t0: now(), dur: T(total + 260), z: 1.1 }
+    } else if (anim.release == null) sfx('cast');
+    this.cam = cast ? { x: (home.x * 0.6 + first.x * 0.4), y: home.y - 34, t0: now(), dur: T(total + 260), z: anim.zoom || 1.1 }
                     : { x: (dest.x + first.x) / 2 - 6, y: dest.y - 30, t0: now(), dur: T(total + 260), z: 1.14 };
     if (anim.strike != null) setTimeout(() => {
       for (const t of tgt) { const e = this.actors.get(t.id); if (e && !e.gone) this.skyStrike(e); }
     }, T(at[anim.strike]));
-    const hitAt = at[anim.hit] != null ? at[anim.hit] : total * 0.75;
+    let hitAt = at[anim.hit] != null ? at[anim.hit] : total * 0.75;
+    if (anim.release != null) {   // archers: the arrow leaves the bow on the release frame and the hit lands when it arrives
+      const [mx, my] = anim.muzzle || [-24, -26];
+      const from = { x: home.x + mx, y: home.y + my }, to = { x: first.x, y: first.y - 16 };
+      const fly = Math.max(140, Math.abs(to.x - from.x) * 1.1);
+      hitAt = at[anim.release] + fly;
+      setTimeout(() => { this.projectile(from, to, fx, T(fly)); sfx('bow'); this.glows.push({ x: from.x, y: from.y, r: 18, color: fx === 'proj_poison' ? '#9cff6b' : '#fff2c0', t: 0, life: 0.25, a: 0.8 }); }, T(at[anim.release]));
+    }
     if (anim.trail != null) setTimeout(() => {
       this.trails.push({ x: A.x + A.ox - 4, y: A.y + A.oy - 32, r: 38, t0: now(), life: T(460) });
       sfx(fx === 'slash_heavy' || fx === 'dragon' ? 'heavy' : 'slash');
     }, T(at[anim.trail]));
     setTimeout(() => { this.impact(ev, tgt, fx, rc); this.shake = Math.max(this.shake, 4); this.shakeT = now(); }, T(hitAt));
     setTimeout(() => { A.anim = null; if (!cast) this.move(A, 0, 0, T(240), true); }, T(total + 60));
-    return T(Math.max(ev.dur || 1000, total + 320));
+    return T(Math.max(ev.dur || 1000, Math.max(total, hitAt) + 320));
   }
   _animAt(a, t) {
     const m = a.anim; if (!m) return null;

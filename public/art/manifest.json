@@ -217,7 +217,92 @@
     16,
     22,
     22
-   ]
+   ],
+   "anims": {
+    "shoot": {
+     "sheet": "ranger_shoot.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 14,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       60
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       60
+      ],
+      [
+       4,
+       60
+      ],
+      [
+       5,
+       60
+      ],
+      [
+       6,
+       60
+      ],
+      [
+       7,
+       60
+      ],
+      [
+       8,
+       80
+      ],
+      [
+       9,
+       130
+      ],
+      [
+       10,
+       50
+      ],
+      [
+       11,
+       50
+      ],
+      [
+       12,
+       90
+      ],
+      [
+       13,
+       220
+      ]
+     ],
+     "hit": 10,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": 10,
+     "muzzle": [
+      -66,
+      -48
+     ],
+     "zoom": 1.06
+    }
+   }
   },
   "ranger:f": {
    "sheet": "ranger_f.png",
@@ -290,7 +375,76 @@
     20,
     22,
     22
-   ]
+   ],
+   "anims": {
+    "shoot": {
+     "sheet": "ranger_f_shoot.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 10,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       60
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       60
+      ],
+      [
+       4,
+       60
+      ],
+      [
+       5,
+       60
+      ],
+      [
+       6,
+       60
+      ],
+      [
+       7,
+       140
+      ],
+      [
+       8,
+       70
+      ],
+      [
+       9,
+       280
+      ]
+     ],
+     "hit": 8,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": 8,
+     "muzzle": [
+      -44,
+      -40
+     ],
+     "zoom": 1.06
+    }
+   }
   },
   "cleric:f": {
    "sheet": "cleric.png",
@@ -436,7 +590,10 @@
      "dashFrames": 4,
      "dash": 16,
      "cast": true,
-     "strike": 12
+     "strike": 12,
+     "release": null,
+     "muzzle": null,
+     "zoom": null
     }
    }
   },
@@ -584,7 +741,10 @@
      "dashFrames": 4,
      "dash": 16,
      "cast": true,
-     "strike": 12
+     "strike": 12,
+     "release": null,
+     "muzzle": null,
+     "zoom": null
     }
    }
   },
@@ -728,7 +888,10 @@
      "dashFrames": 3,
      "dash": 16,
      "cast": false,
-     "strike": null
+     "strike": null,
+     "release": null,
+     "muzzle": null,
+     "zoom": null
     }
    }
   },
@@ -880,7 +1043,10 @@
      "dashFrames": 5,
      "dash": 16,
      "cast": false,
-     "strike": null
+     "strike": null,
+     "release": null,
+     "muzzle": null,
+     "zoom": null
     }
    }
   }
