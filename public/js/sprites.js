@@ -787,6 +787,9 @@ function cached(key, make) { if (!cache.has(key)) cache.set(key, make()); return
 // The knight ships this way: public/art/knight.png is built by tools/build_knight.py.
 const artPortrait = {};
 const artPoses = new Set();
+const artAnims = {};
+// heroAnim(skin, 'slash') -> { frames[variant][i], whites, ax, ay, timeline: [[frame, ms], ...], hit, trail } or null
+export function heroAnim(skin, name) { const a = artAnims[skinKey(skin)]; return (a && a[name]) || null; }
 // Hero art is keyed by skin = 'class:gender' (e.g. 'mage:f'). A bare class means the boy version.
 export const skinKey = k => (k && k.includes(':')) ? k : (k || 'knight') + ':m';
 const baseCls = k => skinKey(k).split(':')[0];
@@ -807,6 +810,19 @@ async function loadArtOverrides() {
       const fr = crop(im, fw, fh, c, row);
       cache.set(`h:${cls}:${v}:${pose}`, fr); cache.set(`hw:${cls}:${v}:${pose}`, white(fr)); n++; artPoses.add(cls + ':' + pose);
     }
+  }
+  // big one-off moves (e.g. the knight's slash): their own sheet, frame size and foot anchor
+  for (const [skin, d] of Object.entries(man.heroes || {})) for (const [name, an] of Object.entries(d.anims || {})) {
+    const im = await load(an.sheet); if (!im) continue;
+    const [fw, fh] = an.frame;
+    const rows = an.variants || 1;
+    const fr = [], wh = [];
+    for (let v = 0; v < 3; v++) {
+      fr.push([]); wh.push([]);
+      for (let i = 0; i < an.frames; i++) { const c = crop(im, fw, fh, i, v % rows); fr[v].push(c); wh[v].push(white(c)); }
+    }
+    (artAnims[skin] = artAnims[skin] || {})[name] = { frames: fr, whites: wh, ax: an.anchor[0], ay: an.anchor[1], timeline: an.timeline, hit: an.hit, trail: an.trail == null ? null : an.trail, dash: an.dash || 0, dashFrames: an.dashFrames || 4 };
+    n++;
   }
   for (const [kind, d] of Object.entries(man.enemies || {})) {
     const im = await load(d.sheet); if (!im) continue;

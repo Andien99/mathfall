@@ -175,7 +175,9 @@ def load_idle_strip():
 def update_manifest(cls, entry):
     man_path = os.path.join(OUT_DIR, 'manifest.json')
     man = json.load(open(man_path)) if os.path.exists(man_path) else {}
-    man.setdefault('heroes', {})[cls] = entry
+    old = man.setdefault('heroes', {}).get(cls) or {}
+    if 'anims' in old: entry = dict(entry, anims=old['anims'])   # keep special moves built by build_attack.py
+    man['heroes'][cls] = entry
     json.dump(man, open(man_path, 'w'), indent=1)
 
 def build():
@@ -201,7 +203,7 @@ def build():
         'portrait': [OX + 25, OY - 2, 26, 26]
     }
     # one knight for now: boys and girls share it until a second knight sprite exists
-    update_manifest('knight:m', entry); update_manifest('knight:f', entry)
+    update_manifest('knight:m', entry)
     print('wrote knight.png', sheet.size)
 
 if __name__ == '__main__':

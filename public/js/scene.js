@@ -35,6 +35,7 @@ export class BattleScene {
     this.onAnimDone = opts.onAnimDone || (() => {});
     this.onAfter = opts.onAfter || (() => {});
     this.shake = 0; this.shakeT = 0;
+    this.trails = []; this.cam = null;
     this.freezeUntil = 0;
     this.flash = 0;
     this.target = null; this.allyTarget = null;
@@ -350,6 +351,8 @@ export class BattleScene {
 
     // offence
     const home = { x: A.x, y: A.y };
+    const bigMove = melee && first && fx !== 'whirl' && SP.heroAnim(A.skin || A.cls, 'slash');
+    if (bigMove) return this._bigSlash(A, first, ev, tgt, fx, rc, bigMove, T, home);
     if (melee && first && fx !== 'whirl') {
       const dest = { x: first.x + (first.size === 'xl' ? 46 : first.size === 'l' ? 26 : 20), y: first.y + 2 };
       this.pose(A, 'windup', T(170));
@@ -417,6 +420,36 @@ export class BattleScene {
     return T(900);
   }
 
+  // Hand-animated special move (PixelLab frames): dash in, raise the sword, slash down.
+  // The camera eases in on the hero and the screen edges darken while it plays.
+  _bigSlash(A, first, ev, tgt, fx, rc, anim, T, home) {
+    const tl = anim.timeline;
+    const at = []; let acc = 0; for (const [, ms] of tl) { at.push(acc); acc += ms; }
+    const total = acc;
+    const speed = T(1000) / 1000;
+    const dest = { x: first.x + (first.size === 'xl' ? 46 : first.size === 'l' ? 26 : 20) + (anim.dash || 0), y: first.y + 2 };
+    A.anim = { d: anim, t0: now(), speed, at, total };
+    const dashMs = at[Math.min(tl.length - 1, anim.dashFrames || 4)];
+    this.move(A, dest.x - home.x, dest.y - home.y, T(Math.max(120, dashMs)), true);
+    sfx('whirl');
+    this.cam = { x: (dest.x + first.x) / 2 - 6, y: dest.y - 30, t0: now(), dur: T(total + 260), z: 1.14 };
+    const hitAt = at[anim.hit] != null ? at[anim.hit] : total * 0.75;
+    if (anim.trail != null) setTimeout(() => {
+      this.trails.push({ x: A.x + A.ox - 4, y: A.y + A.oy - 32, r: 38, t0: now(), life: T(460) });
+      sfx(fx === 'slash_heavy' || fx === 'dragon' ? 'heavy' : 'slash');
+    }, T(at[anim.trail]));
+    setTimeout(() => { this.impact(ev, tgt, fx, rc); this.shake = Math.max(this.shake, 4); this.shakeT = now(); }, T(hitAt));
+    setTimeout(() => { A.anim = null; this.move(A, 0, 0, T(240), true); }, T(total + 60));
+    return T(Math.max(ev.dur || 1000, total + 320));
+  }
+  _animAt(a, t) {
+    const m = a.anim; if (!m) return null;
+    const el = (t - m.t0) / m.speed;
+    if (el >= m.total + 60) return null;
+    let i = 0; while (i + 1 < m.at.length && el >= m.at[i + 1]) i++;
+    const f = m.d.timeline[i][0], v = (a.variant || 0) % m.d.frames.length;
+    return { fr: m.d.frames[v][f], wh: m.d.whites[v][f], ax: m.d.ax, ay: m.d.ay };
+  }
   impact(ev, tgt, fx, rc) {
     let big = false;
     const ids = Object.keys(ev.after || {});
@@ -628,6 +661,7 @@ export class BattleScene {
     const t = now();
     let p = a.pose && t < a.poseUntil ? a.pose : null;
     if (a.type === 'hero') {
+      const an = this._animAt(a, t); if (an) return white ? an.wh : an.fr;
       if (!p) p = a.downed ? 'down' : (this.victory ? 'victory' : 'idle' + Math.floor(((t + a.phase) / 260) % 4));
       if (a.downed && p !== 'hurt') p = 'down';
       return white ? SP.heroWhite(a.skin || a.cls, a.variant, p) : SP.heroFrame(a.skin || a.cls, a.variant, p);
@@ -717,7 +751,8 @@ export class BattleScene {
       let kx = 0;
       if (a.knock) { const k = (t - a.knock.t0) / 220; if (k > 1) a.knock = null; else kx = a.knock.dx * Math.sin(k * Math.PI); }
       const fr = this.frameFor(a);
-      const info = a.type === 'enemy' ? SP.enemyInfo(a.kind) : { ax: SP.ANCHOR_X, ay: SP.ANCHOR_Y };
+      const anf = a.type === 'hero' ? this._animAt(a, t) : null;
+      const info = a.type === 'enemy' ? SP.enemyInfo(a.kind) : anf ? { ax: anf.ax, ay: anf.ay } : { ax: SP.ANCHOR_X, ay: SP.ANCHOR_Y };
       let x = Math.round(a.x + a.ox + kx - info.ax), y = Math.round(a.y + a.oy - info.ay);
       if (a.kind === 'shard') y += Math.round(Math.sin(time * 2 + a.phase) * 2);
       // shadow
@@ -792,7 +827,49 @@ export class BattleScene {
 
     // ---- display-resolution post: lights, fog, shafts, vignette
     this.post(ctx, time, sx, sy);
+    this.drawTrails(ctx, t, sx, sy);
     this.drawOverlays(ctx, t, sx, sy);
+    this.applyCam(ctx, t);
+  }
+  // sword after-image: a bright crescent along the downward slash path (overhead -> low in front)
+  drawTrails(ctx, t, sx, sy) {
+    if (!this.trails.length) return;
+    const s = this.s;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = this.trails.length - 1; i >= 0; i--) {
+      const tr = this.trails[i], k = (t - tr.t0) / tr.life;
+      if (k >= 1) { this.trails.splice(i, 1); continue; }
+      const grow = Math.min(1, k * 5);                      // the arc sweeps in fast, then fades
+      const fade = k < 0.2 ? 1 : 1 - (k - 0.2) / 0.8;
+      const cx = tr.x * s + sx, cy = tr.y * s + sy, R = tr.r * s;
+      const a0 = -1.45, a1 = a0 - 2.15 * grow;               // from just behind the head, round the front, down low
+      for (const [w, col, al] of [[0.34, '150,200,255', 0.22], [0.2, '200,232,255', 0.45], [0.08, '255,255,255', 0.9]]) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, a0, a1, true);
+        ctx.arc(cx - R * w * 0.5, cy, R * (1 - w), a1, a0, false);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(${col},${al * fade})`; ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+  // camera punch-in on the hero doing a big move, with the screen edges darkened
+  applyCam(ctx, t) {
+    const c = this.cam; if (!c) return;
+    const el = t - c.t0;
+    if (el >= c.dur) { this.cam = null; return; }
+    const ease = x => x * x * (3 - 2 * x);
+    const k = el < 200 ? ease(el / 200) : el > c.dur - 260 ? ease(Math.max(0, (c.dur - el) / 260)) : 1;
+    const Wd = this.cv.width, Hd = this.cv.height, s = this.s;
+    const z = 1 + (c.z - 1) * k;
+    const fx = Math.max(Wd * 0.2, Math.min(Wd * 0.8, c.x * s)), fy = Math.max(Hd * 0.25, Math.min(Hd * 0.75, c.y * s));
+    if (!this._zc || this._zc.width !== Wd || this._zc.height !== Hd) { this._zc = document.createElement('canvas'); this._zc.width = Wd; this._zc.height = Hd; }
+    const zx = this._zc.getContext('2d'); zx.clearRect(0, 0, Wd, Hd); zx.drawImage(this.cv, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this._zc, fx - fx * z, fy - fy * z, Wd * z, Hd * z);
+    const vg = ctx.createRadialGradient(fx, fy, Math.min(Wd, Hd) * 0.22, fx, fy, Math.max(Wd, Hd) * 0.72);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, `rgba(2,0,6,${0.62 * k})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, Wd, Hd);
   }
 
   tinted(src, colr) {

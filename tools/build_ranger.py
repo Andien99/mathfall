@@ -18,6 +18,7 @@ POSES = ['idle0', 'idle1', 'idle2', 'idle3', 'windup', 'swing1', 'swing2', 'cast
 GREEN = dict(lo=0.17, hi=0.48, smin=0.12, lmax=0.7)
 # scale: shrinks the finished frames about the feet so every hero stands about 55px tall (knight-sized)
 CONFIGS = {
+    'knight:f': dict(src='knight_f_base.png', sheet='knight_f', variants=[0, 0.38, -0.30], tint=dict(lo=0.52, hi=0.80, smin=0.22, lmax=0.62)),  # blue, crimson, emerald cape
     'ranger:m': dict(src='ranger_base.png', sheet='ranger', variants=[0, -0.24, 0.30], tint=GREEN),            # green, autumn red, river blue
     'ranger:f': dict(src='ranger_f_base.png', sheet='ranger_f', variants=[0, -0.24, 0.30], tint=GREEN, scale=0.95),
     'cleric:f': dict(src='cleric_f_base.png', sheet='cleric', variants=[0, 0.62, 0.36], tint=dict(lo=0.93, hi=0.04, smin=0.25, lmax=0.7, wrap=True), scale=0.85),  # red, blue, green cape
