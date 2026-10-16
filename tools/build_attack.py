@@ -79,6 +79,15 @@ EXTRA = {
     'cleric:f/victory': dict(base='cleric:f', ms=[130] * 9, loop=[[8, 650], [9, 650]]),
     'mage:f/victory': dict(base='mage:f', ms=[130] * 11, loop=[[10, 650], [11, 650]]),
     'ranger:f/victory': dict(base='ranger:f', ms=[130] * 9, loop=[[8, 650], [9, 650]]),
+    # Champion's Combo (tools/assemble_combo.py): three slashes ('slashAt' = the frame each one lands on), lift the sword
+    # up, hold it while the electric aura charges ('holdAt' = first and last held frame; 'blade' = blade length for the
+    # aura), then the downward slash: the giant arc appears on 'arcAt' and the finisher lands on 'hit'.
+    'knight:m/combo': dict(base='knight:m', ms=[50, 50, 60, 90,  40, 50, 50, 110,  40, 45, 50, 100,  45, 45, 45, 90,  40, 50, 50, 130,
+                                                70, 60, 60, 60, 60, 80,  260, 260, 260, 260,  70, 60, 60, 70, 45, 45, 70, 420],
+                           hit=35, slashAt=[5, 9, 17], holdAt=[26, 29], arcAt=34, blade=28, track='top', dash=18, cast=False),
+    'knight:f/combo': dict(base='knight:f', ms=[50, 50, 60, 90,  40, 50, 50, 110,  40, 45, 50, 100,  45, 45, 45, 90,  40, 50, 50, 130,
+                                                70, 60, 60, 60, 60, 80,  260, 260, 260, 260,  70, 60, 60, 70, 45, 45, 70, 420],
+                           hit=35, slashAt=[5, 9, 17], holdAt=[26, 29], arcAt=34, blade=28, track='top', dash=18, cast=False),
     'knight:m/power': dict(base='knight:m', ms=[60, 70, 90, 110, 120, 130, 140, 110, 90, 380], hit=9, aura=[1, 7], dashAt=7, dashFrames=8, upswing=9, dash=10, cast=False),
     'knight:f/power': dict(base='knight:f', ms=[60, 70, 110, 120, 130, 140, 110, 90, 380], hit=8, aura=[1, 6], dashAt=6, dashFrames=7, upswing=8, dash=10, cast=False),
 }
@@ -111,9 +120,13 @@ def build(skin):
         'sheet': name, 'frame': [AW, AH], 'anchor': [AAX, AAY], 'frames': n, 'variants': len(m['variants']),
         'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m.get('hit'), 'loop': m.get('loop'), 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
         'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom'),
-        'tips': tips, 'chargeTo': m.get('chargeTo'), 'swing': m.get('swing'), 'aura': m.get('aura'), 'ring': m.get('ring'), 'upswing': m.get('upswing'), 'dashAt': m.get('dashAt')}
+        'tips': tips, 'chargeTo': m.get('chargeTo'), 'swing': m.get('swing'), 'aura': m.get('aura'), 'ring': m.get('ring'), 'upswing': m.get('upswing'), 'dashAt': m.get('dashAt'),
+        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade')}
     json.dump(man, open(path, 'w'), indent=1)
     print('wrote', name, n, 'frames', sum(m['ms']), 'ms')
 
 if __name__ == '__main__':
-    for k in MOVES: build(k)
+    import sys
+    only = sys.argv[1:]   # e.g. knight:m/combo knight:f/combo; nothing = every move
+    for k in MOVES:
+        if not only or k in only: build(k)

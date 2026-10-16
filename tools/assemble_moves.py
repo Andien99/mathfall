@@ -66,6 +66,14 @@ PLAN = {
 }
 
 
+# PLAN positions to flip left-right around the feet (a PixelLab frame that came back facing the wrong way)
+MIRROR = {}
+def mirror_feet(im, ax=80):
+    """Flip a 128x112 frame left-right, keeping the feet on x = ax."""
+    f = im.transpose(Image.FLIP_LEFT_RIGHT); out = Image.new('RGBA', im.size)
+    out.paste(f, (2 * ax - (im.width - 1), 0), f)
+    return out
+
 def fire_tint(im):
     """Turn PixelLab's bright cyan sword glow orange, so it matches the flame aura."""
     out = im.copy(); p = out.load()

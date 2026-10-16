@@ -48,6 +48,7 @@ export class BattleScene {
     this.onAfter = opts.onAfter || (() => {});
     this.shake = 0; this.shakeT = 0;
     this.trails = []; this.cam = null; this.stars = []; this.rings = []; this.ribbons = []; this.auras = [];
+    this.zaps = []; this.ripples = []; this.residue = [];   // Champion's Combo: blade aura, ground ripples, leftover crackle
     this.cracks = []; this.spikes = []; this.ghosts = [];
     this.slowmo = 1;   // <1 plays everything in slow motion (used by the /dev/lab.html animation lab)
     this.freezeUntil = 0;
@@ -735,10 +736,84 @@ export class BattleScene {
     return T(end + 420);
   }
 
+  // a jagged line from a to b (for bolts)
+  _zig(a, b, n, j) { const pts = [a]; for (let i = 1; i < n; i++) pts.push({ x: lerp(a.x, b.x, i / n) + (Math.random() - 0.5) * j, y: lerp(a.y, b.y, i / n) + (Math.random() - 0.5) * j }); pts.push(b); return pts; }
+
+  // Champion's Combo with its PixelLab animation (anims.combo): dash in, three slashes (slashAt), lift the sword and
+  // hold it up while a big electric aura charges round the blade (holdAt), a downward slash that throws a slash arc
+  // twice the hero's height onto the enemy (arcAt), and the finisher lands (hit) leaving electric ripples behind.
+  _comboAnim(A, ev, tgt, rc, T, home, anim) {
+    const at = []; let acc = 0; for (const [, ms] of anim.timeline) { at.push(acc); acc += ms; }
+    const firstE = this.actors.get(tgt[0].id);
+    const reach = e => ({ x: e.x + (e.size === 'xl' ? 46 : e.size === 'l' ? 26 : 20) + (anim.dash || 0), y: e.y + 2 });
+    const d0 = reach(firstE);
+    this.pose(A, 'windup', T(140)); sfx('whirl');
+    this.move(A, d0.x - home.x, d0.y - home.y, T(160), true);
+    const st = 170, total = st + acc;
+    setTimeout(() => { A.anim = { d: anim, t0: now(), speed: T(1000) / 1000, at, total: acc }; }, T(st));
+    this.cam = { x: (d0.x + firstE.x) / 2 - 4, y: d0.y - 44, t0: now(), dur: T(total + 500), z: 1.1 };
+    const slashes = tgt.filter(t => !t.finisher), fin = tgt.find(t => t.finisher);
+    const marks = anim.slashAt || [];
+    slashes.forEach((t, i) => {
+      const idx = marks[Math.min(i, marks.length - 1)]; if (idx == null) return;
+      setTimeout(() => {
+        const e = this.actors.get(t.id);
+        if (e && e !== firstE && !e.gone) { const d = reach(e); this.move(A, d.x - home.x, d.y - home.y, T(90), true); }
+        this.trails.push({ x: A.x + A.ox - 6, y: A.y + A.oy - 30 + (i - 1) * 5, r: 34, t0: now(), life: T(300), up: i === 1 });
+        sfx('slash');
+      }, T(st + at[idx] - 50));
+      setTimeout(() => { this.impact(ev, tgt, 'slash', rc, [t], true); this.shake = Math.max(this.shake, 2); this.shakeT = now(); }, T(st + at[idx] + 20));
+    });
+    // the charge: aura round the blade, the screen dims, lightning drops from the sky into the sword
+    const [h0, h1] = anim.holdAt || [0, 0];
+    // he hops back to charge (as the rise frames step back), then lunges in again with the downward slash
+    const backAt = Math.max(0, h0 - 5), inAt = Math.max(h1 + 1, (anim.arcAt != null ? anim.arcAt : anim.hit) - 1);
+    setTimeout(() => this.move(A, d0.x + 24 - home.x, d0.y - home.y, T(260), true), T(st + at[backAt]));
+    setTimeout(() => { this.move(A, d0.x - 4 - home.x, d0.y - home.y, T(90), true); sfx('whirl'); }, T(st + at[inAt]));
+    const holdMs = at[h1] + anim.timeline[h1][1] - at[h0];
+    setTimeout(() => {
+      this.zaps.push({ follow: A, t0: performance.now(), until: performance.now() + T(holdMs + 120), len: anim.blade || 26 });
+      this.darken = { t0: now(), dur: T(holdMs + 500) };
+      sfx('charge');
+      [0, 0.45, 0.8].forEach((f, j) => setTimeout(() => {
+        const tip = this._tipAt(A); if (!tip) return;
+        this.arcs.push({ bolt: this._zig({ x: tip.x + (Math.random() - 0.5) * 30, y: -8 }, tip, 10, 12), color: '#bff6ff', w: 2 + (j === 2 ? 1 : 0), t: 0, life: 0.22 });
+        this.glows.push({ x: tip.x, y: tip.y, r: 30 + j * 10, color: '#9fe8ff', t: 0, life: 0.3, a: 0.9 });
+        this.flash = Math.max(this.flash || 0, 0.12 + j * 0.06); sfx('zap');
+      }, T(holdMs * f)));
+    }, T(st + at[h0]));
+    // the giant arc: twice the hero's height, sweeping down through the enemy
+    const target = fin ? this.actors.get(fin.id) || firstE : firstE;
+    const R = 78;   // the arc spans about 1.45 R from its top to its tip: twice the knight's ~55 px height
+    setTimeout(() => {
+      const tx = (target && !target.gone ? target : firstE);
+      const cx = tx.x + R * 0.72, cy = tx.y - R * 0.44;
+      this.trails.push({ x: cx, y: cy, r: R, t0: now(), life: T(700), color: 'electric' });
+      // a bolt tracing the edge of the arc
+      const pts = []; for (let a = -1.45; a > -3.62; a -= 0.12) pts.push({ x: cx + Math.cos(a) * R * 0.9 + (Math.random() - 0.5) * 3, y: cy + Math.sin(a) * R * 0.9 + (Math.random() - 0.5) * 3 });
+      this.arcs.push({ bolt: pts, color: '#bff6ff', w: 3, t: 0, life: 0.32 });
+      sfx('heavy'); sfx('zap');
+    }, T(st + at[anim.arcAt != null ? anim.arcAt : anim.hit]));
+    // the finisher lands: number, flash, ripples and leftover crackle on the ground
+    setTimeout(() => {
+      const tx = (target && !target.gone ? target : firstE);
+      if (fin) this.impact(ev, tgt, 'lightning', rc, [fin], true);
+      this.shake = Math.max(this.shake, 8); this.shakeT = now(); this.flash = 0.3; this.freezeUntil = now() + 170;
+      this.glows.push({ x: tx.x, y: tx.y - 30, r: 90, color: '#7fd8ff', t: 0, life: 0.5, a: 1, tall: true });
+      this.burst(tx.x, tx.y - 18, '#bff6ff', 40, 70);
+      for (let j = 0; j < 3; j++) this.ripples.push({ x: tx.x, y: tx.y + 1, t0: performance.now() + T(j * 170), life: T(800), r0: 6, r1: 44 + j * 10 });
+      this.residue.push({ x: tx.x, y: tx.y, w: 46, t0: performance.now(), until: performance.now() + T(1500) });
+      sfx('hitBig'); sfx('zap');
+    }, T(st + at[anim.hit]));
+    setTimeout(() => { A.anim = null; this._applyAfter(ev); this.move(A, 0, 0, T(260), true); }, T(total + 60));
+    return T(total + 650);
+  }
+
   // Champion's Combo: dash in, three quick slashes (the slash animation's swing, sped up), then the flaming Power
   // Strike rising finisher. Each blow lands with its own number.
   _combo(A, ev, tgt, rc, T, home) {
     const skin = A.skin || A.cls;
+    const own = SP.heroAnim(skin, 'combo'); if (own) return this._comboAnim(A, ev, tgt, rc, T, home, own);
     const slash = SP.heroAnim(skin, 'slash'), power = SP.heroAnim(skin, 'power');
     const reach = e => ({ x: e.x + (e.size === 'xl' ? 46 : e.size === 'l' ? 26 : 20), y: e.y + 2 });
     const sub = (an, from, total) => {   // part of a hand-made move, squeezed into total ms
@@ -1372,6 +1447,35 @@ export class BattleScene {
       else n.fillRect(Math.round(p.x), Math.round(p.y), p.spark && k > 0.5 ? 2 : 1, 1);
     }
     n.globalAlpha = 1;
+    for (const z of this.zaps) {   // electricity crackling round the raised blade, stronger as it charges
+      if (t > z.until) continue;
+      const k = Math.min(1, (t - z.t0) / (z.until - z.t0));
+      const tip = this._tipAt(z.follow); if (!tip) continue;
+      const L = z.len || 26;
+      for (const side of [-1, 1]) {   // live current running up and down both edges of the blade
+        const off = 2 + Math.random() * (2 + 3 * k);
+        this.arcs.push({ bolt: this._zig({ x: tip.x + side * off, y: tip.y - 3 }, { x: tip.x + side * (off * 0.6), y: tip.y + L + 2 }, 6, 3 + 3 * k), color: Math.random() < 0.5 ? '#ffffff' : '#9fe8ff', w: 1, t: 0, life: 0.05 });
+      }
+      for (let j = 0; j < 2 + Math.floor(k * 4); j++) {
+        if (Math.random() > 0.6 + 0.4 * k) continue;
+        const along = Math.random(), sx0 = tip.x + (Math.random() - 0.5) * 2, sy0 = tip.y + along * L;
+        const side = Math.random() < 0.5 ? -1 : 1, reach = 8 + Math.random() * (12 + 22 * k);
+        this.arcs.push({ bolt: this._zig({ x: sx0, y: sy0 }, { x: sx0 + side * reach, y: sy0 + (Math.random() - 0.6) * reach }, 4, 5), color: Math.random() < 0.4 ? '#ffffff' : Math.random() < 0.5 ? '#bff6ff' : '#6fc8ff', w: 1, t: 0, life: 0.07 + Math.random() * 0.08 });
+      }
+      if (Math.random() < 0.6) this.particles.push({ x: tip.x + (Math.random() - 0.5) * 6, y: tip.y + Math.random() * L, vx: (Math.random() - 0.5) * 30, vy: -20 - Math.random() * 30, g: 0, life: 0.3 + Math.random() * 0.3, t: 0, c: Math.random() < 0.5 ? '#bff6ff' : '#ffffff', plus: Math.random() < 0.3, fade: true });
+    }
+    for (let i = this.residue.length - 1; i >= 0; i--) {   // electric residue left on the ground after the finisher
+      const r = this.residue[i];
+      if (t > r.until) { this.residue.splice(i, 1); continue; }
+      if (t < r.t0) continue;
+      const left = 1 - (t - r.t0) / (r.until - r.t0);
+      if (Math.random() < 0.15 + 0.6 * left) {
+        const x0 = r.x + (Math.random() - 0.5) * r.w, y0 = r.y + (Math.random() - 0.5) * 6;
+        const x1 = x0 + (Math.random() - 0.5) * 16, y1 = y0 - 4 - Math.random() * (8 + 22 * left);
+        this.arcs.push({ bolt: this._zig({ x: x0, y: y0 }, { x: x1, y: y1 }, 3, 4), color: Math.random() < 0.5 ? '#bff6ff' : '#6fc8ff', w: 1, t: 0, life: 0.06 + Math.random() * 0.07 });
+      }
+      if (Math.random() < 0.5 * left) this.particles.push({ x: r.x + (Math.random() - 0.5) * r.w, y: r.y - Math.random() * 3, vx: (Math.random() - 0.5) * 12, vy: -10 - Math.random() * 25, g: 30, life: 0.3, t: 0, c: '#bff6ff', fade: true });
+    }
     for (const au of this.auras) {   // flame licks rising from the aura
       const k = Math.min(1, (t - au.t0) / (au.until - au.t0)); if (t > au.until) continue;
       const n = 1 + Math.floor(k * 3);
@@ -1450,7 +1554,9 @@ export class BattleScene {
       const cx = tr.x * s + sx, cy = tr.y * s + sy, R = tr.r * s;
       const up = !!tr.up;
       const a0 = up ? 2.55 : -1.45, a1 = up ? a0 + 2.2 * grow : a0 - 2.15 * grow;   // down-slash: behind head -> low front; up-slash: low front -> overhead
-      const cols = tr.color === 'fire' ? [[0.34, '255,90,30', 0.3], [0.2, '255,170,60', 0.55], [0.08, '255,240,190', 0.95]] : [[0.34, '150,200,255', 0.22], [0.2, '200,232,255', 0.45], [0.08, '255,255,255', 0.9]];
+      const cols = tr.color === 'fire' ? [[0.34, '255,90,30', 0.3], [0.2, '255,170,60', 0.55], [0.08, '255,240,190', 0.95]]
+        : tr.color === 'electric' ? [[0.4, '60,130,255', 0.4], [0.26, '120,210,255', 0.62], [0.12, '210,245,255', 0.9], [0.05, '255,255,255', 1]]
+        : [[0.34, '150,200,255', 0.22], [0.2, '200,232,255', 0.45], [0.08, '255,255,255', 0.9]];
       for (const [w, col, al] of cols) {
         ctx.beginPath();
         ctx.arc(cx, cy, R, a0, a1, !up);
@@ -1562,6 +1668,11 @@ export class BattleScene {
     let g = ctx.createLinearGradient(0, 0, 0, Hd);
     g.addColorStop(0, 'rgba(6,4,16,0.62)'); g.addColorStop(0.42, 'rgba(10,8,24,0.18)'); g.addColorStop(0.7, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(4,2,10,0.45)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, Wd, Hd);
+    if (this.darken) {   // the battlefield dims while the Champion's Combo charges (the blade's glow draws on top)
+      const el = performance.now() - this.darken.t0, D = this.darken.dur;
+      if (el > D) this.darken = null;
+      else { const a = el < 200 ? el / 200 : el > D - 300 ? (D - el) / 300 : 1; ctx.fillStyle = `rgba(4,6,22,${0.42 * a})`; ctx.fillRect(0, 0, Wd, Hd); }
+    }
     // additive lights
     ctx.globalCompositeOperation = 'lighter';
     for (const L of this.lights) {
@@ -1631,6 +1742,39 @@ export class BattleScene {
         ctx.strokeStyle = hexA(rb.color, 0.8 * a); ctx.lineWidth = Math.max(2, s * 3 * a); ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(p0.x * s + sx, p0.y * s + sy); ctx.lineTo(p1.x * s + sx, p1.y * s + sy); ctx.stroke();
       }
+    }
+    // Champion's Combo: a big electric glow wrapped round the raised blade, flickering, growing as it charges
+    for (let i = this.zaps.length - 1; i >= 0; i--) {
+      const z = this.zaps[i], tnow = performance.now();
+      if (tnow > z.until + 120) { this.zaps.splice(i, 1); continue; }
+      const tip = this._tipAt(z.follow); if (!tip) continue;
+      const k = Math.min(1, (tnow - z.t0) / (z.until - z.t0)), L = z.len || 26;
+      const fl = 0.8 + 0.2 * Math.sin(tnow / 23) * Math.sin(tnow / 61);
+      const x = tip.x * s + sx, y = (tip.y + L * 0.5) * s + sy, r = (24 + 32 * k) * s * fl;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (const [rr, col, al] of [[2.3, '#1f5aff', 0.3], [1.5, '#4aa8ff', 0.45], [0.9, '#9fe8ff', 0.6], [0.4, '#ffffff', 0.85]]) {
+        const g2 = ctx.createRadialGradient(x, y, 0, x, y, r * rr);
+        g2.addColorStop(0, hexA(col, al * (0.55 + 0.45 * k))); g2.addColorStop(0.55, hexA(col, al * 0.35 * (0.55 + 0.45 * k))); g2.addColorStop(1, hexA(col, 0));
+        ctx.save(); ctx.translate(x, y); ctx.scale(0.5, 1.45); ctx.translate(-x, -y); ctx.fillStyle = g2; ctx.fillRect(x - r * rr, y - r * rr, r * rr * 2, r * rr * 2); ctx.restore();
+      }
+      // the blade itself burns white-hot
+      ctx.lineCap = 'round'; ctx.shadowColor = '#7fd8ff'; ctx.shadowBlur = s * (8 + 14 * k);
+      ctx.strokeStyle = hexA('#eafcff', 0.55 + 0.45 * k * fl); ctx.lineWidth = s * (2.2 + 2.2 * k);
+      ctx.beginPath(); ctx.moveTo(x, (tip.y + 1) * s + sy); ctx.lineTo(x, (tip.y + L) * s + sy); ctx.stroke();
+      ctx.restore();
+    }
+    // electric ripples spreading over the floor where the finisher landed
+    for (let i = this.ripples.length - 1; i >= 0; i--) {
+      const rp = this.ripples[i], tnow = performance.now(), k = (tnow - rp.t0) / rp.life;
+      if (k >= 1) { this.ripples.splice(i, 1); continue; }
+      if (k < 0) continue;
+      const e = 1 - Math.pow(1 - k, 2), rx = (rp.r0 + (rp.r1 - rp.r0) * e) * s, x = rp.x * s + sx, y = rp.y * s + sy;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = hexA('#7fd8ff', 0.85 * (1 - k)); ctx.lineWidth = Math.max(1.5, s * (3 * (1 - k) + 0.8));
+      ctx.beginPath(); ctx.ellipse(x, y, rx, rx * 0.3, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = hexA('#ffffff', 0.6 * (1 - k)); ctx.lineWidth = Math.max(1, s * (1.2 * (1 - k)));
+      ctx.beginPath(); ctx.ellipse(x, y, rx * 0.97, rx * 0.29, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
     }
     // power-up aura (knight power strike): a flickering flame glow around the hero that grows
     for (let i = this.auras.length - 1; i >= 0; i--) {
