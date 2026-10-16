@@ -1198,6 +1198,7 @@ function attach(io, banks) {
         else if (ty === 'victory' || ty === 'complete' || ty === 'defeat') s.openRoom(t, { type: ty, gold: 24, asc: 0, floor: 3, ready: {}, stats: {} });
         else if (ty === 'end') { s.end(); return reply(cb, { ok: true }); }
         else if (ty === 'bosshalf' && run.combat) { const bz = run.combat.enemies.find(e => e.tier === 'boss'); if (bz) bz.hp = Math.floor(bz.maxHp * 0.5); }
+        else if (ty === 'energy') { Object.values(run.heroes).forEach(h => { h.energy = 10; }); }
         else if (ty === 'hurt') { Object.values(run.heroes).forEach((h, i) => { h.hp = Math.max(1, Math.round(h.maxHp * (i ? 0.5 : 0.2))); }); }
         s.flush(t); reply(cb, { ok: true });
       }));

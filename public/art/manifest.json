@@ -71,7 +71,69 @@
     17,
     22,
     22
-   ]
+   ],
+   "anims": {
+    "cast": {
+     "sheet": "mage_cast.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 8,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       60
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       60
+      ],
+      [
+       4,
+       70
+      ],
+      [
+       5,
+       650
+      ],
+      [
+       6,
+       90
+      ],
+      [
+       7,
+       250
+      ]
+     ],
+     "hit": 6,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": 6,
+     "charge": 5,
+     "muzzle": [
+      -59,
+      -41
+     ],
+     "zoom": 1.08
+    }
+   }
   },
   "mage:m": {
    "sheet": "mage_m.png",
@@ -144,7 +206,69 @@
     19,
     22,
     22
-   ]
+   ],
+   "anims": {
+    "cast": {
+     "sheet": "mage_m_cast.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 8,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       60
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       70
+      ],
+      [
+       4,
+       100
+      ],
+      [
+       5,
+       560
+      ],
+      [
+       6,
+       90
+      ],
+      [
+       7,
+       250
+      ]
+     ],
+     "hit": 6,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": 6,
+     "charge": 4,
+     "muzzle": [
+      -43,
+      -37
+     ],
+     "zoom": 1.08
+    }
+   }
   },
   "ranger:m": {
    "sheet": "ranger.png",

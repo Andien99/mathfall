@@ -1,4 +1,4 @@
-"""Builds the heroes' special moves (knight slash, cleric smite, ranger shoot) (PixelLab frames) into game sheets.
+"""Builds the heroes' special moves (knight slash, cleric smite, ranger shoot, mage cast) (PixelLab frames) into game sheets.
 
 Run: python3 tools/build_attack.py
 Source: tools/art-src/atk/<sheet>_slash_src.png - the frames in play order, each 128x112 with the
@@ -33,6 +33,11 @@ MOVES = {
                      ms=[60, 60, 60, 60, 60, 60, 60, 60, 80, 700, 50, 50, 90, 220], hit=10, release=10, charge=9, muzzle=[-66, -48], cast=True, zoom=1.06),
     'ranger:f': dict(sheet='ranger_f', move='shoot', shade=lambda im, hs: hue_shift(im, 0.17, 0.48, hs, 0.12, 0.7), variants=[0, -0.24, 0.30],
                      ms=[60, 60, 60, 60, 60, 60, 60, 700, 70, 280], hit=8, release=8, charge=7, muzzle=[-44, -40], cast=True, zoom=1.06),
+    # mages point the staff; the spell (arcane / fire / ice) forms at the tip during the hold, then flies
+    'mage:f': dict(sheet='mage', move='cast', shade=lambda im, hs: hue_shift(im, 0.52, 0.80, hs, 0.22, 0.62), variants=[0, -0.17, 0.22],
+                   ms=[60, 60, 60, 60, 70, 650, 90, 250], hit=6, release=6, charge=5, muzzle=[-59, -41], cast=True, zoom=1.08),
+    'mage:m': dict(sheet='mage_m', move='cast', shade=lambda im, hs: hue_shift(im, 0.45, 0.70, hs, 0.3, 0.95), variants=[0, 0.2, -0.27],
+                   ms=[60, 60, 60, 70, 100, 560, 90, 250], hit=6, release=6, charge=4, muzzle=[-43, -37], cast=True, zoom=1.08),
 }
 
 def build(skin):

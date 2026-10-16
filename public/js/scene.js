@@ -379,7 +379,8 @@ export class BattleScene {
       return T(1100);
     }
     // ranged & spells
-    const shootAnim = (fx === 'proj_arrow' || fx === 'proj_poison') && first && SP.heroAnim(A.skin || A.cls, 'shoot');
+    const shootAnim = first && (((fx === 'proj_arrow' || fx === 'proj_poison') && SP.heroAnim(A.skin || A.cls, 'shoot'))
+      || ((fx === 'proj_arcane' || fx === 'proj_fire' || fx === 'proj_ice') && SP.heroAnim(A.skin || A.cls, 'cast')));
     if (shootAnim) return this._bigSlash(A, first, ev, tgt, fx, rc, shootAnim, T, home);
     const castPose = A.cls === 'ranger' && (fx === 'proj_arrow' || fx === 'proj_poison' || fx === 'volley') ? 'windup' : (ev.act === 'attack' ? 'swing1' : 'cast0');
     this.pose(A, castPose, T(420));
@@ -451,10 +452,12 @@ export class BattleScene {
       hitAt = at[anim.release] + fly;
       let star = null;
       if (anim.charge != null) setTimeout(() => {   // a star of light gathers at the arrow tip while the ranger holds aim
-        star = { x: from.x, y: from.y, t0: now(), grow: T(at[anim.release] - at[anim.charge]), color: fx === 'proj_poison' ? '#9cff6b' : '#ffe9a0' };
-        this.stars.push(star); sfx('twinkle');
+        const kind = { proj_fire: 'fire', proj_ice: 'ice', proj_arcane: 'arcane' }[fx] || 'star';
+        star = { kind, x: from.x, y: from.y, t0: now(), grow: T(at[anim.release] - at[anim.charge]),
+          color: { fire: '#ff8a3c', ice: '#9fe8ff', arcane: '#a08aff' }[kind] || (fx === 'proj_poison' ? '#9cff6b' : '#ffe9a0') };
+        this.stars.push(star); sfx(kind === 'star' ? 'twinkle' : kind === 'fire' ? 'burn' : 'cast');
       }, T(at[anim.charge]));
-      setTimeout(() => { if (star) { star.done = true; this.burst(from.x, from.y, star.color, 14, 50, 0); } this.projectile(from, to, fx, T(fly)); sfx('bow'); this.glows.push({ x: from.x, y: from.y, r: 18, color: fx === 'proj_poison' ? '#9cff6b' : '#fff2c0', t: 0, life: 0.25, a: 0.8 }); }, T(at[anim.release]));
+      setTimeout(() => { if (star) { star.done = true; this.burst(from.x, from.y, star.color, 14, 50, 0); this.glows.push({ x: from.x, y: from.y, r: 30, color: star.color, t: 0, life: 0.3, a: 0.9 }); } this.projectile(from, to, fx, T(fly)); sfx('bow'); this.glows.push({ x: from.x, y: from.y, r: 18, color: fx === 'proj_poison' ? '#9cff6b' : '#fff2c0', t: 0, life: 0.25, a: 0.8 }); }, T(at[anim.release]));
     }
     if (anim.trail != null) setTimeout(() => {
       this.trails.push({ x: A.x + A.ox - 4, y: A.y + A.oy - 32, r: 38, t0: now(), life: T(460) });
@@ -478,8 +481,9 @@ export class BattleScene {
     for (const t of ev.targets) {
       const p = this.pos(t.id); if (!p) continue;
       if (t.dmg != null && !t.shatter) {
-        const colr = { proj_fire: '#ff8a3c', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', proj_poison: '#9cff6b', venom: '#9cff6b', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8' }[fx] || '#ffffff';
+        const colr = { proj_fire: '#ff8a3c', proj_arcane: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', proj_poison: '#9cff6b', venom: '#9cff6b', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8' }[fx] || '#ffffff';
         this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy');
+        this.elementHit(p.x, p.y - 16, fx);
         this.glows.push({ x: p.x, y: p.y - 16, r: 34 + Math.min(40, t.dmg * 1.5), color: colr, t: 0, life: 0.35, a: 0.8 });
         if (['slash', 'slash_heavy', 'shadow', 'dragon'].includes(fx)) this.arc(p.x, p.y - 18, fx === 'slash_heavy' || fx === 'dragon' ? 20 : 15, colr === '#ffffff' ? '#e8f4ff' : colr);
         if (t.dmg > 0) { this.flashActor(p.a); this.pose(p.a, 'hurt', 260); this.hitShake(p.a, t.dmg); }
@@ -673,6 +677,46 @@ export class BattleScene {
     this.arcs.push({ bolt: pts, color: '#fff27a', t: 0, life: 0.3 });
     this.glows.push({ x: b.x, y: b.y, r: 50, color: '#fff27a', t: 0, life: 0.4, a: 0.9 });
   }
+  // a spell forming at a staff tip: fireball / ice crystal / arcane orb, growing with g (0..1)
+  drawCharge(n, st, g, x, y, t) {
+    const el = (t - st.t0) / 1000, R = 1 + g * 4;
+    const disc = (r, c) => { n.fillStyle = c; const ri = Math.round(r); for (let dy = -ri; dy <= ri; dy++) { const w = Math.round(Math.sqrt(Math.max(0, r * r - dy * dy))); n.fillRect(x - w, y + dy, w * 2 + 1, 1); } };
+    if (st.kind === 'fire') {
+      const fl = Math.sin(el * 40) * 0.6;
+      disc(R + 1.5 + fl, '#c8401a'); disc(R + 0.5 + fl, '#ff7a2a'); disc(R * 0.6, '#ffc24a'); disc(Math.max(0.5, R * 0.25), '#fff6c8');
+      for (let k = 0; k < 3; k++) { const hx = x - 2 + k * 2 + Math.round(Math.sin(el * 30 + k) * 1); n.fillStyle = '#ff9a3c'; n.fillRect(hx, y - Math.round(R + 2 + (k % 2) * 2 + fl), 1, 2); }
+      if (Math.random() < 0.6) this.particles.push({ x: x + (Math.random() - 0.5) * R * 2, y: y - R, vx: (Math.random() - 0.5) * 10, vy: -25 - Math.random() * 25, g: 0, life: 0.5, t: 0, c: Math.random() < 0.5 ? '#ffb347' : '#ff6a2a', fade: true });
+    } else if (st.kind === 'ice') {
+      // a spinning crystal: diamond core plus four spikes, shards drawn in from around it
+      const sp = Math.round(R + 2), rot = Math.floor(el * 8) % 2;
+      n.fillStyle = '#5ac8f0';
+      for (let j = 1; j <= sp; j++) { if (rot) { n.fillRect(x - j, y, 1, 1); n.fillRect(x + j, y, 1, 1); n.fillRect(x, y - j - 1, 1, 1); n.fillRect(x, y + j + 1, 1, 1); } else { const d = Math.round(j * 0.75); n.fillRect(x - d, y - d, 1, 1); n.fillRect(x + d, y - d, 1, 1); n.fillRect(x - d, y + d, 1, 1); n.fillRect(x + d, y + d, 1, 1); } }
+      disc(R * 0.8, '#9fe8ff'); disc(Math.max(0.5, R * 0.4), '#ffffff');
+      if (Math.random() < 0.7) { const a = Math.random() * Math.PI * 2, d = 12 + Math.random() * 6; this.particles.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, vx: -Math.cos(a) * d * 3.5, vy: -Math.sin(a) * d * 3.5, g: 0, life: 0.26, t: 0, c: Math.random() < 0.5 ? '#e8ffff' : '#8fe3ff', fade: true }); }
+    } else {   // arcane: violet orb with two motes orbiting it, sparks spiralling in
+      disc(R + 1, '#4a3aa8'); disc(R, '#7a6aff'); disc(Math.max(0.5, R * 0.45), '#e0d8ff');
+      for (let k = 0; k < 2; k++) { const a = el * 9 + k * Math.PI, o = R + 3; n.fillStyle = '#d8ceff'; n.fillRect(Math.round(x + Math.cos(a) * o), Math.round(y + Math.sin(a) * o * 0.6), 2, 2); }
+      if (Math.random() < 0.6) { const a = Math.random() * Math.PI * 2, d = 14; this.particles.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, vx: -Math.cos(a) * 40 - Math.sin(a) * 25, vy: -Math.sin(a) * 40 + Math.cos(a) * 25, g: 0, life: 0.32, t: 0, c: '#b8a6ff', plus: Math.random() < 0.3, fade: true }); }
+    }
+  }
+  // element-specific extras on impact (on top of the shared hit sparks)
+  elementHit(x, y, fx) {
+    if (fx === 'proj_fire') {
+      this.glows.push({ x, y, r: 60, color: '#ff7a2a', t: 0, life: 0.45, a: 1 });
+      this.glows.push({ x, y, r: 16, grow: 30, color: '#ffb347', t: 0, life: 0.35, a: 0.9, ring: true });
+      for (let i = 0; i < 26; i++) { const a = Math.random() * Math.PI * 2, v = 30 + Math.random() * 70; this.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 30, g: -40, life: 0.6 + Math.random() * 0.5, t: 0, c: ['#ff6a2a', '#ffb347', '#ffd25a', '#fff6c8'][i % 4], blob: Math.random() < 0.4 ? 1 : 0, fade: true }); }
+      this.shake = Math.max(this.shake, 3); this.shakeT = now();
+    } else if (fx === 'proj_ice') {
+      this.glows.push({ x, y, r: 12, grow: 34, color: '#bff6ff', t: 0, life: 0.45, a: 1, ring: true });
+      this.glows.push({ x, y, r: 40, color: '#8fe3ff', t: 0, life: 0.4, a: 0.8 });
+      for (let i = 0; i < 16; i++) { const a = -Math.PI * Math.random(), v = 50 + Math.random() * 80; this.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 240, life: 0.6 + Math.random() * 0.3, t: 0, c: ['#ffffff', '#bff6ff', '#5ac8f0'][i % 3], cube: 2, spin: Math.random() * 6, fade: true }); }
+      for (let i = 0; i < 10; i++) this.particles.push({ x: x + (Math.random() - 0.5) * 30, y: y + (Math.random() - 0.5) * 24, vx: 0, vy: -6, g: 0, life: 0.5 + Math.random() * 0.3, t: 0, c: '#e8ffff', plus: true, fade: true });
+    } else if (fx === 'proj_arcane') {
+      this.glows.push({ x, y, r: 10, grow: 30, color: '#a08aff', t: 0, life: 0.4, a: 1, ring: true });
+      this.glows.push({ x, y, r: 44, color: '#7a6aff', t: 0, life: 0.4, a: 0.85 });
+      for (let i = 0; i < 18; i++) { const a = (i / 18) * Math.PI * 2, v = 60; this.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0, life: 0.45, t: 0, c: i % 2 ? '#e0d8ff' : '#9a8aff', plus: i % 3 === 0, drag: 0.85, fade: true }); }
+    }
+  }
   // yellow lightning from the top of the screen onto an enemy (cleric smite)
   skyStrike(e) {
     const top = { x: e.x + (Math.random() - 0.5) * 30, y: -6 }, hit = { x: e.x, y: e.y - 6 };
@@ -865,6 +909,7 @@ export class BattleScene {
       const st = this.stars[i];
       if (st.done) { this.stars.splice(i, 1); continue; }
       const g = Math.min(1, (t - st.t0) / st.grow), arm = Math.round(1 + g * 5), x = Math.round(st.x), y = Math.round(st.y);
+      if (st.kind !== 'star') { this.drawCharge(n, st, g, x, y, t); continue; }
       const diag = Math.floor((t - st.t0) / 90) % 2 === 1, pulse = 0.75 + 0.25 * Math.sin((t - st.t0) / 40);
       n.globalAlpha = pulse; n.fillStyle = st.color;
       for (let j = 1; j <= arm; j++) {
@@ -981,16 +1026,17 @@ export class BattleScene {
     switch (pr.kind) {
       case 'proj_arrow': tail(9, '#c9a46a'); n.fillStyle = '#ffffff'; n.fillRect(rx, ry, 2, 1); break;
       case 'proj_fire': case 'meteor': {
-        const r = pr.kind === 'meteor' ? 5 : 3;
+        const r = pr.kind === 'meteor' ? 5 : 4;
         n.fillStyle = '#ff6a2a'; n.fillRect(rx - r, ry - r + 1, r * 2, r * 2 - 2); n.fillRect(rx - r + 1, ry - r, r * 2 - 2, r * 2);
         n.fillStyle = '#ffc24a'; n.fillRect(rx - r + 1, ry - r + 1, r * 2 - 2, r * 2 - 2);
         n.fillStyle = '#fff6c8'; n.fillRect(rx - 1, ry - 1, 2, 2);
         if (Math.random() < 0.9) this.particles.push({ x, y, vx: -Math.cos(ang) * 20 + (Math.random() - 0.5) * 10, vy: -Math.sin(ang) * 20 - 10, g: -10, life: 0.35, t: 0, c: Math.random() < 0.5 ? '#ff8a3c' : '#ffc24a' });
         break;
       }
-      case 'proj_ice': tail(6, '#5ac8f0'); n.fillStyle = '#e8ffff'; n.fillRect(rx - 2, ry, 4, 1); n.fillRect(rx, ry - 1, 2, 3); break;
+      case 'proj_ice': tail(10, '#5ac8f0'); n.fillStyle = '#9fe8ff'; n.fillRect(rx - 4, ry - 1, 7, 3); n.fillStyle = '#e8ffff'; n.fillRect(rx - 5, ry, 8, 1); n.fillRect(rx - 1, ry - 2, 2, 5);
+        if (Math.random() < 0.7) this.particles.push({ x, y, vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, g: 0, life: 0.3, t: 0, c: '#e8ffff', plus: Math.random() < 0.3, fade: true }); break;
       case 'proj_poison': tail(8, '#c9a46a'); n.fillStyle = '#9cff6b'; n.fillRect(rx, ry - 1, 2, 3); if (Math.random() < 0.5) this.particles.push({ x, y, vx: 0, vy: 6, g: 20, life: 0.4, t: 0, c: '#9cff6b' }); break;
-      case 'proj_arcane': n.fillStyle = '#7a6aff'; n.fillRect(rx - 2, ry - 2, 4, 4); n.fillStyle = '#e0d8ff'; n.fillRect(rx - 1, ry - 1, 2, 2); this.particles.push({ x, y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, g: 0, life: 0.3, t: 0, c: '#b8a6ff' }); break;
+      case 'proj_arcane': n.fillStyle = '#4a3aa8'; n.fillRect(rx - 3, ry - 2, 6, 4); n.fillRect(rx - 2, ry - 3, 4, 6); n.fillStyle = '#7a6aff'; n.fillRect(rx - 2, ry - 2, 4, 4); n.fillStyle = '#e0d8ff'; n.fillRect(rx - 1, ry - 1, 2, 2); this.particles.push({ x, y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, g: 0, life: 0.3, t: 0, c: '#b8a6ff' }); break;
       case 'star': n.fillStyle = '#fff0a8'; n.fillRect(rx - 2, ry, 5, 1); n.fillRect(rx, ry - 2, 1, 5); n.fillStyle = '#ffffff'; n.fillRect(rx, ry, 1, 1); tail(6, '#ffe27a'); break;
       case 'crystal': n.fillStyle = '#ffc24a'; n.fillRect(rx - 1, ry - 1, 3, 2); n.fillStyle = '#fff6c8'; n.fillRect(rx, ry - 1, 1, 1); tail(4, '#e07a24'); break;
       case 'hex': n.fillStyle = '#b46bff'; n.fillRect(rx - 2, ry - 2, 4, 4); n.fillStyle = '#f0d8ff'; n.fillRect(rx - 1, ry - 1, 2, 2); break;
