@@ -1,4 +1,4 @@
-"""Builds public/art/knight.png (13 poses x 3 colour variants) from Andy's knight sprite.
+"""Builds public/art/knight.png (14 poses x 3 colour variants) from Andy's knight sprite.
 
 Run: python3 tools/build_knight.py   (needs Pillow)
 The source is tools/art-src/knight_base.png at native resolution (64x55, facing left).
@@ -13,7 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'tools', 'art-src', 'knight_base.png')
 OUT_DIR = os.path.join(ROOT, 'public', 'art')
 FW, FH, AX, AY = 84, 76, 46, 72
-POSES = ['idle0', 'idle1', 'idle2', 'idle3', 'windup', 'swing1', 'swing2', 'cast0', 'cast1', 'defend', 'hurt', 'down', 'victory']
+POSES = ['idle0', 'idle1', 'idle2', 'idle3', 'windup', 'swing1', 'swing2', 'cast0', 'cast1', 'defend', 'hurt', 'down', 'victory', 'sit']
 
 base = Image.open(SRC).convert('RGBA')
 BW, BH = base.size
@@ -119,7 +119,7 @@ def darken(im, k=0.62, tint=(90, 84, 112)):
             if a: p[x, y] = (int(r * k + tint[0] * (1 - k) * .5), int(g * k + tint[1] * (1 - k) * .5), int(b * k + tint[2] * (1 - k) * .5), a)
     return out
 
-def down_frame():
+def down_frame(dark=True):
     # Down on one knee, slumped forward, sword planted point-first in the ground.
     knee = 9
     up = body.crop((0, 0, BW, 38)); feet = body.crop((0, 46, BW, BH))
@@ -130,7 +130,7 @@ def down_frame():
     bl, pad = blade_layer(-58)
     paste_clip(f, bl, (OX - pad - 3, OY - pad + knee - 1))
     paste_clip(f, k, (OX, OY))
-    return darken(f)
+    return darken(f) if dark else f
 
 def make_poses(body_img):
     P = {}
@@ -166,6 +166,12 @@ def recolour(im, hue_shift):
 
 VARIANTS = [0, 0.38, -0.30]            # blue (original), crimson, emerald
 
+def update_manifest(cls, entry):
+    man_path = os.path.join(OUT_DIR, 'manifest.json')
+    man = json.load(open(man_path)) if os.path.exists(man_path) else {}
+    man.setdefault('heroes', {})[cls] = entry
+    json.dump(man, open(man_path, 'w'), indent=1)
+
 def build():
     global body
     orig_body = body
@@ -174,19 +180,17 @@ def build():
         body = recolour(orig_body, hs)
         P = make_poses(body)
         P['down'] = down_frame()
+        P['sit'] = down_frame(dark=False)
         for pi, name in enumerate(POSES):
             sheet.alpha_composite(P[name], (pi * FW, vi * FH))
     body = orig_body
     os.makedirs(OUT_DIR, exist_ok=True)
     sheet.save(os.path.join(OUT_DIR, 'knight.png'))
-    man_path = os.path.join(OUT_DIR, 'manifest.json')
-    man = json.load(open(man_path)) if os.path.exists(man_path) else {}
-    man.setdefault('heroes', {})['knight'] = {
+    update_manifest('knight', {
         'sheet': 'knight.png', 'frame': [FW, FH], 'variants': len(VARIANTS), 'variantRows': 1,
         'poses': {n: [i, 0] for i, n in enumerate(POSES)},
         'portrait': [OX + 25, OY - 2, 26, 26]
-    }
-    json.dump(man, open(man_path, 'w'), indent=1)
+    })
     print('wrote knight.png', sheet.size)
 
 if __name__ == '__main__':

@@ -16,6 +16,8 @@ const sessions = new Map();
 const now = () => Date.now();
 const SPEED = process.env.MATHFALL_FAST === '1' ? 0.12 : 1;
 const T = ms => Math.round(ms * SPEED);
+const QTE_MS = 10000;          // time to answer a quick-time prompt
+const QTE_GRACE = 700;         // network slack on top
 const tok = () => crypto.randomBytes(12).toString('hex');
 const clean = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
 
@@ -41,6 +43,8 @@ function defaultSettings(s = {}) {
     teamSize: num(s.teamSize, 4, 1, 6),
     lateJoin: s.lateJoin !== false,
     timeLimit: num(s.timeLimit, 0, 0, 120),
+    raid: s.raid !== false,
+    raidMinutes: num(s.raidMinutes, 8, 2, 20),
     wrongPause: num(s.wrongPause, 1.5, 0, 6)
   };
 }
@@ -64,6 +68,7 @@ class Session {
     this.results = null;
     this.hostDirty = true;
     this.watchers = new Map(); // host socket id -> team id
+    this.raid = null;
   }
 
   room(teamId) { return `${this.code}:${teamId}`; }
@@ -145,6 +150,7 @@ class Session {
     return {
       id: p.id, name: p.name, cls: p.cls, variant, maxHp: H.hp, hp: H.hp, block: 0, st: {},
       skills: H.skills.map(id => ({ id, lvl: 1 })), focus: 0, energy: 0, downed: false, acted: false, gold: 0,
+      lv: { atk: 0, def: 0, hp: 0 }, free: false, nextFight: null,
       readyAction: null, lastTarget: null, stats: { dmg: 0, heal: 0, taken: 0, skills: 0 }
     };
   }
@@ -153,7 +159,8 @@ class Session {
     const taken = new Set(team.members.map(id => this.players.get(id)).filter(Boolean).map(q => q.cls));
     p.cls = C.HERO_ORDER.find(c => !taken.has(c)) || RUN.pick(C.HERO_ORDER);
   }
-  startRun(team, asc) {
+  startRun(team, asc, keepHeroes) {
+    const old = team.run;
     const run = {
       asc: asc || 0, floor: 0, length: this.settings.length, map: RUN.generateMap(this.settings.length), pos: null,
       phase: 'map', votes: {}, voteDeadline: 0, goAt: 0, goNode: null, heroes: {}, combat: null, room: null,
@@ -164,10 +171,14 @@ class Session {
     for (const id of team.members) {
       const p = this.players.get(id); if (!p) continue;
       this.ensureClass(team, p);
-      run.heroes[p.id] = this.heroFor(team, p);
+      const prev = keepHeroes && old && old.heroes[p.id];
+      // Beating the tower keeps your hero's upgrades, skills and gold for the next climb.
+      if (prev) { run.heroes[p.id] = prev; prev.hp = prev.maxHp; prev.downed = false; prev.st = {}; prev.block = 0; prev.readyAction = null; prev.acted = false; }
+      else run.heroes[p.id] = this.heroFor(team, p);
       p.pending = null;
     }
-    this.event(team, { kind: 'system', text: asc ? `Deeper into the dungeon. Ascension ${asc}` : 'The descent begins' });
+    run.seenEvents = [];
+    this.event(team, { kind: 'system', text: asc ? `A taller tower. Ascension ${asc}` : 'The climb begins' });
     this.flush(team);
   }
   addHeroIfPossible(team, p) {
@@ -217,23 +228,21 @@ class Session {
     else if (node.type === 'treasure') this.openRoom(team, RUN.makeTreasureRoom(run, 'treasure'));
     else if (node.type === 'rest') this.openRoom(team, RUN.makeRestRoom(run));
     else if (node.type === 'merchant') this.openRoom(team, RUN.makeMerchantRoom(run));
-    else if (node.type === 'unknown') {
-      const ev = RUN.makeEventRoom(run);
-      if (ev.event === 'ambush') { this.event(team, { kind: 'system', text: 'Ambush!' }); this.startCombat(team, tier); }
-      else this.openRoom(team, ev);
-    }
+    else if (node.type === 'unknown') { run.ambushTier = tier; this.openRoom(team, RUN.makeEventRoom(run)); }
     this.flush(team);
   }
 
   openRoom(team, room) {
     const run = team.run;
     run.phase = 'room'; run.room = room; run.combat = null; room.deadline = 0; room.ready = room.ready || {};
-    for (const id of team.members) { const p = this.players.get(id); if (p && p.pending && p.pending.intent.kind !== 'shrine') p.pending = null; }
+    for (const id of team.members) { const p = this.players.get(id); if (p && p.pending) p.pending = null; }
   }
 
   startCombat(team, type) {
     const run = team.run;
     run.phase = 'combat'; run.room = null;
+    // Enemy health scales with the heroes actually playing (connected) in this team.
+    run.activeCount = Math.max(1, team.members.filter(id => { const p = this.players.get(id); return p && p.connected && run.heroes[id]; }).length);
     run.combat = CB.createCombat(run, type);
     CB.beginRound(run, now(), this.settings.timer);
     this.event(team, { kind: 'system', text: type === 'boss' ? 'Gravemaw awakens' : type === 'elite' ? 'An elite foe blocks the way' : 'Monsters!', battle: type });
@@ -243,6 +252,7 @@ class Session {
   afterHeroAction(team) {
     const run = team.run; const c = run.combat; if (!c) return;
     const out = CB.combatOutcome(run);
+    if (run.raidMode && c.raid) { if (this.raid && this.raid.hp <= 0) { this.endRaid(true); return; } }
     if (out === 'won' && c.phase !== 'won') {
       c.phase = 'won';
       this.clearCombatQuestions(team);
@@ -263,18 +273,25 @@ class Session {
   clearCombatQuestions(team) {
     for (const id of team.members) {
       const p = this.players.get(id);
-      if (p && p.pending && p.pending.intent.kind !== 'shrine') { p.pending = null; if (p.socket) p.socket.emit('qclose', {}); }
+      if (p && p.pending && p.pending.intent.kind !== 'event') { p.pending = null; if (p.socket) p.socket.emit('qclose', {}); }
     }
   }
   runStep(team, fn) {
     const run = team.run; const c = run.combat;
     if (fn === 'enemyTurn' && c && c.phase === 'player') {
+      // A big move with a quick-time prompt goes first: everyone answers, then it lands.
+      if (!c.qteDone) {
+        const big = CB.aliveEnemies(c).find(e => e.intent && e.intent.qte && !e.st.freeze);
+        if (big) { this.startQTE(team, big); this.flush(team); return; }
+      }
+      c.qteDone = false;
       c.phase = 'enemy'; c.roundEndsAt = 0;
       const evs = CB.enemyTurn(run);
       let total = 350;
       for (const ev of evs) { this.event(team, ev); total += ev.dur || 900; }
       const out = CB.combatOutcome(run);
-      if (out === 'lost') run.next = { time: now() + T(total + 400), fn: 'lose' };
+      if (run.raidMode && this.raid && this.raid.hp <= 0) { run.next = { time: now() + T(total), fn: 'raidCheck' }; }
+      else if (out === 'lost') run.next = { time: now() + T(total + 400), fn: 'lose' };
       else if (out === 'won') { c.phase = 'won'; this.clearCombatQuestions(team); run.next = { time: now() + T(total + 900), fn: 'win' }; }
       else run.next = { time: now() + T(total), fn: 'nextRound' };
     } else if (fn === 'nextRound' && c) {
@@ -284,6 +301,7 @@ class Session {
         if (h.readyAction && !h.downed) {
           const ra = h.readyAction; h.readyAction = null;
           const evs = [];
+          if (ra.whiff) { CB.whiff(run, h, ra.action, ra.target, evs); evs.forEach(e => this.event(team, e)); continue; }
           let res = CB.heroAction(run, h, ra.action, ra.target, evs);
           if (!res.ok && ra.action !== 'rise') res = CB.heroAction(run, h, 'attack', ra.target, evs);
           evs.forEach(e => this.event(team, e));
@@ -293,6 +311,13 @@ class Session {
       this.afterHeroAction(team);
     } else if (fn === 'win' && c) {
       this.winCombat(team);
+    } else if (fn === 'raidCheck') {
+      if (this.raid && this.raid.hp <= 0) this.endRaid(true);
+    } else if (fn === 'lose' && c && run.raidMode) {
+      // In the raid a fallen team regroups instead of losing the run.
+      for (const h of CB.heroList(run)) { h.downed = false; h.hp = Math.max(h.hp, Math.round(h.maxHp * 0.5)); h.st = {}; }
+      this.event(team, { kind: 'system', text: 'Your team regroups!' });
+      run.next = { time: now() + T(1200), fn: 'nextRound' };
     } else if (fn === 'lose' && c) {
       team.history.wipes++;
       this.clearCombatQuestions(team);
@@ -308,7 +333,8 @@ class Session {
   winCombat(team) {
     const run = team.run; const c = run.combat;
     const type = c.type;
-    const gold = type === 'boss' ? 80 : type === 'elite' ? RUN.ri(35, 45) : RUN.ri(18, 28);
+    const gold = (type === 'boss' ? 80 : type === 'elite' ? RUN.ri(35, 45) : RUN.ri(18, 28)) + (run.ambushBonus || 0);
+    run.ambushBonus = 0;
     for (const h of CB.heroList(run)) {
       h.gold += gold;
       if (h.downed) { h.downed = false; h.hp = Math.round(h.maxHp * 0.25); }
@@ -318,15 +344,17 @@ class Session {
     if (type === 'boss') {
       team.history.bossKills++;
       team.history.bestAsc = Math.max(team.history.bestAsc, run.asc + 1);
-      this.openRoom(team, { type: 'complete', gold, asc: run.asc, ready: {} });
+      this.openRoom(team, { type: 'complete', gold, asc: run.asc, ready: {}, stats: {} });
     } else {
-      this.openRoom(team, { type: 'victory', gold, elite: type === 'elite', ready: {} });
+      this.openRoom(team, { type: 'victory', gold, elite: type === 'elite', ready: {}, stats: {} });
     }
   }
   advanceRoom(team, forced) {
     const run = team.run; const room = run.room; if (!room) return;
     if (room.type === 'victory' && room.elite) { this.openRoom(team, RUN.makeTreasureRoom(run, 'elite')); this.flush(team); return; }
-    if (room.type === 'complete') { this.startRun(team, run.asc + 1); return; }
+    if (room.type === 'complete') { this.startRun(team, run.asc + 1, true); return; }
+    if (room.type === 'raidEnd') return;
+    if (room.type === 'event' && room.event === 'ambush' && this.resolveAmbush(team)) return;
     if (room.type === 'defeat') { this.startRun(team, run.asc); return; }
     // anyone who didn't decide on a chest keeps their loadout
     if (room.type === 'treasure') for (const [pid, ch] of Object.entries(room.chests)) {
@@ -345,6 +373,166 @@ class Session {
     const allReady = needed.every(id => room.ready[id]);
     if (allReady && needed.length) { run.next = { time: now() + T(500), fn: 'roomAdvance' }; }
     else if (!room.deadline && Object.keys(room.ready).length) room.deadline = now() + T(60000);
+  }
+
+
+  // ------------------------------------------------------------ quick-time events
+  startQTE(team, e) {
+    const run = team.run; const c = run.combat;
+    c.phase = 'qte'; c.roundEndsAt = 0;
+    c.qte = { enemy: e.id, name: e.intent.label, total: e.intent.qte || 1, i: 0, res: {}, per: {}, endsAt: 0 };
+    this.event(team, { kind: 'qte', actor: e.id, name: e.intent.label, total: c.qte.total });
+    this.newQTEPrompt(team);
+  }
+  newQTEPrompt(team) {
+    const run = team.run; const c = run.combat; const q = c.qte;
+    q.per = {};
+    for (const h of CB.aliveHeroes(run)) {
+      const p = this.players.get(h.id);
+      if (!p || !p.connected) continue;
+      const g = C.qteQuestion(run.raidMode ? 2 : 1);
+      q.per[h.id] = { q: g.q, a: g.a, answered: false, ok: false, value: '' };
+    }
+    q.endsAt = now() + T(QTE_MS + QTE_GRACE);
+    if (!Object.keys(q.per).length) q.endsAt = now();
+  }
+  answerQTE(team, p, value) {
+    const run = team && team.run; const c = run && run.combat; const q = c && c.qte;
+    if (!q || c.phase !== 'qte') return { ok: false };
+    const me = q.per[p.id]; if (!me || me.answered) return { ok: false };
+    me.answered = true; me.value = String(value).slice(0, 12);
+    const n = Number(String(value).replace(/[^0-9.\-]/g, ''));
+    me.ok = String(value).trim() !== '' && n === me.a;
+    p.stats.qte = p.stats.qte || { a: 0, c: 0 }; p.stats.qte.a++; if (me.ok) p.stats.qte.c++;
+    if (Object.values(q.per).every(x => x.answered)) this.advanceQTE(team);
+    return { ok: true, correct: me.ok, answer: me.a };
+  }
+  advanceQTE(team) {
+    const run = team.run; const c = run.combat; const q = c.qte; if (!q) return;
+    const results = {};
+    for (const h of CB.heroList(run)) {
+      const r = q.per[h.id];
+      const ok = !!(r && r.ok);
+      (q.res[h.id] = q.res[h.id] || [])[q.i] = ok;
+      results[h.id] = ok;
+    }
+    this.event(team, { kind: 'qteResult', i: q.i, total: q.total, results });
+    q.i++;
+    if (q.i < q.total) { this.newQTEPrompt(team); q.endsAt += T(900); this.flush(team); return; }
+    c.qteRes = q.res; c.qte = null; c.qteDone = true; c.phase = 'player';
+    run.next = { time: now() + T(700), fn: 'enemyTurn' };
+    this.flush(team);
+  }
+
+  // ------------------------------------------------------------ "?" events
+  applyEventOption(team, h, evId, opt, correct) {
+    const run = team.run;
+    const lose = n => { const b = h.hp; h.hp = Math.max(1, h.hp - n); return b - h.hp; };
+    const heal = n => { const b = h.hp; h.hp = Math.min(h.maxHp, h.hp + Math.round(n)); return h.hp - b; };
+    const key = evId + ':' + opt;
+    switch (key) {
+      case 'nest:eat': h.maxHp += 6; h.hp += 6; return '+6 Max HP';
+      case 'nest:sell': h.gold += 45; return '+45 gold';
+      case 'vines:hack': { const l = lose(8); h.nextFight = { ...(h.nextFight || {}), energy: ((h.nextFight || {}).energy || 0) + 4 }; return `−${l} HP · +4 energy next fight`; }
+      case 'vines:around': { const g = Math.min(15, h.gold); h.gold -= g; return g ? `−${g} gold` : 'You squeeze through for free'; }
+      case 'shrine:pray': if (correct) { const hl = heal(h.maxHp * 0.2); h.gold += 35; return `Blessed! +${hl} HP · +35 gold`; } return 'The shrine stays silent';
+      case 'shrine:leave': return 'You bow and move on';
+      case 'dealer:bet': if (correct) { h.gold += 30; return 'You win! +30 gold'; } h.gold = Math.max(0, h.gold - 30); return 'The imp cackles. −30 gold';
+      case 'dealer:walk': return 'You keep your coins';
+      case 'library:study': {
+        const l = lose(6);
+        const up = h.skills.filter(sk => sk.lvl < 2);
+        if (up.length) { const sk = RUN.pick(up); sk.lvl = 2; return `${C.skillName(sk.id, 2)}! −${l} HP`; }
+        h.gold += 30; return `Your skills are already mastered: +30 gold · −${l} HP`;
+      }
+      case 'library:nook': return `+${heal(h.maxHp * 0.15)} HP`;
+      case 'mimic:open': if (Math.random() < 0.6) { h.lv.atk++; return 'A whetstone! +1 Attack level'; } return `It bites! −${lose(12)} HP`;
+      case 'mimic:leave': return 'Probably wise';
+      case 'adventurer:search': if (correct) { h.gold += 50; return 'You disarm the trap: +50 gold'; } return `The trap springs! −${lose(10)} HP`;
+      case 'adventurer:respect': return `You feel at peace. +${heal(10)} HP`;
+      case 'fountain:deep': h.maxHp = Math.max(20, h.maxHp - 4); h.hp = h.maxHp; return 'Fully healed · −4 Max HP';
+      case 'fountain:sip': return `+${heal(h.maxHp * 0.2)} HP`;
+      case 'forge:sharpen': { const l = lose(8); h.lv.atk++; return `+1 Attack level · −${l} HP`; }
+      case 'forge:armour': h.gold -= 40; h.lv.def++; return '+1 Defence level · −40 gold';
+      case 'forge:leave': return 'You move on';
+      case 'ambush:fight': return 'Weapons ready!';
+      case 'ambush:sneak': return correct ? 'Silent as a shadow' : 'You stepped on a twig…';
+    }
+    return '';
+  }
+  resolveEventChoice(team, p, intent, correct) {
+    const run = team && team.run; const room = run && run.room; const h = run && run.heroes[p.id];
+    if (!room || room.type !== 'event' || room.event !== intent.event || !h || room.choices[p.id]) return '';
+    room.choices[p.id] = intent.opt; room.correct[p.id] = !!correct;
+    const result = this.applyEventOption(team, h, intent.event, intent.opt, correct);
+    room.results[p.id] = result;
+    if (C.EVENTS[intent.event].team) { room.ready[p.id] = true; this.checkRoomReady(team); }
+    return result;
+  }
+  resolveAmbush(team) {
+    // Team decision: slip past only if nobody chose to fight and every sneak answered right.
+    const run = team.run; const room = run.room;
+    const ids = Object.keys(run.heroes);
+    const allSneaked = ids.every(id => room.choices[id] === 'sneak' && room.correct[id]);
+    if (allSneaked) { this.event(team, { kind: 'system', text: 'You slipped past!' }); return false; }
+    for (const id of ids) if (room.choices[id] === 'sneak' && !room.correct[id]) { const h = run.heroes[id]; h.hp = Math.max(1, h.hp - 5); }
+    if (Object.values(room.choices).includes('fight')) run.ambushBonus = 20;
+    this.event(team, { kind: 'system', text: 'Ambush!' });
+    this.startCombat(team, run.ambushTier || 'normal1');
+    this.flush(team);
+    return true;
+  }
+
+  // ------------------------------------------------------------ raid boss
+  startRaid() {
+    if (this.raid || this.state !== 'playing') return;
+    for (const t of this.teams) if (t.members.length && !t.run) this.startRun(t, 0);
+    const teams = this.teams.filter(t => t.run && t.members.length);
+    let heroes = 0, ascSum = 0;
+    for (const t of teams) { this.admitPending(t); heroes += Object.keys(t.run.heroes).length; ascSum += t.run.asc || 0; }
+    const avgAsc = teams.length ? ascSum / teams.length : 0;
+    const maxHp = Math.max(200, Math.round(C.ENEMIES.voidmaw.hp * Math.max(1, heroes) * (1 + 0.15 * avgAsc)));
+    this.raid = { hp: maxHp, maxHp, dmg: {}, hits: [], startedAt: now(), endsAt: now() + this.settings.raidMinutes * 60000, over: false, won: false, endAt: 0 };
+    this.endsAt = this.raid.endsAt;
+    for (const t of teams) {
+      const run = t.run;
+      for (const id of t.members) { const p = this.players.get(id); if (p && p.pending) { p.pending = null; if (p.socket) p.socket.emit('qclose', {}); } }
+      run.next = null; run.goAt = 0; run.goNode = null; run.voteDeadline = 0; run.votes = {};
+      for (const h of CB.heroList(run)) {
+        h.downed = false; h.hp = Math.max(h.hp, Math.ceil(h.maxHp * 0.8)); h.st = {}; h.block = 0; h.readyAction = null;
+        h.raidStart = h.stats.dmg;
+      }
+      run.phase = 'combat'; run.room = null; run.raidMode = true;
+      run.combat = CB.createRaidCombat(run, this.raid, t.id);
+      CB.beginRound(run, now(), this.settings.timer);
+      this.event(t, { kind: 'system', text: 'Voidmaw, Heart of the Tower, awakens!', battle: 'raid' });
+      this.flush(t);
+    }
+  }
+  endRaid(won) {
+    const raid = this.raid; if (!raid || raid.over) return;
+    raid.over = true; raid.won = won; raid.endAt = now() + T(9000);
+    this.endsAt = 0;
+    for (const t of this.teams) {
+      const run = t.run; if (!run) continue;
+      this.clearCombatQuestions(t);
+      run.next = null;
+      if (run.combat) run.combat.phase = won ? 'won' : 'lost';
+      this.event(t, { kind: 'system', text: won ? 'Voidmaw is defeated!' : 'Time is up. Voidmaw survives…' });
+      run.phase = 'room'; run.room = { type: 'raidEnd', won, ready: {} };
+      this.flush(t);
+    }
+  }
+  raidPublic(team) {
+    const raid = this.raid; if (!raid) return null;
+    const allies = [];
+    for (const t of this.teams) {
+      if (t === team || !t.run) continue;
+      for (const h of Object.values(t.run.heroes)) if (allies.length < 24) allies.push({ cls: h.cls, variant: h.variant, downed: h.downed, color: t.color });
+    }
+    return { hp: raid.hp, maxHp: raid.maxHp, endsAt: raid.endsAt, over: raid.over, won: raid.won,
+      teams: this.teams.filter(t => t.run).map(t => ({ id: t.id, name: t.name, color: t.color, dmg: Math.round(raid.dmg[t.id] || 0) })).sort((a, b) => b.dmg - a.dmg),
+      allies };
   }
 
   // ------------------------------------------------------------ voting
@@ -405,6 +593,7 @@ class Session {
     const base = { code: this.code, state: this.state, paused: this.paused, now: now(), sound: this.settings.sound, timer: this.settings.timer,
       team: { id: team.id, name: team.name, color: team.color, history: team.history },
       members: team.members.map(id => { const p = this.players.get(id); return p ? { id, name: p.name, cls: p.cls, connected: p.connected } : null; }).filter(Boolean) };
+    if (this.raid) base.raid = this.raidPublic(team);
     if (!run) return base;
     const order = team.members.filter(id => run.heroes[id]);
     base.run = {
@@ -412,11 +601,12 @@ class Session {
       map: { nodes: run.map.nodes.map(n => ({ id: n.id, row: n.row, type: n.type, x: n.x, y: n.y, next: n.next, visited: !!n.visited })), pos: run.pos, options: run.phase === 'map' ? this.mapOptions(run) : [], votes: run.votes, voteDeadline: run.voteDeadline, goNode: run.goNode },
       heroes: order.map(id => {
         const h = run.heroes[id]; const p = this.players.get(id);
-        return { id, name: h.name, cls: h.cls, variant: h.variant, hp: h.hp, maxHp: h.maxHp, block: h.block, st: h.st, skills: h.skills, focus: h.focus, energy: h.energy || 0, downed: h.downed, acted: h.acted, ready: !!h.readyAction, gold: h.gold,
+        return { id, name: h.name, cls: h.cls, variant: h.variant, hp: h.hp, maxHp: h.maxHp, block: h.block, st: h.st, skills: h.skills, focus: h.focus, energy: h.energy || 0, downed: h.downed, acted: h.acted, ready: !!h.readyAction, gold: h.gold, lv: h.lv, free: !!h.free, nextFight: h.nextFight,
           connected: !!(p && p.connected), busy: p && p.pending && !p.pending.answered ? (p.pending.intent.action || p.pending.intent.kind) : null };
       }),
       waiting: run.pendingJoin,
-      combat: run.combat ? { round: run.combat.round, phase: run.combat.phase, roundEndsAt: run.combat.roundEndsAt, type: run.combat.type, enemies: run.combat.enemies.map(CB.publicEnemy) } : null,
+      combat: run.combat ? { round: run.combat.round, phase: run.combat.phase, roundEndsAt: run.combat.roundEndsAt, type: run.combat.type, enemies: run.combat.enemies.map(CB.publicEnemy), qte: run.combat.qte ? { total: run.combat.qte.total, i: run.combat.qte.i, endsAt: run.combat.qte.endsAt, name: run.combat.qte.name } : null } : null,
+      raidMode: !!run.raidMode,
       room: run.room ? this.publicRoom(run.room) : null
     };
     return base;
@@ -425,8 +615,9 @@ class Session {
     const o = { type: room.type, ready: room.ready, deadline: room.deadline || 0 };
     if (room.type === 'treasure') { o.kind = room.kind; o.event = room.event; o.chests = {}; for (const [k, v] of Object.entries(room.chests)) o.chests[k] = { rarity: v.rarity, opened: v.opened, decided: v.decided, choice: v.choice || null }; }
     if (room.type === 'rest') o.choices = room.choices;
-    if (room.type === 'event') { o.event = room.event; o.results = room.results; }
-    if (room.type === 'victory' || room.type === 'complete') { o.gold = room.gold; o.elite = room.elite; o.asc = room.asc; }
+    if (room.type === 'event') { o.event = room.event; o.choices = room.choices; o.results = room.results; }
+    if (room.type === 'victory' || room.type === 'complete') { o.gold = room.gold; o.elite = room.elite; o.asc = room.asc; o.stats = room.stats || {}; }
+    if (room.type === 'raidEnd') { o.won = room.won; }
     if (room.type === 'defeat') o.floor = room.floor;
     return o;
   }
@@ -437,6 +628,12 @@ class Session {
     const room = run && run.room;
     if (room && room.type === 'treasure' && room.chests[p.id]) { const ch = room.chests[p.id]; you.chest = { rarity: ch.rarity, opened: ch.opened, decided: ch.decided, gold: ch.gold, offer: ch.opened ? ch.offer : null }; }
     if (room && room.type === 'merchant' && room.stock[p.id]) you.stock = room.stock[p.id];
+    const c = run && run.combat;
+    if (c && c.phase === 'qte' && c.qte && c.qte.per[p.id]) {
+      const me = c.qte.per[p.id];
+      you.qte = { key: c.qte.enemy + ':' + c.round + ':' + c.qte.i, q: me.q, i: c.qte.i, total: c.qte.total, endsAt: c.qte.endsAt, answered: me.answered, ok: me.ok, name: c.qte.name };
+      if (process.env.MATHFALL_TEST === '1') you.qte._answer = me.a;
+    }
     return you;
   }
   flush(team) {
@@ -465,7 +662,8 @@ class Session {
       const run = t.run;
       const o = { id: t.id, name: t.name, color: t.color, members: t.members, history: t.history };
       if (run) {
-        o.phase = run.phase; o.floor = run.floor; o.rows = run.map.rows; o.asc = run.asc;
+        o.phase = run.phase; o.floor = run.floor; o.rows = run.map.rows; o.asc = run.asc; o.length = run.length;
+        o.heroCls = Object.values(run.heroes).map(h => ({ cls: h.cls, variant: h.variant, downed: h.downed }));
         o.node = run.pos ? (run.map.nodes.find(n => n.id === run.pos) || {}).type : null;
         o.room = run.room ? run.room.type : null;
         o.heroes = Object.values(run.heroes).map(h => ({ id: h.id, name: h.name, cls: h.cls, hp: h.hp, maxHp: h.maxHp, downed: h.downed }));
@@ -473,7 +671,8 @@ class Session {
       }
       return o;
     });
-    return { code: this.code, state: this.state, settings: this.settings, paused: this.paused, endsAt: this.endsAt, now: now(), questions: this.qs.summary(), players, teams, results: this.state === 'ended' ? this.results : null };
+    const raid = this.raid ? { hp: this.raid.hp, maxHp: this.raid.maxHp, endsAt: this.raid.endsAt, over: this.raid.over, won: this.raid.won, dmg: this.raid.dmg } : null;
+    return { code: this.code, state: this.state, settings: this.settings, paused: this.paused, endsAt: this.endsAt, now: now(), raid, questions: this.qs.summary(), players, teams, results: this.state === 'ended' ? this.results : null };
   }
   emitHost(force) {
     if (!force && !this.hostDirty) return;
@@ -493,7 +692,9 @@ class Session {
         supportAnswered: p.stats.modifiedAnswered,
         avgSec: p.stats.answered ? Math.round(p.stats.time / p.stats.answered / 100) / 10 : 0,
         bySkill: p.stats.bySkill, wrong: p.stats.wrong,
-        dmg: h ? h.stats.dmg : 0, heal: h ? h.stats.heal : 0
+        dmg: h ? h.stats.dmg : 0, heal: h ? h.stats.heal : 0,
+        raidDmg: h && h.raidStart != null ? h.stats.dmg - h.raidStart : 0,
+        qte: p.stats.qte || null
       };
     });
     const questions = Object.values(this.qstats).map(q => ({ ...q, pct: q.asked ? Math.round(100 * q.correct / q.asked) : 0 }))
@@ -501,7 +702,8 @@ class Session {
     const skills = {};
     for (const p of this.players.values()) for (const [k, v] of Object.entries(p.stats.bySkill)) { skills[k] = skills[k] || { a: 0, c: 0 }; skills[k].a += v.a; skills[k].c += v.c; }
     const teams = this.teams.map(t => ({ name: t.name, color: t.color, members: t.members.map(id => (this.players.get(id) || {}).name).filter(Boolean), ...t.history, floorNow: t.run ? t.run.floor : 0, ascNow: t.run ? t.run.asc : 0 }));
-    return { players, questions, skills, teams, endedAt: now(), title: this.qs.title };
+    const raid = this.raid ? { won: this.raid.won, maxHp: this.raid.maxHp, hp: this.raid.hp, teams: this.teams.map(t => ({ name: t.name, color: t.color, dmg: Math.round(this.raid.dmg[t.id] || 0) })).sort((a, b) => b.dmg - a.dmg) } : null;
+    return { players, questions, skills, teams, raid, endedAt: now(), title: this.qs.title };
   }
 
   end() {
@@ -512,7 +714,7 @@ class Session {
       if (!p.socket) continue;
       const mine = this.results.players.find(r => r.id === p.id);
       const team = this.team(p.teamId);
-      p.socket.emit('ended', { you: mine, team: team ? { name: team.name, color: team.color, history: team.history } : null,
+      p.socket.emit('ended', { you: mine, raid: this.results.raid, team: team ? { name: team.name, color: team.color, history: team.history } : null,
         podium: this.results.teams.slice().sort(teamRank).slice(0, 3) });
     }
     this.emitHost(true);
@@ -520,11 +722,31 @@ class Session {
 
   // ------------------------------------------------------------ timers
   tick(t) {
-    if (this.state === 'playing' && this.endsAt && t >= this.endsAt && !this.paused) this.end();
+    if (this.state === 'playing' && !this.paused) {
+      if (this.raid && this.raid.over) { if (t >= this.raid.endAt) this.end(); }
+      else if (this.raid) {
+        if (this.raid.hp <= 0) this.endRaid(true);
+        else if (t >= this.raid.endsAt) this.endRaid(false);
+      } else if (this.endsAt && t >= this.endsAt) {
+        if (this.settings.raid) this.startRaid(); else this.end();
+      }
+    }
     if (this.state !== 'playing' || this.paused) return;
+    // Raid: tell every other team when someone lands a hit on the shared boss.
+    if (this.raid && this.raid.hits.length && !this.raid.over) {
+      const byTeam = {};
+      for (const hh of this.raid.hits) byTeam[hh.teamId] = (byTeam[hh.teamId] || 0) + hh.d;
+      this.raid.hits = [];
+      for (const team of this.teams) {
+        if (!team.run || !team.run.raidMode) continue;
+        for (const [tid, d] of Object.entries(byTeam)) if (tid !== team.id) { const src = this.team(tid); this.event(team, { kind: 'raidhit', dmg: Math.round(d), color: src ? src.color : '#fff', team: src ? src.name : '' }); }
+        this.flush(team);
+      }
+    }
     for (const team of this.teams) {
       const run = team.run; if (!run) continue;
       if (run.next && t >= run.next.time) { const fn = run.next.fn; run.next = null; this.runStep(team, fn); continue; }
+      if (run.combat && run.combat.phase === 'qte' && run.combat.qte && t >= run.combat.qte.endsAt) { this.advanceQTE(team); continue; }
       if (run.phase === 'combat' && run.combat && run.combat.phase === 'player' && run.combat.roundEndsAt && t >= run.combat.roundEndsAt && !run.next) {
         run.next = { time: t, fn: 'enemyTurn' };
       }
@@ -552,7 +774,9 @@ class Session {
       if (run.voteDeadline) run.voteDeadline += ms;
       if (run.goAt) run.goAt += ms;
       if (run.room && run.room.deadline) run.room.deadline += ms;
+      if (run.combat && run.combat.qte) run.combat.qte.endsAt += ms;
     }
+    if (this.raid) { this.raid.endsAt += ms; if (this.raid.endAt) this.raid.endAt += ms; }
   }
 }
 
@@ -654,6 +878,11 @@ function attach(io, banks) {
       s.flushAll(); reply(cb, { ok: true });
     }));
     socket.on('host:end', hostOnly((s, d, cb) => { s.end(); reply(cb, { ok: true }); }));
+    socket.on('host:raid', hostOnly((s, d, cb) => {
+      if (s.state !== 'playing') return reply(cb, { ok: false, msg: 'Start the game first.' });
+      if (s.raid) return reply(cb, { ok: false, msg: 'The raid has already started.' });
+      s.startRaid(); reply(cb, { ok: true });
+    }));
     socket.on('host:watch', hostOnly((s, d, cb) => {
       if (d.teamId) { s.watchers.set(socket.id, d.teamId); const t = s.team(d.teamId); if (t) s.flush(t); }
       else s.watchers.delete(socket.id);
@@ -741,11 +970,21 @@ function attach(io, banks) {
       } else if (['attack', 'defend', 'skill0', 'skill1'].includes(action)) {
         if (h.downed) return reply(cb, { ok: false, msg: 'You are knocked out. Answer to get back up.' });
         if (h.acted || h.readyAction) return reply(cb, { ok: false, msg: 'You have acted this round. Answer Focus questions to power up.' });
+        if ((action === 'attack' || action === 'defend') && h.free) {
+          // A correct Attack or Defend earns the next basic action without a question.
+          h.free = false;
+          if (c.phase === 'player') {
+            const evs = []; CB.heroAction(run, h, action, target, evs); evs.forEach(e => s.event(t, e));
+            reply(cb, { ok: true, free: true }); s.afterHeroAction(t); s.flush(t); return;
+          }
+          h.readyAction = { action, target };
+          reply(cb, { ok: true, free: true, queued: true }); s.flush(t); return;
+        }
         if (action.startsWith('skill')) { const sk = h.skills[action === 'skill0' ? 0 : 1]; const def = sk && C.SKILLS[sk.id]; if (!def) return reply(cb, { ok: false, msg: 'No skill in that slot.' }); if ((h.energy || 0) < def.cost) return reply(cb, { ok: false, msg: `Not enough energy: ${def.cost} needed, you have ${h.energy || 0}. Attack or Defend to charge up.` }); }
         kind = 'action';
       } else return reply(cb, { ok: false });
       const intent = { kind, action: kind === 'action' ? action : kind, target };
-      if (p.pending && p.pending.intent.kind !== 'shrine') {
+      if (p.pending && p.pending.intent.kind !== 'event') {
         // Same question, new plan: switching action never swaps the question.
         p.pending.intent = intent;
         if (p.pending.answered) {
@@ -773,24 +1012,34 @@ function attach(io, banks) {
       const intent = pend.intent;
       const run = t && t.run;
       if (!correct) {
-        pend.answered = true; pend.lockUntil = t0 + s.settings.wrongPause * 1000;
-        reply(cb, { ok: true, correct: false, ...s.qs.feedback(pend.priv), wait: s.settings.wrongPause });
-        if (intent.kind === 'shrine' && run && run.room && run.room.type === 'event') {
-          run.room.results[p.id] = 'missed'; p.pending = null;
-          run.room.ready[p.id] = true; s.checkRoomReady(t);
+        const fb = s.qs.feedback(pend.priv);
+        if (intent.kind === 'event') {
+          p.pending = null;
+          const result = s.resolveEventChoice(t, p, intent, false);
+          reply(cb, { ok: true, correct: false, ...fb, closeOnly: true, result }); s.flush(t); return;
         }
+        if (intent.kind === 'action' || intent.kind === 'rise') {
+          // A wrong answer is a miss: the hero swings and whiffs, and their turn is spent.
+          p.pending = null;
+          reply(cb, { ok: true, correct: false, ...fb, closeOnly: true, missed: true });
+          const c = run && run.combat; const h = run && run.heroes[p.id];
+          if (c && h && c.phase === 'player' && !h.acted) {
+            const evs = []; CB.whiff(run, h, intent.action, intent.target, evs); evs.forEach(e => s.event(t, e));
+            s.afterHeroAction(t);
+          } else if (c && h && c.phase !== 'won' && c.phase !== 'lost' && !h.acted && !h.readyAction) {
+            h.readyAction = { action: intent.action, target: intent.target, whiff: true };
+          }
+          s.flush(t); return;
+        }
+        pend.answered = true; pend.lockUntil = t0 + s.settings.wrongPause * 1000;
+        reply(cb, { ok: true, correct: false, ...fb, wait: s.settings.wrongPause });
         s.flush(t);
         return;
       }
       p.pending = null;
       const resp = { ok: true, correct: true, streak: p.stats.streak, solution: pend.priv.q.solution || '' };
-      if (intent.kind === 'shrine') {
-        if (run && run.room && run.room.type === 'event' && run.heroes[p.id]) {
-          const h = run.heroes[p.id];
-          h.gold += 35; h.hp = Math.min(h.maxHp, h.hp + Math.round(h.maxHp * 0.2));
-          run.room.results[p.id] = 'blessed'; run.room.ready[p.id] = true;
-          s.checkRoomReady(t);
-        }
+      if (intent.kind === 'event') {
+        resp.result = s.resolveEventChoice(t, p, intent, true);
         reply(cb, resp); s.flush(t); return;
       }
       const c = run && run.combat; const h = run && run.heroes[p.id];
@@ -801,6 +1050,7 @@ function attach(io, banks) {
         s.event(t, { kind: 'focus', actor: h.id, focus: h.focus, energy: h.energy });
         reply(cb, resp); s.flush(t); return;
       }
+      if (intent.kind === 'action' && (intent.action === 'attack' || intent.action === 'defend')) { h.free = true; resp.free = true; }
       if (c.phase !== 'player') {
         h.readyAction = { action: intent.action, target: intent.target };
         resp.note = 'Ready! It fires at the start of next round.';
@@ -821,7 +1071,7 @@ function attach(io, banks) {
       if (!pend.answered) return reply(cb, { ok: true, q: { ...pend.pub, intent: pend.intent } });
       if (now() < pend.lockUntil) return reply(cb, { ok: false, msg: 'Take a moment to read the worked answer.' });
       const run = t && t.run;
-      if (pend.intent.kind !== 'shrine' && (!run || run.phase !== 'combat')) { p.pending = null; return reply(cb, { ok: false }); }
+      if (pend.intent.kind === 'event' || !run || run.phase !== 'combat') { p.pending = null; return reply(cb, { ok: false }); }
       const pub = s.serveQuestion(p, pend.intent);
       reply(cb, { ok: true, q: { ...pub, intent: pend.intent } });
       s.flush(t);
@@ -830,6 +1080,12 @@ function attach(io, banks) {
       // after a wrong answer the student may walk away; the next action gets a fresh question
       if (p.pending && p.pending.answered) p.pending = null;
       reply(cb, { ok: true }); s.flush(t);
+    }));
+
+    socket.on('qte', student((s, p, t, d, cb) => {
+      if (s.paused) return reply(cb, { ok: false, msg: 'Your teacher has paused the game.' });
+      const r = s.answerQTE(t, p, d.value);
+      reply(cb, r); if (t) s.flush(t);
     }));
 
     socket.on('vote', student((s, p, t, d, cb) => {
@@ -867,6 +1123,7 @@ function attach(io, banks) {
       if (room.type === 'rest') {
         if (room.choices[p.id]) return reply(cb, { ok: false, msg: 'You have already chosen.' });
         if (op === 'rest') { const before = h.hp; h.hp = Math.min(h.maxHp, h.hp + Math.round(h.maxHp * 0.35)); room.choices[p.id] = { rest: h.hp - before }; }
+        else if (op === 'meditate') { h.nextFight = { energy: C.ENERGY.max, focus: 1 }; room.choices[p.id] = { meditate: true }; }
         else if (op === 'train' && (d.slot === 0 || d.slot === 1) && h.skills[d.slot] && h.skills[d.slot].lvl < 2) { h.skills[d.slot].lvl = 2; room.choices[p.id] = { train: h.skills[d.slot].id }; }
         else return reply(cb, { ok: false });
         room.ready[p.id] = true; s.checkRoomReady(t); return ok();
@@ -890,14 +1147,28 @@ function attach(io, banks) {
         }
         return reply(cb, { ok: false });
       }
-      if (room.type === 'event' && room.event === 'shrine') {
-        if (op === 'pray') {
-          if (room.results[p.id]) return reply(cb, { ok: false });
-          if (p.pending && p.pending.intent.kind === 'shrine' && !p.pending.answered) return reply(cb, { ok: true, q: { ...p.pending.pub, intent: p.pending.intent } });
-          const pub = s.serveQuestion(p, { kind: 'shrine', action: 'shrine' });
-          return reply(cb, { ok: true, q: { ...pub, intent: { kind: 'shrine', action: 'shrine' } } });
+      if ((room.type === 'victory' || room.type === 'complete') && op === 'stat') {
+        if (room.stats[p.id]) return reply(cb, { ok: false, msg: 'You have already chosen.' });
+        const st = String(d.stat);
+        if (!C.STATS[st]) return reply(cb, { ok: false });
+        h.lv[st]++;
+        if (st === 'hp') { h.maxHp += C.STAT_STEP.hp; h.hp = Math.min(h.maxHp, h.hp + C.STAT_STEP.hp); }
+        room.stats[p.id] = st;
+        room.ready[p.id] = true; s.checkRoomReady(t);
+        return ok();
+      }
+      if (room.type === 'event' && op === 'choose') {
+        const ev = C.EVENTS[room.event]; const opt = ev && ev.options.find(o => o.id === d.opt);
+        if (!opt || room.choices[p.id]) return reply(cb, { ok: false });
+        if (opt.needGold && h.gold < opt.needGold) return reply(cb, { ok: false, msg: `You need ${opt.needGold} gold.` });
+        const intent = { kind: 'event', action: 'event', event: room.event, opt: opt.id };
+        if (opt.quiz) {
+          if (p.pending && p.pending.intent.kind === 'event' && !p.pending.answered) return reply(cb, { ok: true, q: { ...p.pending.pub, intent: p.pending.intent } });
+          const pub = s.serveQuestion(p, intent);
+          return reply(cb, { ok: true, q: { ...pub, intent } });
         }
-        return reply(cb, { ok: false });
+        const result = s.resolveEventChoice(t, p, intent, true);
+        return ok({ result });
       }
       return reply(cb, { ok: false });
     }));
@@ -911,8 +1182,10 @@ function attach(io, banks) {
         else if (ty === 'treasure') s.openRoom(t, RUN.makeTreasureRoom(run, d.kind || 'treasure'));
         else if (ty === 'rest') s.openRoom(t, RUN.makeRestRoom(run));
         else if (ty === 'merchant') { Object.values(run.heroes).forEach(h => { h.gold = 200; }); s.openRoom(t, RUN.makeMerchantRoom(run)); }
-        else if (ty === 'shrine') s.openRoom(t, { type: 'event', event: 'shrine', results: {}, ready: {} });
-        else if (ty === 'victory' || ty === 'complete' || ty === 'defeat') s.openRoom(t, { type: ty, gold: 24, asc: 0, floor: 3, ready: {} });
+        else if (ty === 'shrine' || ty === 'event') { const r = RUN.makeEventRoom(run); if (d.event && C.EVENTS[d.event]) r.event = d.event; else if (ty === 'shrine') r.event = 'shrine'; run.ambushTier = 'normal1'; s.openRoom(t, r); }
+        else if (ty === 'raid') { s.startRaid(); return reply(cb, { ok: true }); }
+        else if (ty === 'forceqte' && run.combat) { const e = CB.aliveEnemies(run.combat)[0]; if (e) e.intent = { move: 'cataclysm', type: 'attackAll', dmg: 9, label: 'Cataclysm', qte: d.n || 1, warn: 'Quick-time!' }; }
+        else if (ty === 'victory' || ty === 'complete' || ty === 'defeat') s.openRoom(t, { type: ty, gold: 24, asc: 0, floor: 3, ready: {}, stats: {} });
         else if (ty === 'end') { s.end(); return reply(cb, { ok: true }); }
         else if (ty === 'bosshalf' && run.combat) { const bz = run.combat.enemies.find(e => e.tier === 'boss'); if (bz) bz.hp = Math.floor(bz.maxHp * 0.5); }
         else if (ty === 'hurt') { Object.values(run.heroes).forEach((h, i) => { h.hp = Math.max(1, Math.round(h.maxHp * (i ? 0.5 : 0.2))); }); }

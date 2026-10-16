@@ -25,6 +25,7 @@ function gainEnergy(hero, n, ev) {
 }
 function snapEnt(e) {
   const o = { hp: e.hp, maxHp: e.maxHp, block: e.block, st: JSON.parse(JSON.stringify(e.st)) };
+  if ('lv' in e) o.lv = e.lv;
   if ('energy' in e) o.energy = e.energy;
   if ('downed' in e) o.downed = e.downed; else o.dead = !!e.dead;
   return o;
@@ -38,6 +39,7 @@ function lowestHero(run, includeDowned) {
 // Damage from hero to enemy (or enemy to hero).
 function hitEnemy(src, e, base, opts = {}) {
   let d = base + (opts.noStr ? 0 : (src && src.st.str ? src.st.str.v : 0));
+  if (src && src.lv && src.lv.atk) d *= 1 + C.STAT_STEP.atk * src.lv.atk;
   if (src && src.st.weak) d *= 0.75;
   if (e.st.vuln) d *= 1.5;
   d = Math.max(0, Math.round(d));
@@ -55,6 +57,7 @@ function hitHero(e, h, base, opts = {}) {
   if (e && e.st && e.st.weak) d *= 0.75;
   if (opts.chilled) d *= 0.5;
   if (h.st.vuln) d *= 1.5;
+  if (h.lv && h.lv.def) d *= 1 - Math.min(C.STAT_STEP.defCutMax, C.STAT_STEP.defCut * h.lv.def);
   d = Math.max(0, Math.round(d));
   const blocked = Math.min(h.block, d);
   h.block -= blocked;
@@ -75,7 +78,7 @@ function healHero(src, h, amt) {
 }
 function blockHero(h, amt) {
   if (h.downed) return { id: h.id, block: 0 };
-  const v = Math.round(amt);
+  const v = Math.round(amt * (1 + C.STAT_STEP.defBlock * ((h.lv && h.lv.def) || 0)));
   h.block += v;
   return { id: h.id, block: v };
 }
@@ -95,7 +98,7 @@ function makeEnemy(c, kind, mult) {
 }
 
 function createCombat(run, encounterType) {
-  const size = Math.max(1, heroList(run).length);
+  const size = Math.max(1, run.activeCount || heroList(run).length);
   const partyMult = 0.25 + 0.1875 * size;
   const depth = run.depth || run.floor || 1;
   const floorMult = 1 + 0.08 * Math.max(0, depth - 1);
@@ -107,7 +110,32 @@ function createCombat(run, encounterType) {
   for (const h of heroList(run)) {
     h.block = 0; h.st = {}; h.acted = false; h.readyAction = null; h.focus = h.focus || 0;
     h.energy = C.ENERGY.start;
+    if (h.nextFight) {
+      h.energy = Math.min(C.ENERGY.max, h.energy + (h.nextFight.energy || 0));
+      h.focus = Math.min(3, h.focus + (h.nextFight.focus || 0));
+      h.nextFight = null;
+    }
+    h.free = false;
   }
+  return c;
+}
+
+// The raid boss: one shared health pool for every team. Each team fights its own copy
+// (own intents, block and statuses) whose hp reads and writes the shared pool.
+function createRaidCombat(run, raid, teamId) {
+  const mult = { hp: 1, dmg: 1 + 0.1 * (run.asc || 0) };
+  const c = { enemies: [], round: 0, phase: 'player', roundEndsAt: 0, phaseEndsAt: 0, nextId: 0, type: 'raid', mult, events: 0, raid: true };
+  const def = C.ENEMIES.voidmaw;
+  const e = { id: 'raid', kind: 'voidmaw', name: def.name, size: def.size, tier: 'raid', block: 0, st: {}, intent: null, mem: {}, dmgMult: mult.dmg };
+  Object.defineProperty(e, 'hp', { enumerable: true, get: () => raid.hp, set: v => {
+    const d = raid.hp - v;
+    if (d > 0) { raid.hp = Math.max(0, v); raid.dmg[teamId] = (raid.dmg[teamId] || 0) + Math.min(d, raid.hp + d); raid.hits.push({ teamId, d }); }
+    else raid.hp = Math.min(raid.maxHp, v);
+  } });
+  Object.defineProperty(e, 'maxHp', { enumerable: true, get: () => raid.maxHp });
+  Object.defineProperty(e, 'dead', { enumerable: true, get: () => raid.hp <= 0, set: () => {} });
+  c.enemies.push(e);
+  for (const h of heroList(run)) { h.block = 0; h.st = {}; h.acted = false; h.readyAction = null; h.energy = Math.max(h.energy || 0, C.ENERGY.start + 2); h.free = false; }
   return c;
 }
 
@@ -130,10 +158,20 @@ const AI = {
     const m = cycle[e.mem.i % 4]; e.mem.i++;
     if (m === 'bash') return { move: 'bash', type: 'attack', dmg: 10, label: 'Shield Bash' };
     if (m === 'fortify') return { move: 'fortify', type: 'block', block: 14, label: 'Fortify' };
-    if (m === 'charge') return { move: 'charge', type: 'charge', label: 'Winding up…', warn: 'Crushing Blow next round' };
-    return { move: 'crush', type: 'attack', dmg: 22, label: 'Crushing Blow', keepTarget: true };
+    if (m === 'charge') return { move: 'charge', type: 'charge', label: 'Winding up…', warn: 'Earthshatter next round: get ready to dodge!' };
+    return { move: 'crush', type: 'attackAll', dmg: 14, label: 'Earthshatter', qte: 1, warn: 'Quick-time: answer fast to dodge!' };
   },
   shard() { return { move: 'zap', type: 'attack', dmg: 4, label: 'Crystal Zap' }; },
+  voidmaw(e) {
+    const cycle = ['rend', 'wave', 'cascade', 'rend', 'gaze', 'cataclysm'];
+    if (e.mem.i == null) e.mem.i = ri(0, 5);
+    const m = cycle[e.mem.i++ % cycle.length];
+    if (m === 'rend') return { move: 'rend', type: 'attack', dmg: 12, label: 'Void Rend' };
+    if (m === 'wave') return { move: 'wave', type: 'attackAll', dmg: 7, label: 'Abyssal Wave' };
+    if (m === 'gaze') return { move: 'gaze', type: 'debuff', status: 'vuln', label: 'Dread Gaze (Vulnerable)' };
+    if (m === 'cascade') return { move: 'cascade', type: 'attackAll', dmg: 7, label: 'Doom Cascade', qte: 3, warn: 'Three quick-time strikes in a row!' };
+    return { move: 'cataclysm', type: 'attackAll', dmg: 17, label: 'Cataclysm', qte: 1, warn: 'Quick-time: answer fast to dodge!' };
+  },
   wyrm(e, c) {
     const m = e.mem;
     if (m.phase == null) { m.phase = 1; m.i = ri(0, 2); }
@@ -142,14 +180,14 @@ const AI = {
       const shardsAlive = aliveEnemies(c).filter(x => x.kind === 'shard').length;
       if (m.step === 'summon') { m.step = 'charge'; return { move: 'summon', type: 'summon', label: 'Crystal Roar', warn: 'Summons two Crystal Shards' }; }
       if (m.step === 'charge') { m.step = 'storm'; return { move: 'gather', type: 'charge', block: 10, label: 'Gathering power', warn: 'Shatterstorm next round. Break the crystals!' }; }
-      if (m.step === 'storm') { m.step = 'rest1'; return { move: 'storm', type: 'attackAll', dmg: 8, perShard: 6, label: 'Shatterstorm', shardsAlive }; }
+      if (m.step === 'storm') { m.step = 'rest1'; return { move: 'storm', type: 'attackAll', dmg: 8, perShard: 6, label: 'Shatterstorm', shardsAlive, qte: 1, warn: 'Quick-time: answer fast to dodge!' }; }
       if (m.step === 'rest1') { m.step = 'rest2'; return { move: 'bite', type: 'attack', dmg: 15, label: 'Crushing Bite' }; }
       m.step = 'summon';
       return { move: 'breath', type: 'attackAll', dmg: 7, label: 'Crystal Breath' };
     }
     const cycle = ['tail', 'breath', 'harden'];
     const mv = cycle[m.i++ % 3];
-    if (mv === 'tail') return { move: 'tail', type: 'attack', dmg: 13, label: 'Tail Sweep' };
+    if (mv === 'tail') return chance(0.5) ? { move: 'tailstorm', type: 'attackAll', dmg: 10, label: 'Tail Storm', qte: 1, warn: 'Quick-time: answer fast to dodge!' } : { move: 'tail', type: 'attack', dmg: 13, label: 'Tail Sweep' };
     if (mv === 'breath') return { move: 'breath', type: 'attackAll', dmg: 6, label: 'Crystal Breath' };
     return { move: 'harden', type: 'block', block: 16, label: 'Crystal Hide' };
   }
@@ -163,6 +201,7 @@ function planIntents(run) {
     const intent = { ...plan };
     if (intent.dmg) intent.dmg = Math.round(intent.dmg * e.dmgMult);
     if (intent.perShard) intent.perShard = Math.round(intent.perShard * e.dmgMult);
+    if (intent.qte && run.combat.raid && chance(0.3)) intent.qte = intent.qte === 1 ? 3 : intent.qte;
     if (intent.heal) intent.heal = Math.round(intent.heal * e.dmgMult);
     if ((intent.type === 'attack' || intent.type === 'debuff' || intent.type === 'charge' && e.kind === 'sentinel') && heroes.length) {
       if (intent.keepTarget && e.mem.chargeTarget && run.heroes[e.mem.chargeTarget] && !run.heroes[e.mem.chargeTarget].downed) intent.target = e.mem.chargeTarget;
@@ -305,6 +344,24 @@ function heroAction(run, hero, action, targetId, out) {
   return { ok: true };
 }
 
+// A wrong answer: the hero swings (or casts, or braces) and misses. Their turn is used up.
+function whiff(run, hero, action, targetId, out) {
+  const c = run.combat;
+  const ev = { kind: 'hero', actor: hero.id, act: action, whiff: true, targets: [], after: {}, dur: MS.small };
+  if (action === 'rise') { ev.name = 'Stumbled'; }
+  else if (action === 'defend') { ev.name = 'Fumbled'; ev.fx = 'defend'; }
+  else {
+    const enemies = aliveEnemies(c);
+    const e = (targetId && enemies.find(x => x.id === targetId)) || enemies.find(x => x.id === hero.lastTarget) || enemies[0];
+    ev.name = 'Miss!';
+    ev.fx = action === 'attack' ? ({ knight: 'slash', mage: 'proj_arcane', ranger: 'proj_arrow', cleric: 'smite' }[hero.cls]) : 'miss';
+    if (e) ev.targets.push({ id: e.id, miss: true });
+  }
+  hero.acted = true;
+  ev.after[hero.id] = snapEnt(hero);
+  out.push(ev);
+}
+
 // ---------------------------------------------------------------- enemy turn
 function enemyTurn(run) {
   const c = run.combat;
@@ -367,6 +424,23 @@ function enemyTurn(run) {
         dmg += it.perShard * shards.length;
         o.shards = shards.length;
       }
+      if (it.qte) {
+        // Quick-time strikes: each one is dodged by heroes who answered that prompt in time.
+        const res = c.qteRes || {};
+        o.qte = it.qte; o.wave = 0;
+        let cur = o;
+        for (let i = 0; i < it.qte; i++) {
+          if (i > 0) { snapAll(cur, ids); cur = ev({ kind: 'enemy', actor: e.id, act: it.move, type: it.type, name: it.label + ` (${i + 1}/${it.qte})`, targets: [], dur: MS.enemy, qte: it.qte, wave: i }); }
+          for (const h of heroesAlive()) {
+            if (res[h.id] && res[h.id][i]) { cur.targets.push({ id: h.id, dmg: 0, dodged: true }); ids.add(h.id); }
+            else { cur.targets.push(hitHero(e, h, dmg, { chilled })); ids.add(h.id); }
+          }
+        }
+        c.qteRes = null;
+        if (it.perShard) for (const sh of aliveEnemies(c).filter(x => x.kind === 'shard')) { sh.dead = true; sh.hp = 0; cur.targets.push({ id: sh.id, dmg: 0, killed: true, shatter: true }); ids.add(sh.id); }
+        snapAll(cur, ids);
+        continue;
+      }
       for (const h of heroesAlive()) { o.targets.push(hitHero(e, h, dmg, { chilled })); ids.add(h.id); }
       if (it.perShard) {
         for (const s of aliveEnemies(c).filter(x => x.kind === 'shard')) { s.dead = true; s.hp = 0; o.targets.push({ id: s.id, dmg: 0, killed: true, shatter: true }); ids.add(s.id); }
@@ -424,4 +498,4 @@ function publicIntent(it) {
   return o;
 }
 
-module.exports = { createCombat, beginRound, heroAction, enemyTurn, combatOutcome, publicEnemy, aliveHeroes, aliveEnemies, heroList, needsToAct, MS };
+module.exports = { createRaidCombat, whiff, createCombat, beginRound, heroAction, enemyTurn, combatOutcome, publicEnemy, aliveHeroes, aliveEnemies, heroList, needsToAct, MS };

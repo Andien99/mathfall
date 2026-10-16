@@ -66,7 +66,8 @@ const SFX = {
   victory: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, i === 3 ? 0.6 : 0.18, { type: 'triangle', vol: 0.16, delay: i * 0.12 })); },
   lose: () => { [392, 330, 262].forEach((f, i) => tone(f, 0.4, { type: 'triangle', vol: 0.12, delay: i * 0.22 })); },
   vote: () => { tone(660, 0.08, { type: 'sine', vol: 0.1 }); },
-  banner: () => { noise(0.5, { freq: 300, q: 0.5, vol: 0.15, type: 'lowpass', slide: 2 }); }
+  banner: () => { noise(0.5, { freq: 300, q: 0.5, vol: 0.15, type: 'lowpass', slide: 2 }); },
+  whoosh: () => { noise(0.22, { freq: 1200, q: 0.6, vol: 0.22, slide: 2.2 }); }
 };
 
 export function sfx(name) {

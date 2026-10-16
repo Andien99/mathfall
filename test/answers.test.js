@@ -4,6 +4,7 @@ const { mark } = require('../shared/answers.js');
 const cases = [
   // [student, expected, shouldBeCorrect]
   ['8x', '8x', true], ['8X', '8x', true], [' 8 x ', '8x', true],
+  ['9 + a', 'a + 9', true], ['a + 9', '9 + a', true], ['a+b+9', '9+a+b', true], ['a9', '9a', true], ['2(3+a)', '2(a+3)', true],
   ['6+8k', '8k+6', true], ['8k + 6', '8k+6', true], ['6 + 8k', '8k + 6', true],
   ['3k+5k', '8k', false], ['8k+8-2', '8k+6', false],
   ['ba', 'ab', true], ['4ba', '4ab', true], ['4 ab', '4ab', true],

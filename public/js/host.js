@@ -12,7 +12,8 @@ let bank = { sets: [], topics: [] };
 let bankCache = {};
 let mySets = store.get('mf_sets', []);
 let sel = store.get('mf_sel', { bankIds: ['year-7-algebra-core-skills'], setIds: [], gens: [], format: 'mix' });
-let settings = store.get('mf_settings', { length: 'quick', timer: 60, adaptive: true, hints: true, sound: true, teamSize: 4, lateJoin: true, timeLimit: 0, wrongPause: 1.5 });
+let settings = store.get('mf_settings', { length: 'quick', timer: 60, adaptive: true, hints: true, sound: true, teamSize: 4, lateJoin: true, timeLimit: 30, wrongPause: 1.5, raid: true, raidMinutes: 8 });
+if (settings.raid == null) { settings.raid = true; settings.raidMinutes = 8; if (!settings.timeLimit) settings.timeLimit = 30; }
 let session = null;     // { code, hostToken }
 let hs = null;          // latest host state
 let view = 'setup';
@@ -140,7 +141,9 @@ function renderSettings() {
     S('Adaptive support', 'After two wrong in a row, a student gets supported questions until they get two right.', seg([true, false], ['On', 'Off'], settings.adaptive, v => set('adaptive', v === true || v === 'true'))),
     S('Hints', 'Students can open a hint before answering.', seg([true, false], ['On', 'Off'], settings.hints, v => set('hints', v === true || v === 'true'))),
     S('Pause after a wrong answer', 'Time to read the worked answer before the next question.', seg([0, 1.5, 3, 5], ['None', '1.5s', '3s', '5s'], settings.wrongPause, v => set('wrongPause', +v))),
-    S('Game length', 'The game ends for everyone when time is up.', seg([0, 15, 20, 30, 45, 60], ['No limit', '15m', '20m', '30m', '45m', '60m'], settings.timeLimit, v => set('timeLimit', +v))),
+    S('Time until the raid', 'When this runs out, every team is pulled into the raid boss fight together. The goal: be as strong as possible by then.', seg([0, 15, 20, 30, 45, 60], ['No timer', '15m', '20m', '30m', '45m', '60m'], settings.timeLimit, v => set('timeLimit', +v))),
+    S('Raid boss', 'Off: the game simply ends when time is up.', seg([true, false], ['On', 'Off'], settings.raid !== false, v => set('raid', v === true || v === 'true'))),
+    S('Raid length', 'How long teams have to beat the raid boss.', seg([5, 8, 10, 12], ['5m', '8m', '10m', '12m'], settings.raidMinutes || 8, v => set('raidMinutes', +v))),
     S('Sound on student devices', null, seg([true, false], ['On', 'Off'], settings.sound, v => set('sound', v === true || v === 'true'))),
     S('Late joining', null, seg([true, false], ['Allowed', 'Locked once started'], settings.lateJoin, v => set('lateJoin', v === true || v === 'true'))));
 }
@@ -232,6 +235,8 @@ $('#startBtn').addEventListener('click', () => socket.emit('host:start', {}, r =
 const NODE_LABEL = { enemy: 'Fighting monsters', elite: 'Fighting an elite', boss: 'Fighting the boss', treasure: 'Opening treasure', rest: 'At the campfire', merchant: 'At the merchant', unknown: 'Exploring' };
 function renderLive() {
   $('#liveCode').textContent = hs.code;
+  renderTower();
+  $('#raidBtn').style.display = hs.raid || hs.settings.raid === false ? 'none' : '';
   $('#pauseBtn').textContent = hs.paused ? 'Resume' : 'Pause all';
   const grid = $('#liveTeams'); clear(grid);
   const byId = Object.fromEntries(hs.players.map(p => [p.id, p]));
@@ -243,7 +248,7 @@ function renderLive() {
     if (t.rows) { const pr = h('div', { class: 'progress' }); for (let i = 1; i <= t.rows; i++) pr.append(h('i', { class: i < t.floor ? 'done' : i === t.floor ? 'now' : '' })); card.append(pr); }
     let room = 'Choosing a path', sub = '';
     if (t.phase === 'combat' && t.combat) { room = NODE_LABEL[t.node] || 'Fighting'; sub = `Round ${t.combat.round} · ` + t.combat.enemies.map(e => `${e.name} ${e.hp}/${e.maxHp}`).join(', '); }
-    else if (t.phase === 'room') room = { victory: 'Celebrating a victory', defeat: 'Party fell, restarting', complete: 'Beat the boss!', treasure: 'Opening treasure', rest: 'At the campfire', merchant: 'At the merchant', event: 'At a shrine' }[t.room] || 'Exploring';
+    else if (t.phase === 'room') room = ROOM_LABEL[t.room] || 'Exploring';
     card.append(h('div', { class: 'lroom' }, room, sub ? h('div', { class: 'sub' }, sub) : null));
     if (t.heroes) card.append(h('div', { class: 'lheroes' }, ...t.heroes.map(x => h('div', { class: 'lh' + (x.downed ? ' ko' : '') }, h('img', { src: SP.portraitURL(x.cls, 0, x.downed ? 'closed' : 'open', 2), alt: '' }), h('div', null, x.name, h('div', { class: 'bar' }, h('i', { style: { width: Math.round(100 * x.hp / x.maxHp) + '%' } }))), h('span', { class: 'lstats' }, `${x.hp}/${x.maxHp}`)))));
     card.append(h('div', { class: 'lstats' }, acc[1] ? `Team accuracy ${Math.round(100 * acc[0] / acc[1])}% · ${acc[1]} answered` : 'No answers yet'));
@@ -273,7 +278,7 @@ function renderLiveTable() {
 setInterval(() => {
   if (!hs || hs.state !== 'playing') return;
   const clock = $('#liveClock');
-  if (hs.endsAt) clock.textContent = (hs.paused ? 'Paused · ' : '') + fmtTime(hs.endsAt - hs.now - (hs.paused ? 0 : Date.now() - lastStateAt)) + ' left';
+  if (hs.endsAt) clock.textContent = (hs.paused ? 'Paused · ' : '') + fmtTime(hs.endsAt - hs.now - (hs.paused ? 0 : Date.now() - lastStateAt)) + (hs.raid ? ' left in the raid' : hs.settings.raid !== false ? ' until the raid' : ' left');
   else clock.textContent = hs.paused ? 'Paused' : '';
 }, 500);
 let lastStateAt = Date.now();
@@ -281,6 +286,51 @@ socket.on('host:state', () => { lastStateAt = Date.now(); });
 $('#pauseBtn').addEventListener('click', () => socket.emit('host:pause', { paused: !hs.paused }));
 $('#addTimeBtn').addEventListener('click', () => socket.emit('host:time', { minutes: 5 }, () => toast('Added 5 minutes')));
 $('#endBtn').addEventListener('click', () => { if (confirm('End the game for everyone and show results?')) socket.emit('host:end', {}); });
+
+// ------------------------------------------------------------------ tower map: where every team is, live
+const ROOM_LABEL = { victory: 'Choosing an upgrade', defeat: 'Fell, restarting', complete: 'Beat the boss!', treasure: 'Opening treasure', rest: 'At the campfire', merchant: 'At the merchant', event: 'At a mystery room', raidEnd: 'Raid over' };
+function teamStatus(t) {
+  if (t.phase === 'combat' && t.combat) return t.combat.type === 'raid' ? 'Raiding' : t.combat.type === 'boss' ? 'Boss fight!' : t.combat.type === 'elite' ? 'Elite fight' : 'Fighting';
+  if (t.phase === 'room') return ROOM_LABEL[t.room] || 'Exploring';
+  if (t.phase === 'map') return 'Choosing a path';
+  return '';
+}
+function renderTower() {
+  const box = $('#towerMap'); clear(box);
+  const teams = hs.teams.filter(t => t.rows);
+  if (hs.raid) {
+    const r = hs.raid;
+    const pct = Math.max(0, 100 * r.hp / r.maxHp);
+    const max = Math.max(1, ...hs.teams.map(t => r.dmg[t.id] || 0));
+    box.append(h('div', { class: 'raid-view' },
+      h('div', { class: 'raid-title' }, h('b', null, 'VOIDMAW'), h('span', null, r.over ? (r.won ? 'Defeated!' : 'Survived') : 'Heart of the Tower · all teams fighting')),
+      h('div', { class: 'raid-hp' }, h('i', { style: { width: pct + '%' } }), h('span', null, `${r.hp} / ${r.maxHp}`)),
+      h('div', { class: 'raid-teams' }, ...hs.teams.slice().sort((a, b) => (r.dmg[b.id] || 0) - (r.dmg[a.id] || 0)).map(t => h('button', { class: 'rteam', style: { '--tc': t.color }, onclick: () => openWatch(t), title: 'Show this team on screen' },
+        h('span', { class: 'nm' }, t.name), h('div', { class: 'bar' }, h('i', { style: { width: (100 * (r.dmg[t.id] || 0) / max) + '%' } })), h('b', null, Math.round(r.dmg[t.id] || 0)), h('span', { class: 'mini' }, ...(t.heroCls || []).map(x => h('img', { class: x.downed ? 'ko' : '', src: SP.portraitURL(x.cls, x.variant, x.downed ? 'closed' : 'open', 1), alt: '' }))))))));
+    return;
+  }
+  box.append(h('div', { class: 'card-h' }, h('h2', null, 'The tower'), h('p', null, 'Every team, live. Click a team to show it on your screen.')));
+  if (!teams.length) { box.append(h('p', { class: 'tip' }, 'Teams appear here once the game starts.')); return; }
+  const rows = Math.max(...teams.map(t => t.rows));            // floors + the boss
+  const tower = h('div', { class: 'tower' });
+  for (let f = rows; f >= 1; f--) {
+    const here = teams.filter(t => Math.max(1, t.floor || 1) === f || (f === 1 && !t.floor));
+    const label = f === rows ? 'Boss' : 'Floor ' + f;
+    const row = h('div', { class: 'tfloor' + (f === rows ? ' boss' : '') }, h('span', { class: 'fl' }, label));
+    if (f === rows) row.append(h('img', { class: 'boss-pic', src: SP.enemyPortraitURL('wyrm', 1), alt: '' }));
+    const lane = h('div', { class: 'lane' });
+    for (const t of here) {
+      lane.append(h('button', { class: 'ttoken' + (t.phase === 'combat' ? ' fighting' : ''), style: { '--tc': t.color }, onclick: () => openWatch(t), title: 'Show Team ' + t.name + ' on screen' },
+        h('span', { class: 'flag' }), h('b', null, t.name), t.asc ? h('span', { class: 'asc' }, 'A' + t.asc) : null,
+        h('span', { class: 'mini' }, ...(t.heroCls || []).map(x => h('img', { class: x.downed ? 'ko' : '', src: SP.portraitURL(x.cls, x.variant, x.downed ? 'closed' : 'open', 1), alt: '' }))),
+        h('span', { class: 'st' }, teamStatus(t))));
+    }
+    row.append(lane);
+    tower.append(row);
+  }
+  box.append(tower);
+}
+$('#raidBtn').addEventListener('click', () => { if (confirm('Start the raid now? Every team stops where they are and fights the raid boss together.')) socket.emit('host:raid', {}, r => { if (!r.ok) toast(r.msg || 'Could not start the raid.'); }); });
 
 // ------------------------------------------------------------------ spectate
 let watchScene = null, watchTeam = null;
@@ -300,12 +350,13 @@ function onWatch(st) {
   watchScene.last = st;
   const run = st.run;
   const node = run.map.nodes.find(n => n.id === run.map.pos);
-  watchScene.setTheme(node && node.type === 'boss' ? 'lair' : node && node.row >= Math.ceil((run.rows - 1) / 2) ? 'crypt' : 'halls');
+  watchScene.setTheme(run.raidMode || (node && node.type === 'boss') ? 'lair' : node && node.row >= Math.ceil((run.rows - 1) / 2) ? 'crypt' : 'halls');
+  watchScene.raid = run.raidMode ? st.raid : null;
   watchScene.mode = run.phase === 'combat' ? 'battle' : 'room';
   if (st.events && st.events.length) watchScene.play(st.events);
   watchScene.sync(run, { spawnFx: true });
   watchScene.setRoom(run.phase === 'room' ? run.room : null);
-  $('#watchInfo').textContent = run.phase === 'combat' && run.combat ? `Floor ${run.floor} · Round ${run.combat.round}` : run.phase === 'map' ? 'Choosing a path' : 'Floor ' + run.floor;
+  $('#watchInfo').textContent = run.raidMode ? (st.raid ? `Raid · Voidmaw ${st.raid.hp}/${st.raid.maxHp}` : 'Raid') : run.phase === 'combat' && run.combat ? `Floor ${run.floor} · Round ${run.combat.round}` : run.phase === 'map' ? 'Choosing a path' : 'Floor ' + run.floor;
 }
 $('#watchClose').addEventListener('click', () => { $('#watch').classList.remove('show'); socket.emit('host:watch', { teamId: null }); watchTeam = null; });
 
@@ -324,13 +375,15 @@ function renderResults() {
       const weak = Object.entries(p.bySkill).filter(([, v]) => v.a >= 2).sort((a, b) => a[1].c / a[1].a - b[1].c / b[1].a)[0];
       return h('tr', null, h('td', null, p.modified ? h('span', { class: 'dot on', style: { display: 'inline-block', marginRight: '6px', width: '10px', height: '10px' } }) : null, p.name), h('td', null, p.team), h('td', { class: 'num' }, p.answered), h('td', { class: 'num' }, h('span', { class: 'pct ' + (p.pct < 50 ? 'lo' : p.pct < 75 ? 'mid' : 'hi') }, p.answered ? p.pct + '%' : '–')), h('td', { class: 'num' }, p.best), h('td', { class: 'num' }, p.avgSec ? p.avgSec + 's' : '–'), h('td', null, weak ? `${weak[0]} (${Math.round(100 * weak[1].c / weak[1].a)}%)` : ''));
     })));
-  box.append(head, h('div', { class: 'res-grid' }, stand, sk), h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Students')), tbl), hard);
+  const raidCard = r.raid ? h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, r.raid.won ? 'Raid: Voidmaw defeated' : `Raid: Voidmaw survived (${r.raid.hp}/${r.raid.maxHp} HP left)`)),
+    ...r.raid.teams.map(t => h('div', { class: 'skillrow' }, h('span', { style: { color: t.color, fontWeight: 800 } }, t.name), h('div', { class: 'bar' }, h('i', { style: { width: (100 * t.dmg / Math.max(1, r.raid.teams[0].dmg)) + '%', background: t.color } })), h('b', null, t.dmg)))) : null;
+  box.append(head, raidCard, h('div', { class: 'res-grid' }, stand, sk), h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Students')), tbl), hard);
 }
 function toCSV(r) {
   const q = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
   const skills = Object.keys(r.skills);
-  const lines = [['Student', 'Team', 'Hero', 'Question list', 'Answered', 'Correct', 'Percent', 'Best streak', 'Avg seconds', 'Damage', 'Healing', ...skills.map(s => s + ' %')].map(q).join(',')];
-  for (const p of r.players) lines.push([p.name, p.team, p.cls ? C.HEROES[p.cls].name : '', p.modified ? 'Supported' : (p.supportAnswered ? 'Main + adaptive support' : 'Main'), p.answered, p.correct, p.pct, p.best, p.avgSec, p.dmg, p.heal, ...skills.map(s => p.bySkill[s] ? Math.round(100 * p.bySkill[s].c / p.bySkill[s].a) : '')].map(q).join(','));
+  const lines = [['Student', 'Team', 'Hero', 'Question list', 'Answered', 'Correct', 'Percent', 'Best streak', 'Avg seconds', 'Damage', 'Healing', 'Raid damage', 'Quick-times', ...skills.map(s => s + ' %')].map(q).join(',')];
+  for (const p of r.players) lines.push([p.name, p.team, p.cls ? C.HEROES[p.cls].name : '', p.modified ? 'Supported' : (p.supportAnswered ? 'Main + adaptive support' : 'Main'), p.answered, p.correct, p.pct, p.best, p.avgSec, p.dmg, p.heal, p.raidDmg || 0, p.qte ? `${p.qte.c}/${p.qte.a}` : '', ...skills.map(s => p.bySkill[s] ? Math.round(100 * p.bySkill[s].c / p.bySkill[s].a) : '')].map(q).join(','));
   lines.push('');
   lines.push(['Skill', 'Answered', 'Class percent'].map(q).join(','));
   for (const [k, v] of Object.entries(r.skills)) lines.push([k, v.a, Math.round(100 * v.c / v.a)].map(q).join(','));

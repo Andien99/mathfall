@@ -128,8 +128,9 @@ export class QuestionPanel {
       sfx('correct');
       this.el.classList.add('correct');
       const card = this.el.querySelector('.qcard');
-      card.appendChild(h('div', { class: 'qcorrect' }, h('div', { class: 'big' }, this.meta.yes || 'Correct!'), res.note ? h('div', { class: 'note' }, res.note) : null, res.streak >= 3 ? h('div', { class: 'streak' }, `${res.streak} in a row`) : null));
-      setTimeout(() => this.close(true), res.note ? 1300 : 420);
+      const note = res.result || res.note || (res.free ? 'Your next Attack or Defend is free!' : null);
+      card.appendChild(h('div', { class: 'qcorrect' }, h('div', { class: 'big' }, this.meta.yes || 'Correct!'), note ? h('div', { class: 'note' + (res.free ? ' free' : '') }, note) : null, res.streak >= 3 ? h('div', { class: 'streak' }, `${res.streak} in a row`) : null));
+      setTimeout(() => this.close(true), res.result ? 1600 : note ? 1100 : 420);
       return;
     }
     this.mode = 'feedback';
@@ -140,18 +141,20 @@ export class QuestionPanel {
     clear(body);
     const text = h('div', { class: 'qtext small' }); setMath(text, this.q.text);
     const fb = h('div', { class: 'qfeedback' },
+      res.missed ? h('div', { class: 'fbmiss' }, 'Missed! Your turn is used up.') : null,
+      res.result ? h('div', { class: 'fbmiss' }, res.result) : null,
       h('div', { class: 'fbt' }, pickEncourage()),
       h('div', { class: 'fbans', html: 'The answer is ' + mathHTML(asMath(res.correctText)) }));
     if (res.solution) fb.appendChild(h('div', { class: 'fbsol', html: mathHTML(res.solution) }));
     else if (res.tip) fb.appendChild(h('div', { class: 'fbsol tip', html: mathHTML(res.tip) }));
-    const again = h('button', { class: 'qgo again', disabled: true }, this.meta.retry || 'Try another question');
-    const wait = Math.max(0, (res.wait || 0) * 1000);
+    const again = h('button', { class: 'qgo again', disabled: true }, res.closeOnly ? 'Close' : (this.meta.retry || 'Try another question'));
+    const wait = res.closeOnly ? 1000 : Math.max(0, (res.wait || 0) * 1000);
     let left = Math.ceil(wait / 1000);
     const lab = again.textContent;
     if (wait > 0) { again.textContent = `${lab} (${left})`; const iv = setInterval(() => { left--; if (left <= 0) { clearInterval(iv); again.disabled = false; again.textContent = lab; again.focus(); } else again.textContent = `${lab} (${left})`; }, 1000); }
     else { again.disabled = false; setTimeout(() => again.focus(), 30); }
-    again.addEventListener('click', () => { if (!again.disabled) this.hd.onNext(); });
-    body.append(text, fb, h('div', { class: 'fbrow' }, again, this.meta.noSwitch ? null : h('button', { class: 'linkbtn', onclick: () => { this.hd.onDrop && this.hd.onDrop(); this.close(); } }, 'Choose a different action')));
+    again.addEventListener('click', () => { if (again.disabled) return; if (res.closeOnly) this.close(); else this.hd.onNext(); });
+    body.append(text, fb, h('div', { class: 'fbrow' }, again, this.meta.noSwitch || res.closeOnly ? null : h('button', { class: 'linkbtn', onclick: () => { this.hd.onDrop && this.hd.onDrop(); this.close(); } }, 'Choose a different action')));
   }
   flashMsg(msg) {
     let m = this.el.querySelector('.qmsg');

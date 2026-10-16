@@ -659,8 +659,11 @@ const ENEMY_DEF = {
     idle0: {}, idle1: { breathe: 1, tail: 0.5 }, idle2: { breathe: 2, tail: 1, headDy: 1 }, idle3: { breathe: 1, tail: 0.5 },
     windup: { headDx: 8, headDy: -6, jaw: 2, legs: 4, rage: 1 }, attack: { headDx: -10, headDy: 4, jaw: 9, legs: -6, rage: 1 },
     roar: { headDx: 2, headDy: -8, jaw: 11, rage: 1, breathe: 2 }, hurt: { headDx: 6, headDy: -3, jaw: 4, dx: 3 }, tail: { tail: 2.2, headDx: 4, legs: 6 } } },
+  // The raid boss: Gravemaw's shape steeped in void light until it gets art of its own.
+  voidmaw: { w: 168, h: 120, ax: 76, ay: 116, draw: (ps) => { const S = drawWyrm(ps); S.tint('#5b2aa8', 0.48); return S; }, poses: null },
   shard: { w: 30, h: 40, ax: 15, ay: 38, draw: drawShard, poses: { idle0: { dy: 0 }, idle1: { dy: -1 }, idle2: { dy: -2 }, idle3: { dy: -1 }, windup: { dy: -3 }, attack: { dy: 1 }, hurt: { hurt: 1 } } }
 };
+ENEMY_DEF.voidmaw.poses = ENEMY_DEF.wyrm.poses;
 export function enemyInfo(kind) { const d = ENEMY_DEF[kind] || ENEMY_DEF.slime; return { w: d.w, h: d.h, ax: d.ax, ay: d.ay }; }
 
 // ------------------------------------------------------------------ chests
@@ -745,6 +748,8 @@ function cached(key, make) { if (!cache.has(key)) cache.set(key, make()); return
 // "portrait": [x, y, w, h] picks the face out of the idle0 frame for HUD portraits.
 // The knight ships this way: public/art/knight.png is built by tools/build_knight.py.
 const artPortrait = {};
+const artPoses = new Set();
+export function hasPose(cls, pose) { return artPoses.has(cls + ':' + pose); }
 async function loadArtOverrides() {
   let man;
   try { const r = await fetch('/art/manifest.json', { cache: 'no-cache' }); if (!r.ok) return 0; man = await r.json(); } catch (e) { return 0; }
@@ -759,7 +764,7 @@ async function loadArtOverrides() {
     for (let v = 0; v < 3; v++) for (const [pose, [c, r]] of Object.entries(d.poses || {})) {
       const row = r + (d.variants > 1 ? (v % d.variants) * (d.variantRows || 1) : 0);
       const fr = crop(im, fw, fh, c, row);
-      cache.set(`h:${cls}:${v}:${pose}`, fr); cache.set(`hw:${cls}:${v}:${pose}`, white(fr)); n++;
+      cache.set(`h:${cls}:${v}:${pose}`, fr); cache.set(`hw:${cls}:${v}:${pose}`, white(fr)); n++; artPoses.add(cls + ':' + pose);
     }
   }
   for (const [kind, d] of Object.entries(man.enemies || {})) {

@@ -270,6 +270,30 @@ export class BattleScene {
       sfx(ev.fx === 'burn' ? 'burn' : 'poison');
       return T(ev.dur || 500);
     }
+    if (ev.kind === 'qte') {
+      const E = this.actors.get(ev.actor);
+      this.onBanner('Quick time! ' + (ev.total > 1 ? ev.total + ' strikes incoming' : ev.name), 'warn');
+      if (E) { this.pose(E, 'windup', 1600); this.glows.push({ x: E.x, y: E.y - 30, r: 90, color: '#ff4a2a', t: 0, life: 1.4, a: 0.6 }); }
+      this.shake = 3; this.shakeT = now(); sfx('charge');
+      return T(300);
+    }
+    if (ev.kind === 'qteResult') {
+      for (const [id, ok] of Object.entries(ev.results || {})) {
+        const p = this.pos(id); if (!p || (p.a && p.a.downed)) continue;
+        this.number(p.x, p.y - 58, ok ? 'Ready!' : 'Too slow', ok ? '#9fffe0' : '#ff9a8a', 0.8);
+      }
+      return 0;
+    }
+    if (ev.kind === 'raidhit') {
+      const boss = [...this.actors.values()].find(a => a.type === 'enemy' && a.size === 'xl' && !a.gone);
+      if (boss) {
+        const jx = (Math.random() - 0.5) * 50, jy = -30 - Math.random() * 40;
+        this.arc(boss.x + jx, boss.y + jy, 12, ev.color || '#fff');
+        this.number(boss.x + jx, boss.y + jy - 8, '-' + ev.dmg, ev.color || '#ddd', 0.7);
+      }
+      return 0;
+    }
+    if (ev.kind === 'hero' && ev.whiff) return this._whiffAnim(ev, T);
     if (ev.kind === 'hero') return this._heroAnim(ev, T);
     if (ev.kind === 'enemy') return this._enemyAnim(ev, T);
     this._applyAfter(ev);
@@ -401,6 +425,32 @@ export class BattleScene {
     this._applyAfter(ev);
   }
 
+  _whiffAnim(ev, T) {
+    const A = this.actors.get(ev.actor); if (!A) { this._applyAfter(ev); return 0; }
+    const tg = ev.targets[0] && this.actors.get(ev.targets[0].id);
+    if (ev.act === 'rise') {
+      this.pose(A, 'hurt', T(500)); this.number(A.x, A.y - 46, 'Stumbled', '#c8b8e8', 0.9); sfx('wrong');
+      this._applyAfter(ev); return T(700);
+    }
+    if (ev.act === 'defend') {
+      this.pose(A, 'hurt', T(400)); this.number(A.x, A.y - 46, 'Fumbled!', '#c8b8e8', 0.95); sfx('wrong');
+      this._applyAfter(ev); return T(700);
+    }
+    this.pose(A, 'windup', T(180));
+    if (tg) setTimeout(() => { this.move(A, (tg.x - A.x) * 0.35, (tg.y - A.y) * 0.3, T(160), true); }, T(160));
+    setTimeout(() => {
+      this.pose(A, 'swing2', T(260));
+      this.arc(A.x - 22, A.y - 22, 14, '#c8c0e0', true);
+      const p = tg ? { x: tg.x, y: tg.y } : { x: A.x - 40, y: A.y };
+      this.number(p.x, p.y - 46, 'MISS', '#d8d0f0', 1.2, true);
+      for (let i = 0; i < 6; i++) this.particles.push({ x: A.x - 20, y: A.y - 20, vx: -10 - Math.random() * 20, vy: -6 - Math.random() * 10, g: 30, life: 0.4, t: 0, c: '#b8b0d0' });
+      sfx('whoosh');
+    }, T(340));
+    setTimeout(() => this.move(A, 0, 0, T(220), true), T(620));
+    setTimeout(() => this._applyAfter(ev), T(500));
+    return T(900);
+  }
+
   _enemyAnim(ev, T) {
     const E = this.actors.get(ev.actor); if (!E) { this._applyAfter(ev); return 0; }
     if (ev.act === 'frozen') {
@@ -438,8 +488,9 @@ export class BattleScene {
       return T(Math.max(ev.dur || 1100, 900 + (hits.length - 1) * 200));
     }
     if (type === 'attackAll') {
-      this.pose(E, E.kind === 'wyrm' ? 'roar' : 'windup', T(500));
-      sfx(E.kind === 'wyrm' ? 'roar' : 'enemyWind');
+      const big = E.kind === 'wyrm' || E.kind === 'voidmaw';
+      this.pose(E, big ? 'roar' : 'windup', T(500));
+      sfx(big ? 'roar' : 'enemyWind');
       this.glows.push({ x: E.x, y: E.y - 30, r: 80, color: ev.shards ? '#ff7a3a' : '#ffc24a', t: 0, life: 0.8, a: 0.55 });
       setTimeout(() => {
         this.pose(E, 'attack', T(400));
@@ -452,6 +503,7 @@ export class BattleScene {
         for (const h of ev.targets) {
           const p = this.pos(h.id); if (!p) continue;
           if (h.shatter) { this.burst(p.x, p.y - 10, '#ffc24a', 40, 44); continue; }
+          if (h.dodged) { this.move(p.a, 10, -10, T(120), true); setTimeout(() => this.move(p.a, 0, 0, T(200), true), T(180)); this.number(p.x, p.y - 46, 'Dodged!', '#9fffe0', 1.1, true); this.arc(p.x - 12, p.y - 18, 12, '#9fffe0'); continue; }
           this.burst(p.x, p.y - 18, '#ffc24a', 16, 28);
           if (h.blocked) this.shield(p.x, p.y, '#7fc8ff');
           if (h.dmg > 0) { this.flashActor(p.a); this.pose(p.a, 'hurt', 320); this.knock(p.a, 4); this.number(p.x, p.y - 42, h.dmg, '#ff7a6a', 1.2, true); }
@@ -617,6 +669,26 @@ export class BattleScene {
     }
     // room props
     for (const p of this.props) this.drawProp(n, p, time);
+    // raid: the other teams fight in the background
+    if (this.raid && this.raid.allies && this.raid.allies.length) {
+      const al = this.raid.allies;
+      const ft = this.floorTop;
+      const cols = Math.min(8, al.length);
+      n.save();
+      al.forEach((h, i) => {
+        const row = Math.floor(i / cols), col = i % cols;
+        const x = Math.round(this.stage.x + this.stage.w * (0.5 + 0.44 * (cols === 1 ? 0.5 : col / (cols - 1))) + (row % 2) * 9);
+        const y = Math.round(ft + 4 + row * 10);
+        const ph = (time * 1000 + i * 977) % 3200;
+        const pose = h.downed ? 'down' : ph < 260 ? 'windup' : ph < 520 ? 'swing1' : 'idle' + Math.floor((time * 4 + i) % 4);
+        const fr = SP.heroFrame(h.cls, h.variant, pose);
+        n.globalAlpha = 0.32;
+        n.drawImage(fr, x - SP.ANCHOR_X, y - SP.ANCHOR_Y);
+        n.globalAlpha = 0.5; n.fillStyle = h.color; n.fillRect(x - 3, y + 1, 6, 1);
+      });
+      n.restore();
+      n.globalAlpha = 1;
+    }
     // actors sorted by depth
     const list = [...this.actors.values()].filter(a => !a.gone).sort((a, b) => (a.y + (a.type === 'enemy' ? -0.5 : 0)) - (b.y));
     for (const a of list) {

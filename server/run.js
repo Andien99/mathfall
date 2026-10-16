@@ -116,10 +116,13 @@ function makeMerchantRoom(run) {
 function makeRestRoom() { return { type: 'rest', choices: {}, ready: {} }; }
 
 function makeEventRoom(run) {
-  const r = Math.random();
-  if (r < 0.4) return { type: 'event', event: 'ambush' };
-  if (r < 0.7) return { type: 'event', event: 'shrine', results: {}, ready: {} };
-  return { ...makeTreasureRoom(run, 'cache'), event: 'cache' };
+  // One of the ten "?" events, avoiding repeats within a run where possible.
+  const all = Object.keys(C.EVENTS);
+  const seen = run.seenEvents || (run.seenEvents = []);
+  let pool = all.filter(id => !seen.includes(id));
+  if (!pool.length) { seen.length = 0; pool = all; }
+  const id = pick(pool); seen.push(id);
+  return { type: 'event', event: id, choices: {}, results: {}, correct: {}, ready: {} };
 }
 
 module.exports = { FLOORS, generateMap, makeTreasureRoom, makeMerchantRoom, makeRestRoom, makeEventRoom, skillOffer, ri, pick, shuffle };

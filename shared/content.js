@@ -128,6 +128,7 @@
     hexer:    { name: 'Goblin Hexer', hp: 20, size: 's', kind: 'normal' },
     sentinel: { name: 'Ironbound Sentinel', hp: 84, size: 'l', kind: 'elite' },
     wyrm:     { name: 'Gravemaw', title: 'the Crystal Wyrm', hp: 230, size: 'xl', kind: 'boss' },
+    voidmaw:  { name: 'Voidmaw', title: 'Heart of the Tower', hp: 80, size: 'xl', kind: 'raid' },
     shard:    { name: 'Crystal Shard', hp: 16, size: 's', kind: 'minion' }
   };
 
@@ -142,6 +143,121 @@
     taunt:  { name: 'Taunting', color: '#ffd36b', desc: 'Enemies must target this hero.' }
   };
 
+
+  // After every won fight each hero picks one permanent upgrade (kept until the run is lost).
+  const STATS = {
+    atk: { name: 'Attack', icon: 'sword_heavy', color: '#ff9a6a', desc: '+15% damage from attacks and skills.' },
+    def: { name: 'Defence', icon: 'shield_wall', color: '#7fc8ff', desc: '+15% block gained and 6% less damage taken.' },
+    hp:  { name: 'Health', icon: 'heart', color: '#7ee08a', desc: '+6 max HP, and heal 6 now.' }
+  };
+  const STAT_STEP = { atk: 0.15, defBlock: 0.15, defCut: 0.06, defCutMax: 0.36, hp: 6 };
+
+  // Campfire choices.
+  const CAMP = {
+    rest:     { name: 'Rest', icon: 'heal', color: '#6fbf73', desc: 'Heal 35% of your max HP.' },
+    train:    { name: 'Train', icon: 'sword_heavy', color: '#e0635a', desc: 'Upgrade one skill (+35% power).' },
+    meditate: { name: 'Meditate', icon: 'focus', color: '#8a7fe0', desc: 'Start the next fight with full energy and Focus ✦.' }
+  };
+
+  // "?" rooms. Text markup: [red]…[/] [gold]…[/] [green]…[/] [blue]…[/] [purple]…[/].
+  // art: an image in /art/events/, or "scene:<name>" for one drawn by the game.
+  // quiz: the option asks a question; the outcome depends on the answer.
+  const EVENTS = {
+    nest: {
+      title: "Wyvern's Nest", art: 'nest.png',
+      text: 'You spot an enormous [red]Crag Wyvern[/] chase off a smaller one.\nIn the nest it left behind, a [gold]single speckled egg[/] lies unguarded.\nYour stomach rumbles…',
+      options: [
+        { id: 'eat', label: 'Eat the Egg', desc: 'Gain [green]6 Max HP[/].' },
+        { id: 'sell', label: 'Sell the Egg', desc: 'Gain [gold]45 gold[/].' }
+      ]
+    },
+    vines: {
+      title: 'Strangling Vines', art: 'vines.png',
+      text: 'Having taken the wrong stair for a good while, you are lost in a tangle of [green]ferns[/] and [green]vines[/]. Especially vines.\nSomething with [red]red eyes[/] watches from the leaves.\n[purple]"Turn back, little climber…"[/]',
+      options: [
+        { id: 'hack', label: 'Hack Through', desc: 'Lose [red]8 HP[/]. Start the next fight with [gold]+4 energy[/].' },
+        { id: 'around', label: 'Find Another Way', desc: 'Lose [gold]15 gold[/].', safe: true }
+      ]
+    },
+    shrine: {
+      title: 'Shrine of Numbers', art: 'scene:shrine',
+      text: 'A cracked altar hums with [gold]golden numerals[/] that drift like fireflies.\nA voice asks for a single correct answer.',
+      options: [
+        { id: 'pray', label: 'Pray', desc: 'Answer a question. Right: heal [green]20%[/] and gain [gold]35 gold[/]. Wrong: nothing happens.', quiz: true },
+        { id: 'leave', label: 'Bow and Leave', desc: 'Nothing happens.', safe: true }
+      ]
+    },
+    dealer: {
+      title: 'The Grinning Dealer', art: 'dealer.png',
+      text: 'A [red]grinning imp[/] slides three cups across a table of coins.\n[purple]"Answer my question and double your money. Get it wrong, and it\'s mine!"[/]',
+      options: [
+        { id: 'bet', label: 'Wager 30 Gold', desc: 'Answer a question. Right: win [gold]30 gold[/]. Wrong: lose [red]30 gold[/].', quiz: true, needGold: 30, risky: true },
+        { id: 'walk', label: 'Walk Away', desc: 'Nothing happens.', safe: true }
+      ]
+    },
+    library: {
+      title: 'Forgotten Library', art: 'library.png',
+      text: 'Dusty shelves climb out of sight. On a stone lectern, a [blue]glowing tome[/] turns its own pages.',
+      options: [
+        { id: 'study', label: 'Study the Tome', desc: 'Upgrade a random skill. Lose [red]6 HP[/].' },
+        { id: 'nook', label: 'Rest in the Reading Nook', desc: 'Heal [green]15%[/] of your HP.', safe: true }
+      ]
+    },
+    mimic: {
+      title: 'The Suspicious Chest', art: 'mimic.png',
+      text: 'A [gold]gold-trimmed chest[/] sits alone in an empty room.\nWas that… a [red]tongue[/]?',
+      options: [
+        { id: 'open', label: 'Open It', desc: '[green]60%[/]: a whetstone inside, [gold]+1 Attack level[/]. [red]40%[/]: it bites! Lose [red]12 HP[/].', risky: true },
+        { id: 'leave', label: 'Leave It Alone', desc: 'Nothing happens.', safe: true }
+      ]
+    },
+    adventurer: {
+      title: 'The Fallen Adventurer', art: 'adventurer.png',
+      text: 'A [blue]fallen adventurer[/] rests against the wall, pack still on their back.\nA thin [red]tripwire[/] glints beside it…',
+      options: [
+        { id: 'search', label: 'Search the Pack', desc: 'Answer a question. Right: gain [gold]50 gold[/]. Wrong: the trap springs, lose [red]10 HP[/].', quiz: true, risky: true },
+        { id: 'respect', label: 'Pay Your Respects', desc: 'Heal [green]10 HP[/].', safe: true }
+      ]
+    },
+    fountain: {
+      title: 'Moonlit Fountain', art: 'fountain.png',
+      text: 'Moonlight pours through a broken window into a fountain of [blue]silver water[/].\nIt smells of rain and old magic.',
+      options: [
+        { id: 'deep', label: 'Drink Deeply', desc: 'Heal to [green]full HP[/]. Lose [red]4 Max HP[/].' },
+        { id: 'sip', label: 'Take a Sip', desc: 'Heal [green]20%[/] of your HP.', safe: true }
+      ]
+    },
+    forge: {
+      title: 'Abandoned Forge', art: 'forge.png',
+      text: 'The coals of an old [red]forge[/] still glow.\nA hammer lies on the anvil, as if the smith just stepped out.',
+      options: [
+        { id: 'sharpen', label: 'Sharpen Your Weapon', desc: 'Lose [red]8 HP[/]. Gain [gold]+1 Attack level[/].' },
+        { id: 'armour', label: 'Reinforce Your Armour', desc: 'Pay [gold]40 gold[/]. Gain [blue]+1 Defence level[/].', needGold: 40 },
+        { id: 'leave', label: 'Move On', desc: 'Nothing happens.', safe: true }
+      ]
+    },
+    ambush: {
+      title: 'Ambush!', art: 'scene:ambush',
+      text: '[red]Monsters[/] leap from the shadows of the stairwell!\nYour team has a moment to decide.',
+      team: true,
+      options: [
+        { id: 'fight', label: 'Stand and Fight', desc: 'Battle together. Winners gain [gold]+20 bonus gold[/].' },
+        { id: 'sneak', label: 'Sneak Past', desc: 'Answer a question. If nobody fights and every sneak is right, the team slips past. Otherwise everyone fights, and sneaks who missed lose [red]5 HP[/].', quiz: true, risky: true }
+      ]
+    }
+  };
+
+  // Quick-time arithmetic for big enemy moves: + - x / with friendly numbers.
+  function qteQuestion(level) {
+    const r = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+    const op = ['+', '−', '×', '÷'][r(0, 3)];
+    const hard = level > 1;
+    if (op === '+') { const a = r(12, hard ? 89 : 49), b = r(5, hard ? 59 : 39); return { q: `${a} + ${b}`, a: a + b }; }
+    if (op === '−') { const a = r(25, hard ? 99 : 70), b = r(4, a - 5); return { q: `${a} − ${b}`, a: a - b }; }
+    if (op === '×') { const a = r(2, hard ? 12 : 9), b = r(3, 12); return { q: `${a} × ${b}`, a: a * b }; }
+    const b = r(2, hard ? 12 : 9), a = r(2, 12); return { q: `${a * b} ÷ ${b}`, a };
+  }
+
   const NODE_TYPES = {
     enemy:    { name: 'Monsters' },
     elite:    { name: 'Elite' },
@@ -152,5 +268,5 @@
     boss:     { name: 'Boss' }
   };
 
-  return { ENERGY, RARITY, HEROES, HERO_ORDER, SKILLS, ENEMIES, STATUS_INFO, NODE_TYPES, skillParams, skillDesc, skillName };
+  return { STATS, STAT_STEP, CAMP, EVENTS, qteQuestion, ENERGY, RARITY, HEROES, HERO_ORDER, SKILLS, ENEMIES, STATUS_INFO, NODE_TYPES, skillParams, skillDesc, skillName };
 });
