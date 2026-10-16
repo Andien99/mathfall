@@ -12,15 +12,16 @@ kneel. The idle loop comes from PixelLab when tools/art-src/<sheet>_idle.png exi
 import os
 from PIL import Image
 from build_knight import lean, shift_rows, paste_clip, darken, update_manifest, FW, FH, AX, AY, OUT_DIR
-from heroart import hue_shift, load_idle, ART_SRC
+from heroart import hue_shift, load_idle, shrink_frame, ART_SRC
 
 POSES = ['idle0', 'idle1', 'idle2', 'idle3', 'windup', 'swing1', 'swing2', 'cast0', 'cast1', 'defend', 'hurt', 'down', 'victory', 'sit']
 GREEN = dict(lo=0.17, hi=0.48, smin=0.12, lmax=0.7)
+# scale: shrinks the finished frames about the feet so every hero stands about 55px tall (knight-sized)
 CONFIGS = {
     'ranger:m': dict(src='ranger_base.png', sheet='ranger', variants=[0, -0.24, 0.30], tint=GREEN),            # green, autumn red, river blue
-    'ranger:f': dict(src='ranger_f_base.png', sheet='ranger_f', variants=[0, -0.24, 0.30], tint=GREEN),
-    'cleric:f': dict(src='cleric_f_base.png', sheet='cleric', variants=[0, 0.62, 0.36], tint=dict(lo=0.93, hi=0.04, smin=0.25, lmax=0.7, wrap=True)),  # red, blue, green cape
-    'cleric:m': dict(src='cleric_m_base.png', sheet='cleric_m', variants=[0, 0.16, -0.12], tint=dict(lo=0.55, hi=0.75, smin=0.12, lmax=0.8)),           # blue, violet, teal robe
+    'ranger:f': dict(src='ranger_f_base.png', sheet='ranger_f', variants=[0, -0.24, 0.30], tint=GREEN, scale=0.95),
+    'cleric:f': dict(src='cleric_f_base.png', sheet='cleric', variants=[0, 0.62, 0.36], tint=dict(lo=0.93, hi=0.04, smin=0.25, lmax=0.7, wrap=True), scale=0.85),  # red, blue, green cape
+    'cleric:m': dict(src='cleric_m_base.png', sheet='cleric_m', variants=[0, 0.16, -0.12], tint=dict(lo=0.55, hi=0.75, smin=0.12, lmax=0.8), scale=0.93),           # blue, violet, teal robe
 }
 
 def anchor_x(im):
@@ -82,9 +83,14 @@ def build_one(key):
         P['down'] = kneel(body, True)
         P['victory'] = frame(body, dy=-1, upper=(up1, 0, -1))
         P['sit'] = kneel(body, False)
-        for pi, name in enumerate(POSES): sheet.alpha_composite(P[name], (pi * FW, vi * FH))
+        sc = cfg.get('scale', 1)
+        for pi, name in enumerate(POSES): sheet.alpha_composite(shrink_frame(P[name], sc, AX, AY), (pi * FW, vi * FH))
     sheet.save(os.path.join(OUT_DIR, cfg['sheet'] + '.png'))
     px, py, pw, ph = face_box(base)
+    sc = cfg.get('scale', 1)
+    if sc < 1:   # move the portrait crop to where the face ends up after the shrink
+        fx, fy = OX + px + pw / 2, OY + py + ph / 2
+        px = round(AX + (fx - AX) * sc - pw / 2) - OX; py = max(-OY, round(AY + (fy - AY) * sc - ph / 2) - OY)
     update_manifest(key, {
         'sheet': cfg['sheet'] + '.png', 'frame': [FW, FH], 'variants': len(cfg['variants']), 'variantRows': 1,
         'poses': {n: [i, 0] for i, n in enumerate(POSES)}, 'portrait': [OX + px, OY + py, pw, ph]
