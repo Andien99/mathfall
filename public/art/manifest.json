@@ -145,6 +145,79 @@
     22,
     22
    ]
+  },
+  "ranger": {
+   "sheet": "ranger.png",
+   "frame": [
+    84,
+    76
+   ],
+   "variants": 3,
+   "variantRows": 1,
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "swing1": [
+     5,
+     0
+    ],
+    "swing2": [
+     6,
+     0
+    ],
+    "cast0": [
+     7,
+     0
+    ],
+    "cast1": [
+     8,
+     0
+    ],
+    "defend": [
+     9,
+     0
+    ],
+    "hurt": [
+     10,
+     0
+    ],
+    "down": [
+     11,
+     0
+    ],
+    "victory": [
+     12,
+     0
+    ],
+    "sit": [
+     13,
+     0
+    ]
+   },
+   "portrait": [
+    36,
+    17,
+    22,
+    22
+   ]
   }
  },
  "enemies": {
