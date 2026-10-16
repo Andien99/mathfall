@@ -40,6 +40,25 @@ MOVES = {
                    ms=[60, 60, 60, 70, 100, 560, 90, 250], hit=6, release=6, charge=4, muzzle=[-43, -37], cast=True, zoom=1.08),
 }
 
+# Defends and big moves (no dash, no projectile): the game plays the frames, then runs the move's usual
+# effect (block, heal, buff, arrows from the sky...) from the 'hit' frame.
+SHADES = {k: v['shade'] for k, v in MOVES.items()}
+SHADES.update({'ranger:m': MOVES['ranger:m']['shade'], 'ranger:f': MOVES['ranger:f']['shade']})
+VARS = {k: v['variants'] for k, v in MOVES.items()}
+SIMPLE = {   # skin: {move: (ms per frame, hit frame)}
+    'knight:m': {'defend': ([50, 50, 60, 80, 260, 200, 60, 60], 3), 'rally': ([50, 50, 60, 70, 90, 220, 220, 80, 80], 4)},
+    'knight:f': {'defend': ([50, 50, 60, 60, 80, 160, 260], 4), 'rally': ([50, 50, 60, 70, 90, 220, 220, 80, 80], 4)},
+    'mage:f': {'defend': ([60, 90, 220, 380, 90], 2), 'channel': ([60, 70, 70, 80, 220, 300, 90, 80], 4)},
+    'mage:m': {'defend': ([60, 90, 220, 380, 90], 2), 'channel': ([60, 70, 70, 80, 220, 300, 90, 80], 4)},
+    'ranger:m': {'defend': ([50, 60, 60, 70, 70, 70, 70, 80, 160], 3), 'volley': ([50, 50, 60, 70, 80, 120, 160, 80, 180], 7)},
+    'ranger:f': {'defend': ([50, 60, 60, 70, 70, 70, 70, 80, 160], 3), 'volley': ([50, 50, 60, 70, 80, 120, 160, 80, 180], 7)},
+    'cleric:f': {'defend': ([60, 60, 70, 90, 260, 160, 100], 3), 'pray': ([60, 60, 70, 80, 220, 260, 100, 80, 80], 4)},
+    'cleric:m': {'defend': ([60, 60, 70, 90, 220, 120, 100, 100, 100], 4), 'pray': ([60, 60, 70, 80, 220, 260, 100, 80], 4)},
+}
+for skin, moves in SIMPLE.items():
+    for mv, (ms, hit) in moves.items():
+        MOVES[skin + '/' + mv] = dict(sheet=MOVES[skin]['sheet'], move=mv, shade=SHADES[skin], variants=VARS[skin], ms=ms, hit=hit, cast=True, skin=skin)
+
 def build(skin):
     m = MOVES[skin]
     mv = m.get('move', 'slash')
@@ -54,7 +73,7 @@ def build(skin):
     out.save(os.path.join(OUT_DIR, name))
     path = os.path.join(OUT_DIR, 'manifest.json')
     man = json.load(open(path))
-    man['heroes'][skin].setdefault('anims', {})[mv] = {
+    man['heroes'][m.get('skin', skin)].setdefault('anims', {})[mv] = {
         'sheet': name, 'frame': [AW, AH], 'anchor': [AAX, AAY], 'frames': n, 'variants': len(m['variants']),
         'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m['hit'], 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
         'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom')}

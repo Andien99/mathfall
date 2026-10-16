@@ -132,6 +132,108 @@
       -41
      ],
      "zoom": 1.08
+    },
+    "defend": {
+     "sheet": "mage_defend.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 5,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       90
+      ],
+      [
+       2,
+       220
+      ],
+      [
+       3,
+       380
+      ],
+      [
+       4,
+       90
+      ]
+     ],
+     "hit": 2,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
+    },
+    "channel": {
+     "sheet": "mage_channel.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 8,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       70
+      ],
+      [
+       2,
+       70
+      ],
+      [
+       3,
+       80
+      ],
+      [
+       4,
+       220
+      ],
+      [
+       5,
+       300
+      ],
+      [
+       6,
+       90
+      ],
+      [
+       7,
+       80
+      ]
+     ],
+     "hit": 4,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
     }
    }
   },
@@ -267,6 +369,108 @@
       -37
      ],
      "zoom": 1.08
+    },
+    "defend": {
+     "sheet": "mage_m_defend.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 5,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       90
+      ],
+      [
+       2,
+       220
+      ],
+      [
+       3,
+       380
+      ],
+      [
+       4,
+       90
+      ]
+     ],
+     "hit": 2,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
+    },
+    "channel": {
+     "sheet": "mage_m_channel.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 8,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       70
+      ],
+      [
+       2,
+       70
+      ],
+      [
+       3,
+       80
+      ],
+      [
+       4,
+       220
+      ],
+      [
+       5,
+       300
+      ],
+      [
+       6,
+       90
+      ],
+      [
+       7,
+       80
+      ]
+     ],
+     "hit": 4,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
     }
    }
   },
@@ -426,6 +630,128 @@
       -48
      ],
      "zoom": 1.06
+    },
+    "defend": {
+     "sheet": "ranger_defend.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 9,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       60
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       70
+      ],
+      [
+       4,
+       70
+      ],
+      [
+       5,
+       70
+      ],
+      [
+       6,
+       70
+      ],
+      [
+       7,
+       80
+      ],
+      [
+       8,
+       160
+      ]
+     ],
+     "hit": 3,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
+    },
+    "volley": {
+     "sheet": "ranger_volley.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 9,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       70
+      ],
+      [
+       4,
+       80
+      ],
+      [
+       5,
+       120
+      ],
+      [
+       6,
+       160
+      ],
+      [
+       7,
+       80
+      ],
+      [
+       8,
+       180
+      ]
+     ],
+     "hit": 7,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
     }
    }
   },
@@ -569,6 +895,128 @@
       -40
      ],
      "zoom": 1.06
+    },
+    "defend": {
+     "sheet": "ranger_f_defend.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 9,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       60
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       70
+      ],
+      [
+       4,
+       70
+      ],
+      [
+       5,
+       70
+      ],
+      [
+       6,
+       70
+      ],
+      [
+       7,
+       80
+      ],
+      [
+       8,
+       160
+      ]
+     ],
+     "hit": 3,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
+    },
+    "volley": {
+     "sheet": "ranger_f_volley.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 9,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       70
+      ],
+      [
+       4,
+       80
+      ],
+      [
+       5,
+       120
+      ],
+      [
+       6,
+       160
+      ],
+      [
+       7,
+       80
+      ],
+      [
+       8,
+       180
+      ]
+     ],
+     "hit": 7,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
     }
    }
   },
@@ -717,6 +1165,120 @@
      "dash": 16,
      "cast": true,
      "strike": 12,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
+    },
+    "defend": {
+     "sheet": "cleric_defend.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 7,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       60
+      ],
+      [
+       2,
+       70
+      ],
+      [
+       3,
+       90
+      ],
+      [
+       4,
+       260
+      ],
+      [
+       5,
+       160
+      ],
+      [
+       6,
+       100
+      ]
+     ],
+     "hit": 3,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
+    },
+    "pray": {
+     "sheet": "cleric_pray.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 9,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       60
+      ],
+      [
+       2,
+       70
+      ],
+      [
+       3,
+       80
+      ],
+      [
+       4,
+       220
+      ],
+      [
+       5,
+       260
+      ],
+      [
+       6,
+       100
+      ],
+      [
+       7,
+       80
+      ],
+      [
+       8,
+       80
+      ]
+     ],
+     "hit": 4,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
      "release": null,
      "charge": null,
      "muzzle": null,
@@ -873,6 +1435,124 @@
      "charge": null,
      "muzzle": null,
      "zoom": null
+    },
+    "defend": {
+     "sheet": "cleric_m_defend.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 9,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       60
+      ],
+      [
+       2,
+       70
+      ],
+      [
+       3,
+       90
+      ],
+      [
+       4,
+       220
+      ],
+      [
+       5,
+       120
+      ],
+      [
+       6,
+       100
+      ],
+      [
+       7,
+       100
+      ],
+      [
+       8,
+       100
+      ]
+     ],
+     "hit": 4,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
+    },
+    "pray": {
+     "sheet": "cleric_m_pray.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 8,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       60
+      ],
+      [
+       2,
+       70
+      ],
+      [
+       3,
+       80
+      ],
+      [
+       4,
+       220
+      ],
+      [
+       5,
+       260
+      ],
+      [
+       6,
+       100
+      ],
+      [
+       7,
+       80
+      ]
+     ],
+     "hit": 4,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
     }
    }
   },
@@ -1016,6 +1696,124 @@
      "dashFrames": 3,
      "dash": 16,
      "cast": false,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
+    },
+    "defend": {
+     "sheet": "knight_defend.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 8,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       80
+      ],
+      [
+       4,
+       260
+      ],
+      [
+       5,
+       200
+      ],
+      [
+       6,
+       60
+      ],
+      [
+       7,
+       60
+      ]
+     ],
+     "hit": 3,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
+    },
+    "rally": {
+     "sheet": "knight_rally.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 9,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       70
+      ],
+      [
+       4,
+       90
+      ],
+      [
+       5,
+       220
+      ],
+      [
+       6,
+       220
+      ],
+      [
+       7,
+       80
+      ],
+      [
+       8,
+       80
+      ]
+     ],
+     "hit": 4,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
      "strike": null,
      "release": null,
      "charge": null,
@@ -1172,6 +1970,120 @@
      "dashFrames": 5,
      "dash": 16,
      "cast": false,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
+    },
+    "defend": {
+     "sheet": "knight_f_defend.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 7,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       60
+      ],
+      [
+       4,
+       80
+      ],
+      [
+       5,
+       160
+      ],
+      [
+       6,
+       260
+      ]
+     ],
+     "hit": 4,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null
+    },
+    "rally": {
+     "sheet": "knight_f_rally.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 9,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       50
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       70
+      ],
+      [
+       4,
+       90
+      ],
+      [
+       5,
+       220
+      ],
+      [
+       6,
+       220
+      ],
+      [
+       7,
+       80
+      ],
+      [
+       8,
+       80
+      ]
+     ],
+     "hit": 4,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
      "strike": null,
      "release": null,
      "charge": null,

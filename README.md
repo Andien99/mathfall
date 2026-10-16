@@ -155,6 +155,17 @@ Hero frames are 84×76 with the feet at (46, 72), facing left. Enemy frame sizes
 
 **Mage cast.** Both mages' basic attack (Arcane Bolt), Fireball and Ice Shard use a PixelLab animation: the mage points the staff at the enemy and holds it while the spell forms at the tip, then it launches (`anims.cast`, same pipeline; PixelLab painted its own ice blasts on some frames, so only the clean pointing frames are used). The spell is drawn per element (`drawCharge` / `elementHit` in `scene.js`): **arcane** – a violet orb with two orbiting motes and sparks spiralling in, a violet bolt, a ring and starburst on hit; **fire** – a flickering fireball with flame licks and rising embers, a bigger fireball in flight, an explosion of embers and a shockwave on hit; **ice** – a spinning crystal with shards drawn in, a long frost shard with a sparkle trail, a frost ring and tumbling ice chunks on hit.
 
+**Defends and big moves.** Every class has a PixelLab defend and one "big move" that all its party or area skills play first (`_preAnimName` in `scene.js`), then the skill's usual effect runs from the move's hit frame:
+
+| Class | Defend | Big move (used by) |
+|---|---|---|
+| Knight | Guard – sword raised to block | Rally – sword thrust up with a war cry (Shield Wall, Battle Cry, Aegis, any heal/buff or area spell) |
+| Mage | Ward – staff held out | Channel – staff raised overhead (Lightning, Frost Nova, Meteor, Starfall, Venom Storm, any heal/buff) |
+| Ranger | Evade – crouch and backflip | Volley – bow aimed at the sky (Volley, Starfall, Venom Storm, any area spell) |
+| Cleric | Holy guard – warding gesture | Pray – staff lifted, head bowed (Healing Light, Blessing, Sanctuary, Phoenix Feather, any area spell) |
+
+PixelLab paints its own magic into many frames; `tools/assemble_moves.py` keeps only the character (the largest connected shape plus anything touching the idle sprite's box), so detached swirls and orbs are dropped, and strips the fire it drew above the mage's staff. The frame order and holds per move are in its `PLAN`; timings and hit frames in `SIMPLE` in `build_attack.py`. Move sheets load in the background after the page opens; the join form can no longer submit (and reload the page) before the game has loaded.
+
 **Hit sparks.** Every damaging hit throws long streak sparks that fly well out and arc down (`hitSparks`); the knight's blows also throw tumbling steel-blue cubes.
 
 **Enemies shudder when hit.** Every time an enemy takes damage it shakes side to side seven times over about 0.56 s, 4–9 px each way (`hitShake`), harder for bigger hits; poison and burn ticks give a small shake, and other teams' raid hits a faint one. All ten event illustrations in `public/art/events/` were generated with PixelLab (192×192, shown with a soft vignette). The raid boss Voidmaw is Andy's red dragon, made in PixelLab: `python3 tools/build_dragon.py` turns `tools/art-src/dragon_base.png` (256×256, mirrored to face the heroes) into `public/art/voidmaw.png`, scaled to 148px and snapped back to its own palette, with lean, lunge, roar and hurt poses and fire breath added at the jaws.

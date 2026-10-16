@@ -812,8 +812,9 @@ async function loadArtOverrides() {
     }
   }
   // big one-off moves (e.g. the knight's slash): their own sheet, frame size and foot anchor
-  for (const [skin, d] of Object.entries(man.heroes || {})) for (const [name, an] of Object.entries(d.anims || {})) {
-    const im = await load(an.sheet); if (!im) continue;
+  // special-move sheets load in the background (they are only needed once a fight starts)
+  for (const [skin, d] of Object.entries(man.heroes || {})) for (const [name, an] of Object.entries(d.anims || {})) load(an.sheet).then(im => {
+    if (!im) return;
     const [fw, fh] = an.frame;
     const rows = an.variants || 1;
     const fr = [], wh = [];
@@ -822,8 +823,7 @@ async function loadArtOverrides() {
       for (let i = 0; i < an.frames; i++) { const c = crop(im, fw, fh, i, v % rows); fr[v].push(c); wh[v].push(white(c)); }
     }
     (artAnims[skin] = artAnims[skin] || {})[name] = { ...an, frames: fr, whites: wh, ax: an.anchor[0], ay: an.anchor[1], timeline: an.timeline, hit: an.hit, trail: an.trail == null ? null : an.trail, dash: an.dash || 0, dashFrames: an.dashFrames || 4 };
-    n++;
-  }
+  });
   for (const [kind, d] of Object.entries(man.enemies || {})) {
     const im = await load(d.sheet); if (!im) continue;
     const def = ENEMY_DEF[kind]; if (!def) continue;

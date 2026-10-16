@@ -247,7 +247,7 @@ export class BattleScene {
     }
     this.onAfter(ev);
   }
-  pose(a, p, ms) { a.pose = p; a.poseUntil = now() + ms; }
+  pose(a, p, ms) { if (a.anim && p !== 'hurt') return; a.pose = p; a.poseUntil = now() + ms; }   // a hand-animated move owns the sprite while it plays
   _die(a) {
     a.dying = now();
     // pixel dissolve: sample the current frame
@@ -319,9 +319,32 @@ export class BattleScene {
     return 0;
   }
 
+  // Which hand-animated move (if any) plays before a support skill, defend or big spell.
+  // Each class has a defend plus one "big move" every party/area skill maps onto.
+  _preAnimName(A, fx) {
+    if (fx === 'defend') return 'defend';
+    const big = { knight: 'rally', mage: 'channel', ranger: 'volley', cleric: 'pray' }[A.cls];
+    if (['shield_party', 'taunt', 'aegis', 'heal', 'heal_party', 'bless_party', 'revive', 'buff_party'].includes(fx)) return A.cls === 'ranger' ? null : big;
+    if (['volley', 'starfall', 'meteor', 'nova_ice', 'venom', 'lightning'].includes(fx)) return big;
+    return null;
+  }
   _heroAnim(ev, T) {
     const A = this.actors.get(ev.actor); if (!A) { this._applyAfter(ev); return 0; }
     const fx = ev.fx || 'slash';
+    if (!ev._pre) {
+      const nm = this._preAnimName(A, fx), pre = nm && SP.heroAnim(A.skin || A.cls, nm);
+      if (pre) {   // play the move, then run the usual effects from its hit frame
+        ev._pre = true;
+        const at = []; let acc = 0; for (const [, ms] of pre.timeline) { at.push(acc); acc += ms; }
+        A.anim = { d: pre, t0: now(), speed: T(1000) / 1000, at, total: acc };
+        setTimeout(() => { A.anim = null; }, T(acc + 60));
+        if (nm !== 'defend') this.cam = { x: A.x - 30, y: A.y - 36, t0: now(), dur: T(acc + 400), z: pre.zoom || 1.06 };
+        const hitAt = at[pre.hit] != null ? at[pre.hit] : acc * 0.6;
+        if (nm === 'rally') sfx('roar');
+        setTimeout(() => this._heroAnim(ev, T), T(hitAt));
+        return T(Math.max(acc, hitAt + 1100) + 150);
+      }
+    }
     const tgt = ev.targets.filter(t => t.dmg != null && !t.shatter);
     const enemyIds = tgt.map(t => t.id);
     const first = tgt[0] && this.actors.get(tgt[0].id);
@@ -352,7 +375,7 @@ export class BattleScene {
 
     // offence
     const home = { x: A.x, y: A.y };
-    const bigMove = melee && first && fx !== 'whirl' && SP.heroAnim(A.skin || A.cls, fx === 'slash_heavy' ? 'slash' : fx);   // knight: slash, cleric: smite
+    const bigMove = melee && first && fx !== 'whirl' && SP.heroAnim(A.skin || A.cls, ['slash_heavy', 'shadow', 'dragon'].includes(fx) ? 'slash' : fx);   // knight: slash, cleric: smite
     if (bigMove) return this._bigSlash(A, first, ev, tgt, fx, rc, bigMove, T, home);
     if (melee && first && fx !== 'whirl') {
       const dest = { x: first.x + (first.size === 'xl' ? 46 : first.size === 'l' ? 26 : 20), y: first.y + 2 };
