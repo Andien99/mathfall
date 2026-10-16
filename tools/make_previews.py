@@ -65,7 +65,7 @@ ENEMY_JS = """async ([kinds, poses]) => {
 
 def enemy_gifs(out, page):
     import base64, io
-    kinds = ['goblin', 'slime', 'skeleton', 'hexer', 'thrall', 'sentinel', 'shard', 'wyrm', 'colossus', 'hollowking', 'voidmaw']
+    kinds = ['goblin', 'slime', 'skeleton', 'hexer', 'thrall', 'sentinel', 'shard', 'minotaur', 'wyrm', 'colossus', 'hollowking', 'voidmaw']
     poses = ['idle0', 'idle1', 'idle2', 'idle3', 'idle0', 'idle1', 'idle2', 'idle3', 'windup', 'attack', 'attack', 'idle0', 'hurt', 'idle0']
     data = page.evaluate(ENEMY_JS, [kinds, sorted(set(poses))])
     names = page.evaluate("Object.fromEntries(Object.entries(window.MF_Content.ENEMIES).map(([k, v]) => [k, v.name]))")

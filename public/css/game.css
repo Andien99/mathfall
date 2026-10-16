@@ -548,3 +548,13 @@ body.screen-lobby #lobby { display: grid; grid-template-columns: 1fr 280px; grid
 .qpanel.peek .qhead { padding-top: 6px; padding-bottom: 6px; }
 .qpanel.peek .fbmiss { font-size: 18px; }
 @media (max-width: 520px) { .qpanel.peek .qcard { max-height: 36vh; } .qpanel.peek .qhead .qs { display: none; } .qpanel.peek .fbt { display: none; } }
+
+/* Portrait phones / tablets: the question docks to the bottom so the battle stays visible above it */
+#scene { transition: transform 0.38s cubic-bezier(.3, .8, .3, 1); }
+body.portrait .qpanel { align-items: flex-end; padding: 6px 6px calc(6px + var(--sab)); background: linear-gradient(180deg, transparent 0%, transparent 38%, rgba(4, 2, 12, 0.55) 70%); }
+body.portrait .qcard { width: 100%; max-height: 60vh; }
+body.portrait .qpanel.compact { align-items: flex-end; }
+@media (max-width: 700px) {
+  body.portrait .keypad .key { min-height: 40px; padding: 6px 0; }
+  body.portrait .qcard .qhead { padding-top: 8px; padding-bottom: 8px; }
+}

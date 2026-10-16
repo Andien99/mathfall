@@ -29,9 +29,23 @@ const scene = new BattleScene($('#scene'), {
 });
 window.__mfScene = scene;
 scene.onLowPower = () => { console.info('Mathfall: lower detail mode for smoother play'); fit(); };
+// Portrait phones and tablets: the question docks to the bottom of the screen and the battle stays visible above it.
+// PORTRAIT_VIEW 'top' keeps the fighters in the upper part of the screen all the time; 'pan' leaves them where they
+// are and slides the battle up while a question is open. (?pv=pan or ?pv=top overrides, for comparing.)
+// Tested on a 390x844 phone and an 820x1180 iPad: the slide (pan) fits every fighter above the question on an iPad and
+// keeps the battle roomy, but on a phone the question card leaves too little room, so phones use 'top'.
+const PV_PARAM = new URLSearchParams(location.search).get('pv');
+let PORTRAIT_VIEW = PV_PARAM || (innerWidth < 700 ? 'top' : 'pan');
+const isPortrait = () => innerHeight > innerWidth * 1.15 && innerWidth < 1100;
 function stageRect() {
   const W = innerWidth, H = innerHeight;
   const top = 50;
+  if (document.body.classList.contains('screen-game') && isPortrait() && PORTRAIT_VIEW === 'top') {
+    // fighters live between the party cards and the top of the docked question / action panel
+    const p = $('#party').getBoundingClientRect();
+    const y0 = W < 700 && p.height ? p.bottom + 4 : top;
+    return { x: 0, y: y0, w: W, h: Math.max(150, Math.round(H * (W < 700 ? 0.42 : 0.5)) - y0) };
+  }
   let right = W, bottom = H;
   const party = $('#party'), act = $('#actions');
   const wide = W >= 1100 && H > 620;
@@ -42,7 +56,23 @@ function stageRect() {
   return { x: 0, y: top, w: Math.max(200, right), h: Math.max(160, bottom - top) };
 }
 let resizeT = null;
-function fit() { scene.resize(innerWidth, innerHeight, stageRect()); }
+function fit() { if (!PV_PARAM) PORTRAIT_VIEW = innerWidth < 700 ? 'top' : 'pan'; document.body.classList.toggle('portrait', isPortrait()); scene.resize(innerWidth, innerHeight, stageRect()); panForQuestion(); }
+// 'pan' mode: while a question is open, slide the battle up so every fighter sits above the question card
+function panForQuestion() {
+  const cv = $('#scene');
+  let dy = 0;
+  if (PORTRAIT_VIEW === 'pan' && isPortrait() && document.body.classList.contains('q-open')) {
+    const card = document.querySelector('.qpanel.show .qcard'), b = scene.actorBounds && scene.actorBounds();
+    if (card && b) {
+      const want = card.getBoundingClientRect().top - 6;               // fighters' feet must clear the card
+      const floor = W_TOP();                                            // but don't push heads under the top bar
+      dy = Math.max(0, Math.min(b.bottom - want, b.top - floor));
+    }
+  }
+  cv.style.transform = dy ? `translateY(${-Math.round(dy)}px)` : '';
+}
+function W_TOP() { const p = $('#party').getBoundingClientRect(); return innerWidth < 700 && p.height ? p.bottom + 2 : 52; }
+new MutationObserver(() => requestAnimationFrame(panForQuestion)).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(fit, 80); });
 fit();
 scene.setTheme('halls');
@@ -233,7 +263,7 @@ function renderHUD() {
   const run = state.run;
   const node = run.map.nodes.find(n => n.id === run.map.pos);
   const nodeName = node ? (C.NODE_TYPES[node.type] || {}).name : 'Entrance';
-  $('#floorInfo').innerHTML = run.raidMode ? 'Raid<span class="sub">All teams vs Voidmaw</span>' : (run.floor >= run.rows ? `<span class="fl-full">Boss floor</span><span class="fl-short">Boss</span>` : `<span class="fl-full">Floor ${Math.max(1, run.floor)} of ${run.rows - 1}</span><span class="fl-short">F${Math.max(1, run.floor)}/${run.rows - 1}</span>`) + `<span class="sub">Act ${(run.asc || 0) + 1} · ${nodeName}</span>`;
+  $('#floorInfo').innerHTML = run.raidMode ? 'Raid<span class="sub">All teams vs the Inferno Dragon</span>' : (run.floor >= run.rows ? `<span class="fl-full">Boss floor</span><span class="fl-short">Boss</span>` : `<span class="fl-full">Floor ${Math.max(1, run.floor)} of ${run.rows - 1}</span><span class="fl-short">F${Math.max(1, run.floor)}/${run.rows - 1}</span>`) + `<span class="sub">Act ${(run.asc || 0) + 1} · ${nodeName}</span>`;
   $('#teamChip').innerHTML = `<span class="chip" style="border-color:${state.team.color};color:${state.team.color}">${state.team.name}</span>`;
   const mh = myHero();
   $('#goldChip').textContent = mh ? mh.gold : 0;
@@ -485,7 +515,7 @@ function renderRoom() {
       statPicker(room, hero), readyLine(room));
   } else if (room.type === 'raidEnd') {
     const raid = state.raid || {};
-    panel.append(h('p', { class: 'result-big' + (room.won ? '' : ' lose') }, room.won ? 'Voidmaw is defeated!' : 'Voidmaw survives…'),
+    panel.append(h('p', { class: 'result-big' + (room.won ? '' : ' lose') }, room.won ? 'The Inferno Dragon is defeated!' : 'The Inferno Dragon survives…'),
       h('p', { class: 'lead' }, room.won ? 'Every team climbed, fought and won together.' : 'So close. Every hit counted.'),
       raidBoard(raid));
   } else if (room.type === 'treasure') {
@@ -747,7 +777,7 @@ function renderRaidBar() {
   const left = raid.endsAt - (Date.now() - skew);
   clear(raidEl);
   raidEl.append(
-    h('div', { class: 'rt' }, h('b', null, 'VOIDMAW'), h('span', null, 'Heart of the Tower · every team is fighting it'), h('span', { class: 'rtime' }, fmtTime(left))),
+    h('div', { class: 'rt' }, h('b', null, 'INFERNO DRAGON'), h('span', null, 'Heart of the Tower · every team is fighting it'), h('span', { class: 'rtime' }, fmtTime(left))),
     h('div', { class: 'rhp' }, h('i', { style: { width: pct + '%' } }), h('span', null, `${raid.hp} / ${raid.maxHp}`)),
     h('div', { class: 'rteams' }, ...raid.teams.slice(0, 6).map(t => h('span', { style: { borderColor: t.color, color: t.color } }, `${t.name} ${t.dmg}`))));
 }
@@ -813,7 +843,7 @@ function showEnded() {
   }
   if (ended && ended.raid) {
     const r = ended.raid;
-    wrap.append(h('div', { class: 'report panel raid-end' }, h('h2', null, r.won ? 'The raid boss fell!' : 'Voidmaw survived'),
+    wrap.append(h('div', { class: 'report panel raid-end' }, h('h2', null, r.won ? 'The raid boss fell!' : 'The Inferno Dragon survived'),
       h('div', { class: 'raid-board' }, ...r.teams.map(t => h('div', { class: 'rb' }, h('span', { style: { color: t.color } }, t.name), h('div', { class: 'bar' }, h('i', { style: { width: (100 * t.dmg / Math.max(1, r.teams[0].dmg)) + '%', background: t.color } })), h('b', null, t.dmg))))));
   }
   const y = ended && ended.you;

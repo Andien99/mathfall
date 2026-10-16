@@ -127,11 +127,12 @@
     skeleton: { name: 'Skeleton Warrior', hp: 30, size: 'm', kind: 'normal' },
     hexer:    { name: 'Goblin Hexer', hp: 20, size: 's', kind: 'normal' },
     sentinel: { name: 'Ironbound Sentinel', hp: 84, size: 'l', kind: 'elite' },
+    minotaur: { name: 'The Minotaur', title: 'Lord of the Labyrinth', hp: 230, size: 'xl', kind: 'boss' },
     wyrm:     { name: 'Gravemaw', title: 'the Crystal Wyrm', hp: 230, size: 'xl', kind: 'boss' },
     colossus: { name: 'The Iron Colossus', title: 'Warden of the Middle Floors', hp: 250, size: 'xl', kind: 'boss' },
     hollowking: { name: 'The Hollow King', title: 'Lord of the High Crypt', hp: 240, size: 'xl', kind: 'boss' },
     thrall:   { name: 'Bone Thrall', hp: 14, size: 's', kind: 'minion' },
-    voidmaw:  { name: 'Voidmaw', title: 'Heart of the Tower', hp: 130, size: 'xl', kind: 'raid' },
+    voidmaw:  { name: 'Inferno Dragon', title: 'Heart of the Tower', hp: 130, size: 'xl', kind: 'raid' },
     shard:    { name: 'Crystal Shard', hp: 16, size: 's', kind: 'minion' }
   };
 
@@ -262,7 +263,7 @@
   }
 
   // Each map ends in a boss; beating it starts the next act on a new map with the next boss.
-  const BOSS_ORDER = ['wyrm', 'colossus', 'hollowking'];
+  const BOSS_ORDER = ['minotaur', 'colossus', 'hollowking'];
   const ACT_NAMES = ['The Crumbling Spire', 'The Iron Galleries', 'The Hollow Crown', 'The Sunless Heights', 'The Shattered Crown', 'The Last Stair'];
   function bossForAct(act) { return BOSS_ORDER[act % BOSS_ORDER.length]; }
 

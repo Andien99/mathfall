@@ -510,7 +510,7 @@ class Session {
       run.phase = 'combat'; run.room = null; run.raidMode = true;
       run.combat = CB.createRaidCombat(run, this.raid, t.id);
       CB.beginRound(run, now(), this.settings.timer);
-      this.event(t, { kind: 'system', text: 'Voidmaw, Heart of the Tower, awakens!', battle: 'raid' });
+      this.event(t, { kind: 'system', text: 'The Inferno Dragon, Heart of the Tower, awakens!', battle: 'raid' });
       this.flush(t);
     }
   }
@@ -523,7 +523,7 @@ class Session {
       this.clearCombatQuestions(t);
       run.next = null;
       if (run.combat) run.combat.phase = won ? 'won' : 'lost';
-      this.event(t, { kind: 'system', text: won ? 'Voidmaw is defeated!' : 'Time is up. Voidmaw survives…' });
+      this.event(t, { kind: 'system', text: won ? 'The Inferno Dragon is defeated!' : 'Time is up. The Inferno Dragon survives…' });
       run.phase = 'room'; run.room = { type: 'raidEnd', won, ready: {} };
       this.flush(t);
     }

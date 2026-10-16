@@ -88,7 +88,7 @@ const ENCOUNTERS = {
   normal1: [['slime', 'slime'], ['goblin', 'slime'], ['skeleton'], ['goblin', 'goblin']],
   normal2: [['skeleton', 'goblin'], ['hexer', 'skeleton'], ['slime', 'goblin', 'slime'], ['hexer', 'goblin', 'goblin']],
   elite: [['sentinel']],
-  boss: [['wyrm']]
+  boss: [['minotaur']]
 };
 function encounterKinds(run, type) {
   if (type === 'boss') return [C.bossForAct(run.asc || 0)];
@@ -144,6 +144,8 @@ function createRaidCombat(run, raid, teamId) {
 }
 
 // ---------------------------------------------------------------- enemy AI
+const MINOTAUR_MOVES = { tail: 'Horn Gore', tailstorm: 'Stampede', breath: 'Ground Slam', harden: 'Iron Hide',
+  summon: 'Earthshaker Roar', bite: 'Crushing Blow' };
 const AI = {
   slime(e) { return chance(0.6) ? { move: 'slam', type: 'attack', dmg: 6, label: 'Slam' } : { move: 'spit', type: 'attack', dmg: 4, status: 'weak', label: 'Acid Spit (Weak)' }; },
   goblin(e) { return chance(0.6) ? { move: 'stab', type: 'attack', dmg: 7, label: 'Stab' } : { move: 'twin', type: 'attack', dmg: 3, hits: 2, label: 'Twin Knives' }; },
@@ -201,24 +203,27 @@ const AI = {
     if (m === 'cascade') return { move: 'cascade', type: 'attackAll', dmg: 7, label: 'Doom Cascade', qte: 3, warn: 'Three quick-time strikes in a row!' };
     return { move: 'cataclysm', type: 'attackAll', dmg: 17, label: 'Cataclysm', qte: 1, warn: 'Quick-time: answer fast to dodge!' };
   },
-  wyrm(e, c) {
+  // The first act's boss: the same two-phase fight Gravemaw had (break the crystals before the storm), with his own moves.
+  minotaur(e, c) { return AI.wyrm(e, c, MINOTAUR_MOVES); },
+  wyrm(e, c, L = {}) {
+    const lb = (k, d) => L[k] || d;
     const m = e.mem;
     if (m.phase == null) { m.phase = 1; m.i = ri(0, 2); }
     if (m.phase === 1 && e.hp <= e.maxHp * 0.5) { m.phase = 2; m.step = 'summon'; }
     if (m.phase === 2) {
       const shardsAlive = aliveEnemies(c).filter(x => x.kind === 'shard').length;
-      if (m.step === 'summon') { m.step = 'charge'; return { move: 'summon', type: 'summon', label: 'Crystal Roar', warn: 'Summons two Crystal Shards' }; }
+      if (m.step === 'summon') { m.step = 'charge'; return { move: 'summon', type: 'summon', label: lb('summon', 'Crystal Roar'), warn: 'Summons two Crystal Shards' }; }
       if (m.step === 'charge') { m.step = 'storm'; return { move: 'gather', type: 'charge', block: 10, label: 'Gathering power', warn: 'Shatterstorm next round. Break the crystals!' }; }
       if (m.step === 'storm') { m.step = 'rest1'; return { move: 'storm', type: 'attackAll', dmg: 8, perShard: 6, label: 'Shatterstorm', shardsAlive, qte: 1, warn: 'Quick-time: answer fast to dodge!' }; }
-      if (m.step === 'rest1') { m.step = 'rest2'; return { move: 'bite', type: 'attack', dmg: 15, label: 'Crushing Bite' }; }
+      if (m.step === 'rest1') { m.step = 'rest2'; return { move: 'bite', type: 'attack', dmg: 15, label: lb('bite', 'Crushing Bite') }; }
       m.step = 'summon';
-      return { move: 'breath', type: 'attackAll', dmg: 7, label: 'Crystal Breath' };
+      return { move: 'breath', type: 'attackAll', dmg: 7, label: lb('breath', 'Crystal Breath') };
     }
     const cycle = ['tail', 'breath', 'harden'];
     const mv = cycle[m.i++ % 3];
-    if (mv === 'tail') return chance(0.5) ? { move: 'tailstorm', type: 'attackAll', dmg: 10, label: 'Tail Storm', qte: 1, warn: 'Quick-time: answer fast to dodge!' } : { move: 'tail', type: 'attack', dmg: 13, label: 'Tail Sweep' };
-    if (mv === 'breath') return { move: 'breath', type: 'attackAll', dmg: 6, label: 'Crystal Breath' };
-    return { move: 'harden', type: 'block', block: 16, label: 'Crystal Hide' };
+    if (mv === 'tail') return chance(0.5) ? { move: 'tailstorm', type: 'attackAll', dmg: 10, label: lb('tailstorm', 'Tail Storm'), qte: 1, warn: 'Quick-time: answer fast to dodge!' } : { move: 'tail', type: 'attack', dmg: 13, label: lb('tail', 'Tail Sweep') };
+    if (mv === 'breath') return { move: 'breath', type: 'attackAll', dmg: 6, label: lb('breath', 'Crystal Breath') };
+    return { move: 'harden', type: 'block', block: 16, label: lb('harden', 'Crystal Hide') };
   }
 };
 

@@ -303,7 +303,7 @@ function renderTower() {
     const pct = Math.max(0, 100 * r.hp / r.maxHp);
     const max = Math.max(1, ...hs.teams.map(t => r.dmg[t.id] || 0));
     box.append(h('div', { class: 'raid-view' },
-      h('div', { class: 'raid-title' }, h('b', null, 'VOIDMAW'), h('span', null, r.over ? (r.won ? 'Defeated!' : 'Survived') : 'Heart of the Tower · all teams fighting')),
+      h('div', { class: 'raid-title' }, h('b', null, 'INFERNO DRAGON'), h('span', null, r.over ? (r.won ? 'Defeated!' : 'Survived') : 'Heart of the Tower · all teams fighting')),
       h('div', { class: 'raid-hp' }, h('i', { style: { width: pct + '%' } }), h('span', null, `${r.hp} / ${r.maxHp}`)),
       h('div', { class: 'raid-teams' }, ...hs.teams.slice().sort((a, b) => (r.dmg[b.id] || 0) - (r.dmg[a.id] || 0)).map(t => h('button', { class: 'rteam', style: { '--tc': t.color }, onclick: () => openWatch(t), title: 'Show this team on screen' },
         h('span', { class: 'nm' }, t.name), h('div', { class: 'bar' }, h('i', { style: { width: (100 * (r.dmg[t.id] || 0) / max) + '%' } })), h('b', null, Math.round(r.dmg[t.id] || 0)), h('span', { class: 'mini' }, ...(t.heroCls || []).map(x => h('img', { class: x.downed ? 'ko' : '', src: SP.portraitURL(x.skin || x.cls, x.variant, x.downed ? 'closed' : 'open', 1), alt: '' }))))))));
@@ -321,7 +321,7 @@ function renderTower() {
   const tw = h('div', { class: 'tw' });
   // the boss chamber at the top, under the battlements
   const bossTeams = teams.filter(t => floorOf(t) >= rows);
-  const kinds = [...new Set(teams.map(t => t.boss || 'wyrm'))];
+  const kinds = [...new Set(teams.map(t => t.boss || 'minotaur'))];
   tw.append(h('div', { class: 'tw-crown' }),
     h('div', { class: 'tw-boss' + (bossTeams.length ? ' lit' : '') },
       h('div', { class: 'tw-bosspics' }, ...kinds.map(k => h('img', { src: SP.enemyPortraitURL(k, 1), alt: C.ENEMIES[k].name, title: C.ENEMIES[k].name }))),
@@ -364,7 +364,7 @@ function onWatch(st) {
   if (st.events && st.events.length) watchScene.play(st.events);
   watchScene.sync(run, { spawnFx: true });
   watchScene.setRoom(run.phase === 'room' ? run.room : null);
-  $('#watchInfo').textContent = run.raidMode ? (st.raid ? `Raid · Voidmaw ${st.raid.hp}/${st.raid.maxHp}` : 'Raid') : run.phase === 'combat' && run.combat ? `Floor ${run.floor} · Round ${run.combat.round}` : run.phase === 'map' ? 'Choosing a path' : 'Floor ' + run.floor;
+  $('#watchInfo').textContent = run.raidMode ? (st.raid ? `Raid · Inferno Dragon ${st.raid.hp}/${st.raid.maxHp}` : 'Raid') : run.phase === 'combat' && run.combat ? `Floor ${run.floor} · Round ${run.combat.round}` : run.phase === 'map' ? 'Choosing a path' : 'Floor ' + run.floor;
 }
 $('#watchClose').addEventListener('click', () => { $('#watch').classList.remove('show'); socket.emit('host:watch', { teamId: null }); watchTeam = null; });
 
@@ -383,7 +383,7 @@ function renderResults() {
       const weak = Object.entries(p.bySkill).filter(([, v]) => v.a >= 2).sort((a, b) => a[1].c / a[1].a - b[1].c / b[1].a)[0];
       return h('tr', null, h('td', null, p.modified ? h('span', { class: 'dot on', style: { display: 'inline-block', marginRight: '6px', width: '10px', height: '10px' } }) : null, p.name), h('td', null, p.team), h('td', { class: 'num' }, p.answered), h('td', { class: 'num' }, h('span', { class: 'pct ' + (p.pct < 50 ? 'lo' : p.pct < 75 ? 'mid' : 'hi') }, p.answered ? p.pct + '%' : '–')), h('td', { class: 'num' }, p.best), h('td', { class: 'num' }, p.avgSec ? p.avgSec + 's' : '–'), h('td', null, weak ? `${weak[0]} (${Math.round(100 * weak[1].c / weak[1].a)}%)` : ''));
     })));
-  const raidCard = r.raid ? h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, r.raid.won ? 'Raid: Voidmaw defeated' : `Raid: Voidmaw survived (${r.raid.hp}/${r.raid.maxHp} HP left)`)),
+  const raidCard = r.raid ? h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, r.raid.won ? 'Raid: Inferno Dragon defeated' : `Raid: Inferno Dragon survived (${r.raid.hp}/${r.raid.maxHp} HP left)`)),
     ...r.raid.teams.map(t => h('div', { class: 'skillrow' }, h('span', { style: { color: t.color, fontWeight: 800 } }, t.name), h('div', { class: 'bar' }, h('i', { style: { width: (100 * t.dmg / Math.max(1, r.raid.teams[0].dmg)) + '%', background: t.color } })), h('b', null, t.dmg)))) : null;
   box.append(head, raidCard, h('div', { class: 'res-grid' }, stand, sk), h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Students')), tbl), hard);
 }

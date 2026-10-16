@@ -665,6 +665,9 @@ const ENEMY_DEF = {
   shard: { w: 30, h: 40, ax: 15, ay: 38, draw: drawShard, poses: { idle0: { dy: 0 }, idle1: { dy: -1 }, idle2: { dy: -2 }, idle3: { dy: -1 }, windup: { dy: -3 }, attack: { dy: 1 }, hurt: { hurt: 1 } } }
 };
 ENEMY_DEF.voidmaw.poses = ENEMY_DEF.wyrm.poses;
+// The first act's boss: Andy's minotaur (public/art/minotaur.png, built by tools/build_minotaur.py).
+// The drawn fallback is only used if that sheet is missing.
+ENEMY_DEF.minotaur = { w: 150, h: 136, ax: 72, ay: 132, draw: (ps) => { const S = drawWyrm(ps); S.tint('#6a4a30', 0.5); return S; }, poses: ENEMY_DEF.wyrm.poses };
 // Act bosses and minions built from existing rigs: scaled up, recoloured, crowned.
 Object.assign(ENEMY_DEF, {
   colossus: { w: 192, h: 184, ax: 92, ay: 178, base: 'sentinel', scale: 2, tint: ['#d0612a', 0.28], poses: ENEMY_DEF.sentinel.poses },

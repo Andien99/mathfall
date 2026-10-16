@@ -67,6 +67,18 @@ export class BattleScene {
     this.paint();
     this.layout();
   }
+  // where the fighters are on screen (CSS px): top of the tallest head to the lowest feet
+  actorBounds() {
+    let top = 1e9, bottom = -1e9;
+    for (const a of this.actors.values()) {
+      if (a.gone) continue;
+      const h = a.type === 'hero' ? 56 : ({ s: 40, m: 60, l: 90, xl: 128 })[a.size] || 50;
+      top = Math.min(top, a.y - h); bottom = Math.max(bottom, a.y + 14);
+    }
+    if (bottom < 0) return null;
+    const k = this.s / this.dpr;
+    return { top: top * k, bottom: bottom * k };
+  }
   setTheme(theme) { if (theme !== this.theme) { this.theme = theme; this.paint(); } }
   paint() {
     if (!this.W) return;
@@ -116,7 +128,10 @@ export class BattleScene {
       1: [[0, 0.55]], 2: [[8, 0.25], [-12, 0.78]], 3: [[10, 0.1], [-14, 0.5], [12, 0.92]],
       4: [[8, 0.04], [-16, 0.36], [16, 0.68], [-8, 1.0]], 5: [[8, 0.0], [-18, 0.25], [18, 0.5], [-12, 0.75], [10, 1.0]]
     };
-    const HS = FORM[Math.min(5, Math.max(1, heroes.length))];
+    // a short, wide battle area (portrait phones): two rows side by side instead of one tall column, so heroes don't overlap
+    const FLAT = { 1: [[0, 0.6]], 2: [[-14, 0.35], [24, 0.85]], 3: [[-18, 0.15], [26, 0.15], [4, 1.0]],
+      4: [[-26, 0.05], [20, 0.05], [0, 1.0], [46, 1.0]], 5: [[-26, 0.05], [20, 0.05], [-30, 1.0], [8, 1.0], [46, 1.0]] };
+    const HS = (span < 100 ? FLAT : FORM)[Math.min(5, Math.max(1, heroes.length))];
     heroes.sort((a, b) => a.order - b.order).forEach((a, i) => {
       const [dx, fy] = HS[i % HS.length];
       a.x = Math.round(hx + dx * k * 1.3); a.y = Math.round(ft + 14 + span * fy * 0.9);
@@ -127,7 +142,7 @@ export class BattleScene {
     if (boss) { boss.x = Math.round(ex - 4); boss.y = Math.round(ft + 14 + span * 0.78); }
     const ES = smalls.length === 1 ? [[0, 0.6]] : smalls.length === 2 ? [[22, 0.25], [-24, 0.85]] : [[30, 0.18], [-36, 0.48], [26, 0.98]];
     smalls.forEach((e, i) => {
-      if (boss && e.kind === 'shard') { // crystals float above the wyrm's back
+      if (boss && e.kind === 'shard') { // crystals float above the boss's back
         e.x = Math.round(boss.x - 52 + i * 46); e.y = Math.round(boss.y - 70 - (i % 2) * 14);
         return;
       }
@@ -634,7 +649,7 @@ export class BattleScene {
       return T(Math.max(ev.dur || 1100, 900 + (hits.length - 1) * 200));
     }
     if (type === 'attackAll') {
-      const big = E.kind === 'wyrm' || E.kind === 'voidmaw';
+      const big = E.kind === 'wyrm' || E.kind === 'minotaur' || E.kind === 'voidmaw';
       this.pose(E, big ? 'roar' : 'windup', T(500));
       sfx(big ? 'roar' : 'enemyWind');
       this.glows.push({ x: E.x, y: E.y - 30, r: 80, color: ev.shards ? '#ff7a3a' : '#ffc24a', t: 0, life: 0.8, a: 0.55 });
@@ -1420,7 +1435,7 @@ export class BattleScene {
     else if (it.type === 'block') { icon = 'defend'; label = '+' + it.block; colr = '#b8d8ff'; }
     else if (it.type === 'debuff') { icon = 'dagger'; label = STATUS_ABBR[it.status] || 'Curse'; colr = '#d8b8ff'; }
     else if (it.type === 'heal') { icon = 'heal'; label = '+' + it.heal; colr = '#b8ffc8'; }
-    else if (it.type === 'charge') { icon = 'battle_cry'; label = a.kind === 'wyrm' ? 'Storm next!' : 'Big hit next!'; colr = '#ff8a6a'; }
+    else if (it.type === 'charge') { icon = 'battle_cry'; label = (a.kind === 'wyrm' || a.kind === 'minotaur') ? 'Storm next!' : 'Big hit next!'; colr = '#ff8a6a'; }
     else if (it.type === 'summon') { icon = 'starfall'; label = 'Summon'; colr = '#ffd27a'; }
     if (a.st && a.st.freeze) { icon = 'frost_nova'; label = 'Frozen'; colr = '#dff8ff'; }
     // target
