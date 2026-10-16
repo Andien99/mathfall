@@ -26,7 +26,7 @@ export class QuestionPanel {
     if (q.type === 'text' && !this.useKeypad) setTimeout(() => this.input && this.input.focus(), 30);
   }
   close(silent) {
-    this.el.classList.remove('show', 'correct', 'wrong', 'compact');
+    this.el.classList.remove('show', 'correct', 'wrong', 'compact', 'peek');
     document.body.classList.remove('q-open');
     if (!silent && this.hd.onClose) this.hd.onClose();
     this.q = null;
@@ -128,14 +128,21 @@ export class QuestionPanel {
       sfx('correct');
       this.el.classList.add('correct');
       const card = this.el.querySelector('.qcard');
-      const note = res.result || res.note || (res.free ? 'Your next Attack or Defend is free!' : null);
-      card.appendChild(h('div', { class: 'qcorrect' }, h('div', { class: 'big' }, this.meta.yes || 'Correct!'), note ? h('div', { class: 'note' + (res.free ? ' free' : '') }, note) : null, res.streak >= 3 ? h('div', { class: 'streak' }, `${res.streak} in a row`) : null));
-      setTimeout(() => this.close(true), res.result ? 1600 : note ? 1100 : 420);
+      // In a fight the card gets out of the way fast so the student sees their hero act;
+      // the "free action" news shows as a banner over the battle instead.
+      const inFight = !res.result;
+      const note = res.result || (inFight ? null : res.note);
+      card.appendChild(h('div', { class: 'qcorrect' }, h('div', { class: 'big' }, this.meta.yes || 'Correct!'), note ? h('div', { class: 'note' }, note) : null, res.streak >= 3 ? h('div', { class: 'streak' }, `${res.streak} in a row`) : null));
+      const ms = res.result ? 1600 : 380;
+      this.closeIn = ms;
+      setTimeout(() => { this.close(true); this.hd.onClosed && this.hd.onClosed(res); }, ms);
       return;
     }
     this.mode = 'feedback';
     sfx('wrong');
     this.el.classList.add('wrong');
+    // A miss: drop the card to the bottom of the screen so the whiff plays in view above it.
+    if (res.missed) this.el.classList.add('peek');
     const card = this.el.querySelector('.qcard');
     const body = card.querySelector('.qbody');
     clear(body);
@@ -147,6 +154,7 @@ export class QuestionPanel {
       h('div', { class: 'fbans', html: 'The answer is ' + mathHTML(asMath(res.correctText)) }));
     if (res.solution) fb.appendChild(h('div', { class: 'fbsol', html: mathHTML(res.solution) }));
     else if (res.tip) fb.appendChild(h('div', { class: 'fbsol tip', html: mathHTML(res.tip) }));
+    if (res.missed && (res.solution || res.tip)) fb.appendChild(h('button', { class: 'linkbtn showsol', onclick: e => { fb.classList.add('open'); e.target.remove(); } }, 'Show the working'));
     const again = h('button', { class: 'qgo again', disabled: true }, res.closeOnly ? 'Close' : (this.meta.retry || 'Try another question'));
     const wait = res.closeOnly ? 1000 : Math.max(0, (res.wait || 0) * 1000);
     let left = Math.ceil(wait / 1000);

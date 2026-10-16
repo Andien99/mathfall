@@ -212,7 +212,20 @@ export class BattleScene {
     if (!this.playing) this._next();
   }
   get busyCount() { return this.queue.length + (this.playing ? 1 : 0); }
+  // Hold back new animations briefly (while a student's question card closes) so they
+  // see their own hero act instead of it playing behind the card.
+  hold(ms) { this.holdUntil = Math.max(this.holdUntil || 0, now() + ms); }
+  release() {
+    this.holdUntil = 0;
+    if (this._holdT) { clearTimeout(this._holdT); this._holdT = null; this._next(); }
+  }
   _next() {
+    if (this.queue.length && now() < (this.holdUntil || 0)) {
+      this.playing = true;
+      clearTimeout(this._holdT);
+      this._holdT = setTimeout(() => { this._holdT = null; this._next(); }, this.holdUntil - now());
+      return;
+    }
     const ev = this.queue.shift();
     if (!ev) { this.playing = false; this.onAnimDone(); return; }
     this.playing = true;

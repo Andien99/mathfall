@@ -26,6 +26,7 @@ const scene = new BattleScene($('#scene'), {
   onAnimDone: () => { if (state && state.run) { scene.sync(state.run, { force: true }); renderHUD(); } },
   onAfter: () => renderParty(true)
 });
+window.__mfScene = scene;
 scene.onLowPower = () => { console.info('Mathfall: lower detail mode for smoother play'); fit(); };
 function stageRect() {
   const W = innerWidth, H = innerHeight;
@@ -59,7 +60,20 @@ const mapView = new MapView($('#mapLayer'), node => {
   socket.emit('vote', { node }, r => { if (!r.ok && r.msg) toast(r.msg); });
 });
 const qpanel = new QuestionPanel($('#qLayer'), {
-  onSubmit: (qid, value) => socket.emit('answer', { qid, value }, res => { qpanel.result(res); if (res && res.ok) renderActions(); }),
+  onSubmit: (qid, value) => {
+    // Hold this round's animations until the card closes, so the student sees their own hero act.
+    scene.hold(1500);
+    socket.emit('answer', { qid, value }, res => {
+      if (!res || !res.ok || !res.correct) scene.release();
+      qpanel.result(res);
+      if (res && res.ok) renderActions();
+    });
+  },
+  onClosed: res => {
+    scene.release();
+    if (res && res.free) banner('Next Attack or Defend is free!', 'free');
+    else if (res && res.note) banner(res.note, 'free');
+  },
   onNext: () => socket.emit('nextQ', {}, res => { if (res.ok && res.q) qpanel.open(res.q, metaFor(res.q.intent)); else { if (res.msg) toast(res.msg); if (!res.ok) qpanel.close(true); } }),
   onDrop: () => socket.emit('dropQ', {}),
   onClose: () => renderActions()

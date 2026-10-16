@@ -513,13 +513,13 @@ body.screen-lobby #lobby { display: grid; grid-template-columns: 1fr 280px; grid
 .qte-wait { color: #ffc8b8; }
 
 /* ---------------- raid ---------------- */
-#raidBar { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); width: min(620px, 92vw); z-index: 6; display: none; pointer-events: none; background: rgba(20, 6, 30, 0.85); border: 1px solid #b47aff; border-radius: 10px; padding: 6px 12px 8px; box-shadow: 0 0 30px rgba(140, 60, 255, 0.35); }
+#raidBar { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); width: min(620px, 92vw); z-index: 6; display: none; pointer-events: none; background: rgba(30, 8, 6, 0.86); border: 1px solid #ff8a4a; border-radius: 10px; padding: 6px 12px 8px; box-shadow: 0 0 30px rgba(255, 90, 40, 0.35); }
 #raidBar.show { display: block; }
-#raidBar .rt { display: flex; gap: 10px; align-items: baseline; font-size: 13px; color: #d8c0ff; }
-#raidBar .rt b { font-family: var(--display); font-weight: 900; font-size: 18px; color: #e8d0ff; letter-spacing: 0.1em; }
+#raidBar .rt { display: flex; gap: 10px; align-items: baseline; font-size: 13px; color: #ffcfb0; }
+#raidBar .rt b { font-family: var(--display); font-weight: 900; font-size: 18px; color: #ffe0c0; letter-spacing: 0.1em; }
 #raidBar .rt .rtime { margin-left: auto; font-weight: 900; font-size: 16px; color: #fff; }
-#raidBar .rhp { position: relative; height: 14px; background: #1a0828; border-radius: 7px; overflow: hidden; margin-top: 4px; }
-#raidBar .rhp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(180deg, #e08aff, #7a2ad8); transition: width 0.4s; }
+#raidBar .rhp { position: relative; height: 14px; background: #2a0a06; border-radius: 7px; overflow: hidden; margin-top: 4px; }
+#raidBar .rhp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(180deg, #ffb04a, #d8401a); transition: width 0.4s; }
 #raidBar .rhp span { position: relative; display: block; text-align: center; font-size: 11px; font-weight: 900; line-height: 14px; }
 #raidBar .rteams { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
 #raidBar .rteams span { font-size: 11px; font-weight: 800; border: 1px solid; border-radius: 999px; padding: 0 7px; background: rgba(0, 0, 0, 0.35); }
@@ -533,3 +533,15 @@ body.screen-lobby #lobby { display: grid; grid-template-columns: 1fr 280px; grid
 .raid-board b { text-align: right; }
 .fl-short { display: none; }
 @media (max-width: 520px) { .fl-full { display: none; } .fl-short { display: inline; } #raidBar { top: 142px; } }
+
+/* a missed answer: the card sits at the bottom so the whiff plays in view */
+.qpanel.peek { align-items: flex-end; background: linear-gradient(180deg, transparent 40%, rgba(4, 2, 12, 0.6)); pointer-events: none; }
+.qpanel.peek .qcard { pointer-events: auto; max-height: 50vh; overflow: auto; margin-bottom: max(8px, var(--sab)); }
+.qpanel.peek .qtext.small { display: none; }
+@media (max-height: 700px) { .qpanel.peek .qcard { max-height: 46vh; } .qpanel.peek .fbsol { max-height: 22vh; overflow: auto; } }
+.qpanel.peek .qcard { max-height: 40vh; }
+.qpanel.peek .fbsol { display: none; }
+.qpanel.peek .qfeedback.open .fbsol { display: block; max-height: 18vh; overflow: auto; }
+.qpanel.peek .qhead { padding-top: 6px; padding-bottom: 6px; }
+.qpanel.peek .fbmiss { font-size: 18px; }
+@media (max-width: 520px) { .qpanel.peek .qcard { max-height: 36vh; } .qpanel.peek .qhead .qs { display: none; } .qpanel.peek .fbt { display: none; } }

@@ -659,8 +659,9 @@ const ENEMY_DEF = {
     idle0: {}, idle1: { breathe: 1, tail: 0.5 }, idle2: { breathe: 2, tail: 1, headDy: 1 }, idle3: { breathe: 1, tail: 0.5 },
     windup: { headDx: 8, headDy: -6, jaw: 2, legs: 4, rage: 1 }, attack: { headDx: -10, headDy: 4, jaw: 9, legs: -6, rage: 1 },
     roar: { headDx: 2, headDy: -8, jaw: 11, rage: 1, breathe: 2 }, hurt: { headDx: 6, headDy: -3, jaw: 4, dx: 3 }, tail: { tail: 2.2, headDx: 4, legs: 6 } } },
-  // The raid boss: Gravemaw's shape steeped in void light until it gets art of its own.
-  voidmaw: { w: 168, h: 120, ax: 76, ay: 116, draw: (ps) => { const S = drawWyrm(ps); S.tint('#5b2aa8', 0.48); return S; }, poses: null },
+  // The raid boss: Andy's red dragon (public/art/voidmaw.png, built by tools/build_dragon.py).
+  // The drawn fallback below is only used if that sheet is missing.
+  voidmaw: { w: 176, h: 156, ax: 88, ay: 154, draw: (ps) => { const S = drawWyrm(ps); S.tint('#a8301a', 0.4); return S; }, poses: null },
   shard: { w: 30, h: 40, ax: 15, ay: 38, draw: drawShard, poses: { idle0: { dy: 0 }, idle1: { dy: -1 }, idle2: { dy: -2 }, idle3: { dy: -1 }, windup: { dy: -3 }, attack: { dy: 1 }, hurt: { hurt: 1 } } }
 };
 ENEMY_DEF.voidmaw.poses = ENEMY_DEF.wyrm.poses;

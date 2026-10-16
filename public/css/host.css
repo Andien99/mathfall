@@ -193,10 +193,10 @@ main { max-width: 1320px; margin: 0 auto; padding: 22px 24px 60px; }
 @keyframes tokenPulse { 50% { box-shadow: 0 0 12px var(--tc); } }
 .raid-view { padding: 6px 4px; }
 .raid-title { display: flex; gap: 12px; align-items: baseline; }
-.raid-title b { font-family: 'Cinzel', serif; font-size: 28px; letter-spacing: 0.12em; color: #e8d0ff; }
+.raid-title b { font-family: "Cinzel", serif; font-size: 28px; letter-spacing: 0.12em; color: #ffd0a0; }
 .raid-title span { color: #c8b0f0; }
-.raid-hp { position: relative; height: 26px; border-radius: 13px; background: #1a0828; overflow: hidden; margin: 10px 0 14px; border: 1px solid #b47aff; }
-.raid-hp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(180deg, #e08aff, #7a2ad8); transition: width 0.4s; }
+.raid-hp { position: relative; height: 26px; border-radius: 13px; background: #2a0a06; overflow: hidden; margin: 10px 0 14px; border: 1px solid #ff8a4a; }
+.raid-hp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(180deg, #ffb04a, #d8401a); transition: width 0.4s; }
 .raid-hp span { position: relative; display: block; text-align: center; font-weight: 900; line-height: 26px; }
 .raid-teams { display: grid; gap: 6px; }
 .rteam { display: grid; grid-template-columns: 110px 1fr 70px auto; gap: 10px; align-items: center; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 6px 10px; color: #fff; cursor: pointer; text-align: left; }
