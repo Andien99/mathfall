@@ -37,6 +37,7 @@ app.disable('x-powered-by');
 // Optional hand-made art: an empty manifest means "use the built-in art".
 app.get('/art/manifest.json', (req, res) => {
   const f = path.join(__dirname, 'public', 'art', 'manifest.json');
+  res.setHeader('Cache-Control', 'no-cache');
   if (fs.existsSync(f)) return res.sendFile(f);
   res.json({});
 });
@@ -44,8 +45,21 @@ app.get('/art/manifest.json', (req, res) => {
 // fonts and KaTeX never change, so browsers keep them for a week.
 app.use('/fonts', express.static(path.join(__dirname, 'public', 'fonts'), { maxAge: '7d' }));
 app.use('/vendor', express.static(path.join(__dirname, 'public', 'vendor'), { maxAge: '7d' }));
-app.use('/shared', express.static(path.join(__dirname, 'shared'), { maxAge: 0 }));
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0, extensions: ['html'] }));
+// "no-cache" makes every browser (iPad Safari included) check with the server before reusing a file, and the pages
+// below stamp their script/style links with this deploy's id, so an open tab can't keep running last week's code.
+const BUILD = (process.env.RENDER_GIT_COMMIT || String(Date.now())).slice(0, 10);
+const fresh = { maxAge: 0, setHeaders: res => res.setHeader('Cache-Control', 'no-cache') };
+function stamped(file) {
+  return (req, res) => {
+    const html = fs.readFileSync(path.join(__dirname, 'public', file), 'utf8')
+      .replace(/(src|href)="(\/(?:js|css|shared)\/[^"?]+\.(?:js|css))"/g, `$1="$2?v=${BUILD}"`);
+    res.setHeader('Cache-Control', 'no-cache'); res.type('html').send(html);
+  };
+}
+app.get(['/', '/index.html'], stamped('index.html'));
+app.get(['/host', '/host.html'], stamped('host.html'));
+app.use('/shared', express.static(path.join(__dirname, 'shared'), fresh));
+app.use(express.static(path.join(__dirname, 'public'), { ...fresh, extensions: ['html'] }));
 
 app.get('/api/bank', (req, res) => {
   res.json({
