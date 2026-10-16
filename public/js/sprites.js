@@ -831,6 +831,7 @@ async function loadArtOverrides() {
     const im = await load(d.sheet); if (!im) continue;
     const def = ENEMY_DEF[kind]; if (!def) continue;
     const [fw, fh] = d.frame || [def.w, def.h];
+    if (d.anchor) { def.w = fw; def.h = fh; def.ax = d.anchor[0]; def.ay = d.anchor[1]; }   // PixelLab art brings its own frame size
     for (const [pose, [c, r]] of Object.entries(d.poses || {})) {
       const fr = crop(im, fw, fh, c, r);
       cache.set(`e:${kind}:${pose}:0`, fr); cache.set(`e:${kind}:${pose}:1`, white(fr)); n++;

@@ -3535,6 +3535,483 @@
      0
     ]
    }
+  },
+  "goblin": {
+   "sheet": "goblin.png",
+   "frame": [
+    90,
+    70
+   ],
+   "anchor": [
+    45,
+    66
+   ],
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "attack": [
+     5,
+     0
+    ],
+    "hurt": [
+     6,
+     0
+    ],
+    "charge": [
+     7,
+     0
+    ],
+    "roar": [
+     8,
+     0
+    ],
+    "tail": [
+     9,
+     0
+    ]
+   }
+  },
+  "hexer": {
+   "sheet": "hexer.png",
+   "frame": [
+    88,
+    78
+   ],
+   "anchor": [
+    44,
+    74
+   ],
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "attack": [
+     5,
+     0
+    ],
+    "hurt": [
+     6,
+     0
+    ],
+    "charge": [
+     7,
+     0
+    ],
+    "roar": [
+     8,
+     0
+    ],
+    "tail": [
+     9,
+     0
+    ]
+   }
+  },
+  "slime": {
+   "sheet": "slime.png",
+   "frame": [
+    75,
+    56
+   ],
+   "anchor": [
+    37,
+    52
+   ],
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "attack": [
+     5,
+     0
+    ],
+    "hurt": [
+     6,
+     0
+    ],
+    "charge": [
+     7,
+     0
+    ],
+    "roar": [
+     8,
+     0
+    ],
+    "tail": [
+     9,
+     0
+    ]
+   }
+  },
+  "skeleton": {
+   "sheet": "skeleton.png",
+   "frame": [
+    92,
+    72
+   ],
+   "anchor": [
+    46,
+    68
+   ],
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "attack": [
+     5,
+     0
+    ],
+    "hurt": [
+     6,
+     0
+    ],
+    "charge": [
+     7,
+     0
+    ],
+    "roar": [
+     8,
+     0
+    ],
+    "tail": [
+     9,
+     0
+    ]
+   }
+  },
+  "thrall": {
+   "sheet": "thrall.png",
+   "frame": [
+    81,
+    62
+   ],
+   "anchor": [
+    40,
+    58
+   ],
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "attack": [
+     5,
+     0
+    ],
+    "hurt": [
+     6,
+     0
+    ],
+    "charge": [
+     7,
+     0
+    ],
+    "roar": [
+     8,
+     0
+    ],
+    "tail": [
+     9,
+     0
+    ]
+   }
+  },
+  "sentinel": {
+   "sheet": "sentinel.png",
+   "frame": [
+    118,
+    99
+   ],
+   "anchor": [
+    59,
+    95
+   ],
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "attack": [
+     5,
+     0
+    ],
+    "hurt": [
+     6,
+     0
+    ],
+    "charge": [
+     7,
+     0
+    ],
+    "roar": [
+     8,
+     0
+    ],
+    "tail": [
+     9,
+     0
+    ]
+   }
+  },
+  "hollowking": {
+   "sheet": "hollowking.png",
+   "frame": [
+    154,
+    121
+   ],
+   "anchor": [
+    77,
+    117
+   ],
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "attack": [
+     5,
+     0
+    ],
+    "hurt": [
+     6,
+     0
+    ],
+    "charge": [
+     7,
+     0
+    ],
+    "roar": [
+     8,
+     0
+    ],
+    "tail": [
+     9,
+     0
+    ]
+   }
+  },
+  "colossus": {
+   "sheet": "colossus.png",
+   "frame": [
+    177,
+    147
+   ],
+   "anchor": [
+    88,
+    143
+   ],
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "attack": [
+     5,
+     0
+    ],
+    "hurt": [
+     6,
+     0
+    ],
+    "charge": [
+     7,
+     0
+    ],
+    "roar": [
+     8,
+     0
+    ],
+    "tail": [
+     9,
+     0
+    ]
+   }
+  },
+  "shard": {
+   "sheet": "shard.png",
+   "frame": [
+    50,
+    44
+   ],
+   "anchor": [
+    25,
+    40
+   ],
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "attack": [
+     5,
+     0
+    ],
+    "hurt": [
+     6,
+     0
+    ],
+    "charge": [
+     7,
+     0
+    ],
+    "roar": [
+     8,
+     0
+    ],
+    "tail": [
+     9,
+     0
+    ]
+   }
   }
  }
 }
