@@ -270,7 +270,7 @@
       ],
       [
        9,
-       130
+       700
       ],
       [
        10,
@@ -296,6 +296,7 @@
      "cast": true,
      "strike": null,
      "release": 10,
+     "charge": 9,
      "muzzle": [
       -66,
       -48
@@ -420,7 +421,7 @@
       ],
       [
        7,
-       140
+       700
       ],
       [
        8,
@@ -438,6 +439,7 @@
      "cast": true,
      "strike": null,
      "release": 8,
+     "charge": 7,
      "muzzle": [
       -44,
       -40
@@ -592,6 +594,7 @@
      "cast": true,
      "strike": 12,
      "release": null,
+     "charge": null,
      "muzzle": null,
      "zoom": null
     }
@@ -743,6 +746,7 @@
      "cast": true,
      "strike": 12,
      "release": null,
+     "charge": null,
      "muzzle": null,
      "zoom": null
     }
@@ -890,6 +894,7 @@
      "cast": false,
      "strike": null,
      "release": null,
+     "charge": null,
      "muzzle": null,
      "zoom": null
     }
@@ -1045,6 +1050,7 @@
      "cast": false,
      "strike": null,
      "release": null,
+     "charge": null,
      "muzzle": null,
      "zoom": null
     }

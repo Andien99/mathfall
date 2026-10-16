@@ -30,9 +30,9 @@ MOVES = {
     # rangers shoot from where they stand: draw, aim, release ('release' frame spawns the arrow at 'muzzle',
     # px from the feet), recoil
     'ranger:m': dict(sheet='ranger', move='shoot', shade=lambda im, hs: hue_shift(im, 0.17, 0.48, hs, 0.12, 0.7), variants=[0, -0.24, 0.30],
-                     ms=[60, 60, 60, 60, 60, 60, 60, 60, 80, 130, 50, 50, 90, 220], hit=10, release=10, muzzle=[-66, -48], cast=True, zoom=1.06),
+                     ms=[60, 60, 60, 60, 60, 60, 60, 60, 80, 700, 50, 50, 90, 220], hit=10, release=10, charge=9, muzzle=[-66, -48], cast=True, zoom=1.06),
     'ranger:f': dict(sheet='ranger_f', move='shoot', shade=lambda im, hs: hue_shift(im, 0.17, 0.48, hs, 0.12, 0.7), variants=[0, -0.24, 0.30],
-                     ms=[60, 60, 60, 60, 60, 60, 60, 140, 70, 280], hit=8, release=8, muzzle=[-44, -40], cast=True, zoom=1.06),
+                     ms=[60, 60, 60, 60, 60, 60, 60, 700, 70, 280], hit=8, release=8, charge=7, muzzle=[-44, -40], cast=True, zoom=1.06),
 }
 
 def build(skin):
@@ -52,7 +52,7 @@ def build(skin):
     man['heroes'][skin].setdefault('anims', {})[mv] = {
         'sheet': name, 'frame': [AW, AH], 'anchor': [AAX, AAY], 'frames': n, 'variants': len(m['variants']),
         'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m['hit'], 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
-        'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom')}
+        'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom')}
     json.dump(man, open(path, 'w'), indent=1)
     print('wrote', name, n, 'frames', sum(m['ms']), 'ms')
 

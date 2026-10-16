@@ -35,7 +35,7 @@ export class BattleScene {
     this.onAnimDone = opts.onAnimDone || (() => {});
     this.onAfter = opts.onAfter || (() => {});
     this.shake = 0; this.shakeT = 0;
-    this.trails = []; this.cam = null;
+    this.trails = []; this.cam = null; this.stars = [];
     this.freezeUntil = 0;
     this.flash = 0;
     this.target = null; this.allyTarget = null;
@@ -449,7 +449,12 @@ export class BattleScene {
       const from = { x: home.x + mx, y: home.y + my }, to = { x: first.x, y: first.y - 16 };
       const fly = Math.max(140, Math.abs(to.x - from.x) * 1.1);
       hitAt = at[anim.release] + fly;
-      setTimeout(() => { this.projectile(from, to, fx, T(fly)); sfx('bow'); this.glows.push({ x: from.x, y: from.y, r: 18, color: fx === 'proj_poison' ? '#9cff6b' : '#fff2c0', t: 0, life: 0.25, a: 0.8 }); }, T(at[anim.release]));
+      let star = null;
+      if (anim.charge != null) setTimeout(() => {   // a star of light gathers at the arrow tip while the ranger holds aim
+        star = { x: from.x, y: from.y, t0: now(), grow: T(at[anim.release] - at[anim.charge]), color: fx === 'proj_poison' ? '#9cff6b' : '#ffe9a0' };
+        this.stars.push(star); sfx('twinkle');
+      }, T(at[anim.charge]));
+      setTimeout(() => { if (star) { star.done = true; this.burst(from.x, from.y, star.color, 14, 50, 0); } this.projectile(from, to, fx, T(fly)); sfx('bow'); this.glows.push({ x: from.x, y: from.y, r: 18, color: fx === 'proj_poison' ? '#9cff6b' : '#fff2c0', t: 0, life: 0.25, a: 0.8 }); }, T(at[anim.release]));
     }
     if (anim.trail != null) setTimeout(() => {
       this.trails.push({ x: A.x + A.ox - 4, y: A.y + A.oy - 32, r: 38, t0: now(), life: T(460) });
@@ -474,7 +479,7 @@ export class BattleScene {
       const p = this.pos(t.id); if (!p) continue;
       if (t.dmg != null && !t.shatter) {
         const colr = { proj_fire: '#ff8a3c', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', proj_poison: '#9cff6b', venom: '#9cff6b', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8' }[fx] || '#ffffff';
-        this.burst(p.x, p.y - 16, colr, 14 + Math.min(30, t.dmg), 34);
+        this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy');
         this.glows.push({ x: p.x, y: p.y - 16, r: 34 + Math.min(40, t.dmg * 1.5), color: colr, t: 0, life: 0.35, a: 0.8 });
         if (['slash', 'slash_heavy', 'shadow', 'dragon'].includes(fx)) this.arc(p.x, p.y - 18, fx === 'slash_heavy' || fx === 'dragon' ? 20 : 15, colr === '#ffffff' ? '#e8f4ff' : colr);
         if (t.dmg > 0) { this.flashActor(p.a); this.pose(p.a, 'hurt', 260); this.hitShake(p.a, t.dmg); }
@@ -628,13 +633,28 @@ export class BattleScene {
   }
   knock(a, dx) { a.knock = { dx, t0: now() }; }
   // enemies shudder side to side when they take damage (bigger hits shake harder)
-  hitShake(a, dmg = 5) { if (a && a.type === 'enemy') a.hshake = { t0: now(), amp: Math.min(5, 2 + dmg / 6) }; }
+  hitShake(a, dmg = 5) { if (a && a.type === 'enemy') a.hshake = { t0: now(), amp: Math.min(9, 4.5 + dmg / 4) }; }
   flashActor(a) { if (a) a.flashUntil = now() + 110; }
   burst(x, y, color, n = 16, speed = 30, gy = 30) {
     if (this.lowPower) n = Math.ceil(n / 2);
     for (let i = 0; i < n; i++) {
       const ang = Math.random() * Math.PI * 2, v = speed * (0.3 + Math.random());
       this.particles.push({ x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v - speed * 0.3, g: gy, life: 0.35 + Math.random() * 0.45, t: 0, c: color, spark: Math.random() < 0.5 });
+    }
+  }
+  // impact sparks for every attack: long streaks that fly well out; the knight's blows also throw tumbling cubes
+  hitSparks(x, y, color, dmg = 6, cubes = false) {
+    const lp = this.lowPower ? 0.5 : 1;
+    const n = Math.round((22 + Math.min(26, dmg * 1.5)) * lp);
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * Math.PI * 2, v = 70 + Math.random() * 110;
+      this.particles.push({ x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v - 40, g: 120, life: 0.45 + Math.random() * 0.45, t: 0,
+        c: Math.random() < 0.35 ? '#ffffff' : color, streak: 3 + Math.round(Math.random() * 3), drag: 0.9 });
+    }
+    if (cubes) for (let i = 0; i < Math.round(12 * lp); i++) {
+      const ang = -Math.PI * (0.1 + Math.random() * 0.8), v = 60 + Math.random() * 90;   // mostly upward and out
+      this.particles.push({ x: x + (Math.random() - 0.5) * 8, y, vx: Math.cos(ang) * v + 25, vy: Math.sin(ang) * v, g: 260, life: 0.7 + Math.random() * 0.4, t: 0,
+        c: ['#e8f4ff', '#9fc8ff', '#ffffff', '#6a8cc8'][i % 4], cube: 2 + (i % 2), spin: Math.random() * 6, fade: true });
     }
   }
   column(x, y, color) {
@@ -787,7 +807,7 @@ export class BattleScene {
       }
       let kx = 0;
       if (a.knock) { const k = (t - a.knock.t0) / 220; if (k > 1) a.knock = null; else kx = a.knock.dx * Math.sin(k * Math.PI); }
-      if (a.hshake) { const k = (t - a.hshake.t0) / 300; if (k > 1) a.hshake = null; else kx += Math.round(a.hshake.amp * (1 - k) * Math.sin(k * Math.PI * 10)); }   // ~5 quick wobbles
+      if (a.hshake) { const k = (t - a.hshake.t0) / 560; if (k > 1) a.hshake = null; else kx += Math.round(a.hshake.amp * Math.pow(1 - k, 0.7) * Math.sin(k * Math.PI * 14)); }   // 7 side-to-side wobbles over ~0.56 s
       const fr = this.frameFor(a);
       const anf = a.type === 'hero' ? this._animAt(a, t) : null;
       const info = a.type === 'enemy' ? SP.enemyInfo(a.kind) : anf ? { ax: anf.ax, ay: anf.ay } : { ax: SP.ANCHOR_X, ay: SP.ANCHOR_Y };
@@ -821,15 +841,40 @@ export class BattleScene {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.t += dt; if (p.t >= p.life) { this.particles.splice(i, 1); continue; }
-      p.vy += (p.g || 0) * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vy += (p.g || 0) * dt; if (p.drag) { const d = Math.pow(p.drag, dt * 10); p.vx *= d; p.vy *= d; } p.x += p.vx * dt; p.y += p.vy * dt;
       const k = 1 - p.t / p.life;
       n.globalAlpha = p.fade ? k : Math.min(1, k * 1.6);
       n.fillStyle = p.c;
-      if (p.plus) { n.fillRect(Math.round(p.x) - 1, Math.round(p.y), 3, 1); n.fillRect(Math.round(p.x), Math.round(p.y) - 1, 1, 3); }
+      if (p.streak) {   // a short line along the direction of travel, thicker while fresh
+        const sp = Math.hypot(p.vx, p.vy) || 1, L = p.streak * Math.min(1, sp / 60);
+        const w = k > 0.5 ? 2 : 1;
+        for (let j = 0; j <= L; j++) n.fillRect(Math.round(p.x - p.vx / sp * j), Math.round(p.y - p.vy / sp * j), w, w);
+      }
+      else if (p.cube) {   // tumbling cube: alternates square / diamond as it spins
+        const c = p.cube, ph = Math.floor((p.t * 14 + p.spin)) % 2, px = Math.round(p.x), py = Math.round(p.y);
+        if (ph) { n.fillRect(px - 1, py - 1, c + 1, c + 1); n.fillStyle = '#2a3a5a'; n.fillRect(px - 1, py + c - 1, c + 1, 1); }
+        else { n.fillRect(px, py - 1, c - 1, c + 1); n.fillRect(px - 1, py, c + 1, c - 1); }
+      }
+      else if (p.plus) { n.fillRect(Math.round(p.x) - 1, Math.round(p.y), 3, 1); n.fillRect(Math.round(p.x), Math.round(p.y) - 1, 1, 3); }
       else if (p.blob) { const r = Math.round(p.blob + (1 - k) * 2); n.fillRect(Math.round(p.x) - r, Math.round(p.y) - r, r * 2, r * 2); }
       else n.fillRect(Math.round(p.x), Math.round(p.y), p.spark && k > 0.5 ? 2 : 1, 1);
     }
     n.globalAlpha = 1;
+    // charge stars (ranger arrow tip): grow, twinkle between + and x shapes
+    for (let i = this.stars.length - 1; i >= 0; i--) {
+      const st = this.stars[i];
+      if (st.done) { this.stars.splice(i, 1); continue; }
+      const g = Math.min(1, (t - st.t0) / st.grow), arm = Math.round(1 + g * 5), x = Math.round(st.x), y = Math.round(st.y);
+      const diag = Math.floor((t - st.t0) / 90) % 2 === 1, pulse = 0.75 + 0.25 * Math.sin((t - st.t0) / 40);
+      n.globalAlpha = pulse; n.fillStyle = st.color;
+      for (let j = 1; j <= arm; j++) {
+        if (diag) { const d = Math.round(j * 0.7); n.fillRect(x - d, y - d, 1, 1); n.fillRect(x + d, y - d, 1, 1); n.fillRect(x - d, y + d, 1, 1); n.fillRect(x + d, y + d, 1, 1); }
+        else { n.fillRect(x - j, y, 1, 1); n.fillRect(x + j, y, 1, 1); n.fillRect(x, y - j, 1, 1); n.fillRect(x, y + j, 1, 1); }
+      }
+      n.fillStyle = '#ffffff'; n.fillRect(x - 1, y - 1, 3, 3);
+      n.globalAlpha = 1;
+      if (Math.random() < 0.35) this.particles.push({ x: x + (Math.random() - 0.5) * 18, y: y + (Math.random() - 0.5) * 18, vx: 0, vy: 0, g: 0, life: 0.25, t: 0, c: st.color, plus: true, fade: true });
+    }
     // projectiles
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const pr = this.projectiles[i];
@@ -1036,6 +1081,13 @@ export class BattleScene {
         if (G.tall) { ctx.save(); ctx.translate(x, y); ctx.scale(0.6, 1.8); ctx.translate(-x, -y); ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.restore(); }
         else ctx.fillRect(x - r, y - r, r * 2, r * 2);
       }
+    }
+    // charge-star glow
+    for (const st of this.stars) {
+      const g = Math.min(1, (performance.now() - st.t0) / st.grow), r = (8 + g * 22) * s;
+      const x = st.x * s + sx, y = st.y * s + sy;
+      const rg = ctx.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, hexA(st.color, 0.75)); rg.addColorStop(1, hexA(st.color, 0));
+      ctx.fillStyle = rg; ctx.fillRect(x - r, y - r, r * 2, r * 2);
     }
     // projectile glows
     for (const pr of this.projectiles) {

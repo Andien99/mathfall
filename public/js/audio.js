@@ -54,6 +54,7 @@ const SFX = {
   ice: () => { [1800, 2400, 1500].forEach((f, i) => tone(f, 0.12, { type: 'triangle', vol: 0.08, delay: i * 0.04 })); },
   focus: () => { tone(990, 0.2, { type: 'sine', vol: 0.12, slide: 1.5 }); },
   enemyWind: () => { noise(0.2, { freq: 400, q: 1, vol: 0.12, slide: 2 }); },
+  twinkle: () => { tone(880, 0.5, { type: 'sine', vol: 0.06, slide: 1.8 }); setTimeout(() => tone(1320, 0.3, { type: 'triangle', vol: 0.04 }), 180); },
   charge: () => { tone(110, 0.6, { type: 'sawtooth', vol: 0.12, slide: 2 }); },
   roar: () => { noise(0.8, { freq: 300, q: 0.6, vol: 0.5, type: 'lowpass', slide: 0.5 }); tone(70, 0.8, { type: 'sawtooth', vol: 0.2, slide: 0.7 }); },
   hex: () => { tone(400, 0.3, { type: 'square', vol: 0.06, slide: 0.5 }); },
