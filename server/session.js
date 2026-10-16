@@ -145,10 +145,12 @@ class Session {
   // ------------------------------------------------------------ runs
   heroFor(team, p) {
     const H = C.HEROES[p.cls] || C.HEROES.knight;
-    const same = team.members.map(id => this.players.get(id)).filter(q => q && q.cls === p.cls);
+    const gender = p.gender === 'f' ? 'f' : 'm';
+    const skin = p.cls + ':' + gender;
+    const same = team.members.map(id => this.players.get(id)).filter(q => q && q.cls === p.cls && (q.gender === 'f' ? 'f' : 'm') === gender);
     const variant = Math.max(0, same.findIndex(q => q.id === p.id)) % 3;
     return {
-      id: p.id, name: p.name, cls: p.cls, variant, maxHp: H.hp, hp: H.hp, block: 0, st: {},
+      id: p.id, name: p.name, cls: p.cls, gender, skin, variant, maxHp: H.hp, hp: H.hp, block: 0, st: {},
       skills: H.skills.map(id => ({ id, lvl: 1 })), focus: 0, energy: 0, downed: false, acted: false, gold: 0,
       lv: { atk: 0, def: 0, hp: 0 }, free: false, nextFight: null,
       readyAction: null, lastTarget: null, stats: { dmg: 0, heal: 0, taken: 0, skills: 0 }
@@ -531,7 +533,7 @@ class Session {
     const allies = [];
     for (const t of this.teams) {
       if (t === team || !t.run) continue;
-      for (const h of Object.values(t.run.heroes)) if (allies.length < 24) allies.push({ cls: h.cls, variant: h.variant, downed: h.downed, color: t.color });
+      for (const h of Object.values(t.run.heroes)) if (allies.length < 24) allies.push({ cls: h.cls, skin: h.skin, variant: h.variant, downed: h.downed, color: t.color });
     }
     return { hp: raid.hp, maxHp: raid.maxHp, endsAt: raid.endsAt, over: raid.over, won: raid.won,
       teams: this.teams.filter(t => t.run).map(t => ({ id: t.id, name: t.name, color: t.color, dmg: Math.round(raid.dmg[t.id] || 0) })).sort((a, b) => b.dmg - a.dmg),
@@ -595,7 +597,7 @@ class Session {
     const run = team.run;
     const base = { code: this.code, state: this.state, paused: this.paused, now: now(), sound: this.settings.sound, timer: this.settings.timer,
       team: { id: team.id, name: team.name, color: team.color, history: team.history },
-      members: team.members.map(id => { const p = this.players.get(id); return p ? { id, name: p.name, cls: p.cls, connected: p.connected } : null; }).filter(Boolean) };
+      members: team.members.map(id => { const p = this.players.get(id); return p ? { id, name: p.name, cls: p.cls, gender: p.gender, connected: p.connected } : null; }).filter(Boolean) };
     if (this.raid) base.raid = this.raidPublic(team);
     if (!run) return base;
     const order = team.members.filter(id => run.heroes[id]);
@@ -604,7 +606,7 @@ class Session {
       map: { nodes: run.map.nodes.map(n => ({ id: n.id, row: n.row, type: n.type, x: n.x, y: n.y, next: n.next, visited: !!n.visited, boss: n.boss })), pos: run.pos, options: run.phase === 'map' ? this.mapOptions(run) : [], votes: run.votes, voteDeadline: run.voteDeadline, goNode: run.goNode },
       heroes: order.map(id => {
         const h = run.heroes[id]; const p = this.players.get(id);
-        return { id, name: h.name, cls: h.cls, variant: h.variant, hp: h.hp, maxHp: h.maxHp, block: h.block, st: h.st, skills: h.skills, focus: h.focus, energy: h.energy || 0, downed: h.downed, acted: h.acted, ready: !!h.readyAction, gold: h.gold, lv: h.lv, free: !!h.free, nextFight: h.nextFight,
+        return { id, name: h.name, cls: h.cls, skin: h.skin, variant: h.variant, hp: h.hp, maxHp: h.maxHp, block: h.block, st: h.st, skills: h.skills, focus: h.focus, energy: h.energy || 0, downed: h.downed, acted: h.acted, ready: !!h.readyAction, gold: h.gold, lv: h.lv, free: !!h.free, nextFight: h.nextFight,
           connected: !!(p && p.connected), busy: p && p.pending && !p.pending.answered ? (p.pending.intent.action || p.pending.intent.kind) : null };
       }),
       waiting: run.pendingJoin,
@@ -626,7 +628,7 @@ class Session {
   }
   youFor(team, p) {
     const run = team.run;
-    const you = { id: p.id, name: p.name, cls: p.cls, track: this.trackFor(p) === 'modified' ? 'support' : 'main', joining: !!(run && !run.heroes[p.id]) };
+    const you = { id: p.id, name: p.name, cls: p.cls, gender: p.gender, track: this.trackFor(p) === 'modified' ? 'support' : 'main', joining: !!(run && !run.heroes[p.id]) };
     if (p.pending) you.pendingQ = p.pending.answered ? null : p.pending.pub.qid;
     const room = run && run.room;
     if (room && room.type === 'treasure' && room.chests[p.id]) { const ch = room.chests[p.id]; you.chest = { rarity: ch.rarity, opened: ch.opened, decided: ch.decided, gold: ch.gold, offer: ch.opened ? ch.offer : null }; }
@@ -658,7 +660,7 @@ class Session {
 
   hostState() {
     const players = [...this.players.values()].map(p => ({
-      id: p.id, name: p.name, connected: p.connected, teamId: p.teamId, cls: p.cls, modified: p.modified, support: this.trackFor(p) === 'modified',
+      id: p.id, name: p.name, connected: p.connected, teamId: p.teamId, cls: p.cls, skin: p.cls ? p.cls + ':' + (p.gender || 'm') : null, modified: p.modified, support: this.trackFor(p) === 'modified',
       answered: p.stats.answered, correct: p.stats.correct, streak: p.stats.streak, best: p.stats.best, busy: !!(p.pending && !p.pending.answered)
     }));
     const teams = this.teams.map(t => {
@@ -666,10 +668,10 @@ class Session {
       const o = { id: t.id, name: t.name, color: t.color, members: t.members, history: t.history };
       if (run) {
         o.phase = run.phase; o.floor = run.floor; o.rows = run.map.rows; o.asc = run.asc; o.length = run.length; o.boss = C.bossForAct(run.asc || 0);
-        o.heroCls = Object.values(run.heroes).map(h => ({ cls: h.cls, variant: h.variant, downed: h.downed }));
+        o.heroCls = Object.values(run.heroes).map(h => ({ cls: h.cls, skin: h.skin, variant: h.variant, downed: h.downed }));
         o.node = run.pos ? (run.map.nodes.find(n => n.id === run.pos) || {}).type : null;
         o.room = run.room ? run.room.type : null;
-        o.heroes = Object.values(run.heroes).map(h => ({ id: h.id, name: h.name, cls: h.cls, hp: h.hp, maxHp: h.maxHp, downed: h.downed }));
+        o.heroes = Object.values(run.heroes).map(h => ({ id: h.id, name: h.name, cls: h.cls, skin: h.skin, hp: h.hp, maxHp: h.maxHp, downed: h.downed }));
         if (run.combat) o.combat = { round: run.combat.round, phase: run.combat.phase, type: run.combat.type, enemies: run.combat.enemies.filter(e => !e.dead).map(e => ({ name: e.name, hp: e.hp, maxHp: e.maxHp })) };
       }
       return o;
@@ -689,7 +691,7 @@ class Session {
       const team = this.team(p.teamId);
       const h = team && team.run && team.run.heroes[p.id];
       return {
-        id: p.id, name: p.name, team: team ? team.name : '', cls: p.cls, modified: p.modified,
+        id: p.id, name: p.name, team: team ? team.name : '', cls: p.cls, skin: p.cls ? p.cls + ':' + (p.gender || 'm') : null, modified: p.modified,
         answered: p.stats.answered, correct: p.stats.correct, best: p.stats.best,
         pct: p.stats.answered ? Math.round(100 * p.stats.correct / p.stats.answered) : 0,
         supportAnswered: p.stats.modifiedAnswered,
@@ -927,6 +929,7 @@ function attach(io, banks) {
       me = { s, p };
       if (p.teamId) socket.join(s.room(p.teamId));
       if (data.cls && C.HEROES[data.cls] && !p.cls) p.cls = data.cls;
+      if ((data.gender === 'm' || data.gender === 'f') && !p.gender) p.gender = data.gender;
       reply(cb, { ok: true, playerId: p.id, token: p.token, name: p.name, state: s.state, heroes: C.HERO_ORDER });
       const t = s.team(p.teamId);
       if (t) { if (t.run) s.addHeroIfPossible(t, p); s.flush(t); }
@@ -947,6 +950,7 @@ function attach(io, banks) {
       const run = t && t.run;
       if (run && run.heroes[p.id] && !(run.room && (run.room.type === 'defeat' || run.room.type === 'complete'))) return reply(cb, { ok: false, msg: 'You can change hero when this run ends.' });
       p.cls = d.cls;
+      if (d.gender === 'm' || d.gender === 'f') p.gender = d.gender;
       if (run && run.heroes[p.id]) { const h = s.heroFor(t, p); h.gold = run.heroes[p.id].gold; run.heroes[p.id] = h; }
       reply(cb, { ok: true });
       s.flush(t);

@@ -214,7 +214,7 @@ function teamColumn(t, players, lobby) {
   for (const p of players) {
     const row = h('div', { class: 'pl' + (p.connected ? '' : ' off'), draggable: 'true' },
       h('button', { class: 'dot' + (p.modified ? ' on' : ''), title: p.modified ? 'Supported questions' : 'Main questions', 'aria-label': (p.modified ? 'Using supported questions: ' : 'Using main questions: ') + p.name, onclick: () => togglePin(p) }),
-      h('img', { src: p.cls ? SP.portraitURL(p.cls, 0, 'open', 2) : SP.iconURL('focus', 2), alt: '' }),
+      h('img', { src: p.cls ? SP.portraitURL(p.skin || p.cls, 0, 'open', 2) : SP.iconURL('focus', 2), alt: '' }),
       h('div', { class: 'n' }, p.name, h('div', { class: 'c' }, p.cls ? C.HEROES[p.cls].name : 'Choosing a hero')),
       h('button', { class: 'x', title: 'Remove ' + p.name, 'aria-label': 'Remove ' + p.name, onclick: () => { if (confirm(`Remove ${p.name} from the game?`)) socket.emit('host:kick', { pid: p.id }); } }, '×'));
     row.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', p.id); });
@@ -250,7 +250,7 @@ function renderLive() {
     if (t.phase === 'combat' && t.combat) { room = NODE_LABEL[t.node] || 'Fighting'; sub = `Round ${t.combat.round} · ` + t.combat.enemies.map(e => `${e.name} ${e.hp}/${e.maxHp}`).join(', '); }
     else if (t.phase === 'room') room = ROOM_LABEL[t.room] || 'Exploring';
     card.append(h('div', { class: 'lroom' }, room, sub ? h('div', { class: 'sub' }, sub) : null));
-    if (t.heroes) card.append(h('div', { class: 'lheroes' }, ...t.heroes.map(x => h('div', { class: 'lh' + (x.downed ? ' ko' : '') }, h('img', { src: SP.portraitURL(x.cls, 0, x.downed ? 'closed' : 'open', 2), alt: '' }), h('div', null, x.name, h('div', { class: 'bar' }, h('i', { style: { width: Math.round(100 * x.hp / x.maxHp) + '%' } }))), h('span', { class: 'lstats' }, `${x.hp}/${x.maxHp}`)))));
+    if (t.heroes) card.append(h('div', { class: 'lheroes' }, ...t.heroes.map(x => h('div', { class: 'lh' + (x.downed ? ' ko' : '') }, h('img', { src: SP.portraitURL(x.skin || x.cls, 0, x.downed ? 'closed' : 'open', 2), alt: '' }), h('div', null, x.name, h('div', { class: 'bar' }, h('i', { style: { width: Math.round(100 * x.hp / x.maxHp) + '%' } }))), h('span', { class: 'lstats' }, `${x.hp}/${x.maxHp}`)))));
     card.append(h('div', { class: 'lstats' }, acc[1] ? `Team accuracy ${Math.round(100 * acc[0] / acc[1])}% · ${acc[1]} answered` : 'No answers yet'));
     card.append(h('div', { class: 'ops' }, h('button', { class: 'btn small', onclick: () => openWatch(t) }, 'Watch'), h('button', { class: 'btn small', title: 'Ends the round or room for this team now', onclick: () => socket.emit('host:skipRoom', { teamId: t.id }) }, 'Hurry along')));
     grid.append(card);
@@ -306,7 +306,7 @@ function renderTower() {
       h('div', { class: 'raid-title' }, h('b', null, 'VOIDMAW'), h('span', null, r.over ? (r.won ? 'Defeated!' : 'Survived') : 'Heart of the Tower · all teams fighting')),
       h('div', { class: 'raid-hp' }, h('i', { style: { width: pct + '%' } }), h('span', null, `${r.hp} / ${r.maxHp}`)),
       h('div', { class: 'raid-teams' }, ...hs.teams.slice().sort((a, b) => (r.dmg[b.id] || 0) - (r.dmg[a.id] || 0)).map(t => h('button', { class: 'rteam', style: { '--tc': t.color }, onclick: () => openWatch(t), title: 'Show this team on screen' },
-        h('span', { class: 'nm' }, t.name), h('div', { class: 'bar' }, h('i', { style: { width: (100 * (r.dmg[t.id] || 0) / max) + '%' } })), h('b', null, Math.round(r.dmg[t.id] || 0)), h('span', { class: 'mini' }, ...(t.heroCls || []).map(x => h('img', { class: x.downed ? 'ko' : '', src: SP.portraitURL(x.cls, x.variant, x.downed ? 'closed' : 'open', 1), alt: '' }))))))));
+        h('span', { class: 'nm' }, t.name), h('div', { class: 'bar' }, h('i', { style: { width: (100 * (r.dmg[t.id] || 0) / max) + '%' } })), h('b', null, Math.round(r.dmg[t.id] || 0)), h('span', { class: 'mini' }, ...(t.heroCls || []).map(x => h('img', { class: x.downed ? 'ko' : '', src: SP.portraitURL(x.skin || x.cls, x.variant, x.downed ? 'closed' : 'open', 1), alt: '' }))))))));
     return;
   }
   box.append(h('div', { class: 'card-h' }, h('h2', null, 'The tower'), h('p', null, 'Every team, live. Click a team to show its battle on your screen.')));
@@ -314,7 +314,7 @@ function renderTower() {
   const rows = Math.max(...teams.map(t => t.rows));            // floors + the boss
   const token = t => h('button', { class: 'ttoken' + (t.phase === 'combat' ? ' fighting' : ''), style: { '--tc': t.color }, onclick: () => openWatch(t), title: 'Show Team ' + t.name + ' on screen' },
     h('span', { class: 'flag' }), h('b', null, t.name), h('span', { class: 'asc' }, 'Act ' + ((t.asc || 0) + 1)),
-    h('span', { class: 'mini' }, ...(t.heroCls || []).map(x => h('img', { class: x.downed ? 'ko' : '', src: SP.portraitURL(x.cls, x.variant, x.downed ? 'closed' : 'open', 1), alt: '' }))),
+    h('span', { class: 'mini' }, ...(t.heroCls || []).map(x => h('img', { class: x.downed ? 'ko' : '', src: SP.portraitURL(x.skin || x.cls, x.variant, x.downed ? 'closed' : 'open', 1), alt: '' }))),
     h('span', { class: 'st' }, teamStatus(t)));
   const floorOf = t => Math.max(1, t.floor || 1);
   const scene = h('div', { class: 'tower-scene' });

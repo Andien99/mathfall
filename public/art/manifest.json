@@ -1,79 +1,6 @@
 {
  "heroes": {
-  "knight": {
-   "sheet": "knight.png",
-   "frame": [
-    84,
-    76
-   ],
-   "variants": 3,
-   "variantRows": 1,
-   "poses": {
-    "idle0": [
-     0,
-     0
-    ],
-    "idle1": [
-     1,
-     0
-    ],
-    "idle2": [
-     2,
-     0
-    ],
-    "idle3": [
-     3,
-     0
-    ],
-    "windup": [
-     4,
-     0
-    ],
-    "swing1": [
-     5,
-     0
-    ],
-    "swing2": [
-     6,
-     0
-    ],
-    "cast0": [
-     7,
-     0
-    ],
-    "cast1": [
-     8,
-     0
-    ],
-    "defend": [
-     9,
-     0
-    ],
-    "hurt": [
-     10,
-     0
-    ],
-    "down": [
-     11,
-     0
-    ],
-    "victory": [
-     12,
-     0
-    ],
-    "sit": [
-     13,
-     0
-    ]
-   },
-   "portrait": [
-    31,
-    15,
-    26,
-    26
-   ]
-  },
-  "mage": {
+  "mage:f": {
    "sheet": "mage.png",
    "frame": [
     84,
@@ -146,7 +73,80 @@
     22
    ]
   },
-  "ranger": {
+  "mage:m": {
+   "sheet": "mage_m.png",
+   "frame": [
+    84,
+    76
+   ],
+   "variants": 3,
+   "variantRows": 1,
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "swing1": [
+     5,
+     0
+    ],
+    "swing2": [
+     6,
+     0
+    ],
+    "cast0": [
+     7,
+     0
+    ],
+    "cast1": [
+     8,
+     0
+    ],
+    "defend": [
+     9,
+     0
+    ],
+    "hurt": [
+     10,
+     0
+    ],
+    "down": [
+     11,
+     0
+    ],
+    "victory": [
+     12,
+     0
+    ],
+    "sit": [
+     13,
+     0
+    ]
+   },
+   "portrait": [
+    35,
+    19,
+    22,
+    22
+   ]
+  },
+  "ranger:m": {
    "sheet": "ranger.png",
    "frame": [
     84,
@@ -213,10 +213,375 @@
     ]
    },
    "portrait": [
-    36,
-    17,
+    27,
+    16,
     22,
     22
+   ]
+  },
+  "ranger:f": {
+   "sheet": "ranger_f.png",
+   "frame": [
+    84,
+    76
+   ],
+   "variants": 3,
+   "variantRows": 1,
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "swing1": [
+     5,
+     0
+    ],
+    "swing2": [
+     6,
+     0
+    ],
+    "cast0": [
+     7,
+     0
+    ],
+    "cast1": [
+     8,
+     0
+    ],
+    "defend": [
+     9,
+     0
+    ],
+    "hurt": [
+     10,
+     0
+    ],
+    "down": [
+     11,
+     0
+    ],
+    "victory": [
+     12,
+     0
+    ],
+    "sit": [
+     13,
+     0
+    ]
+   },
+   "portrait": [
+    27,
+    18,
+    22,
+    22
+   ]
+  },
+  "cleric:f": {
+   "sheet": "cleric.png",
+   "frame": [
+    84,
+    76
+   ],
+   "variants": 3,
+   "variantRows": 1,
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "swing1": [
+     5,
+     0
+    ],
+    "swing2": [
+     6,
+     0
+    ],
+    "cast0": [
+     7,
+     0
+    ],
+    "cast1": [
+     8,
+     0
+    ],
+    "defend": [
+     9,
+     0
+    ],
+    "hurt": [
+     10,
+     0
+    ],
+    "down": [
+     11,
+     0
+    ],
+    "victory": [
+     12,
+     0
+    ],
+    "sit": [
+     13,
+     0
+    ]
+   },
+   "portrait": [
+    32,
+    7,
+    22,
+    22
+   ]
+  },
+  "cleric:m": {
+   "sheet": "cleric_m.png",
+   "frame": [
+    84,
+    76
+   ],
+   "variants": 3,
+   "variantRows": 1,
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "swing1": [
+     5,
+     0
+    ],
+    "swing2": [
+     6,
+     0
+    ],
+    "cast0": [
+     7,
+     0
+    ],
+    "cast1": [
+     8,
+     0
+    ],
+    "defend": [
+     9,
+     0
+    ],
+    "hurt": [
+     10,
+     0
+    ],
+    "down": [
+     11,
+     0
+    ],
+    "victory": [
+     12,
+     0
+    ],
+    "sit": [
+     13,
+     0
+    ]
+   },
+   "portrait": [
+    28,
+    16,
+    22,
+    22
+   ]
+  },
+  "knight:m": {
+   "sheet": "knight.png",
+   "frame": [
+    84,
+    76
+   ],
+   "variants": 3,
+   "variantRows": 1,
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "swing1": [
+     5,
+     0
+    ],
+    "swing2": [
+     6,
+     0
+    ],
+    "cast0": [
+     7,
+     0
+    ],
+    "cast1": [
+     8,
+     0
+    ],
+    "defend": [
+     9,
+     0
+    ],
+    "hurt": [
+     10,
+     0
+    ],
+    "down": [
+     11,
+     0
+    ],
+    "victory": [
+     12,
+     0
+    ],
+    "sit": [
+     13,
+     0
+    ]
+   },
+   "portrait": [
+    31,
+    15,
+    26,
+    26
+   ]
+  },
+  "knight:f": {
+   "sheet": "knight.png",
+   "frame": [
+    84,
+    76
+   ],
+   "variants": 3,
+   "variantRows": 1,
+   "poses": {
+    "idle0": [
+     0,
+     0
+    ],
+    "idle1": [
+     1,
+     0
+    ],
+    "idle2": [
+     2,
+     0
+    ],
+    "idle3": [
+     3,
+     0
+    ],
+    "windup": [
+     4,
+     0
+    ],
+    "swing1": [
+     5,
+     0
+    ],
+    "swing2": [
+     6,
+     0
+    ],
+    "cast0": [
+     7,
+     0
+    ],
+    "cast1": [
+     8,
+     0
+    ],
+    "defend": [
+     9,
+     0
+    ],
+    "hurt": [
+     10,
+     0
+    ],
+    "down": [
+     11,
+     0
+    ],
+    "victory": [
+     12,
+     0
+    ],
+    "sit": [
+     13,
+     0
+    ]
+   },
+   "portrait": [
+    31,
+    15,
+    26,
+    26
    ]
   }
  },

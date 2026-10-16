@@ -15,6 +15,7 @@ let me = null;            // { playerId, token, name, code }
 let state = null;         // latest team state from the server
 let skew = 0;             // client clock - server clock
 let pendingCls = null;
+let pendingGender = 'm';
 let lastPhaseKey = '';
 let roomUI = {};          // per-room local UI state
 let ended = null;
@@ -81,7 +82,7 @@ const qpanel = new QuestionPanel($('#qLayer'), {
 
 // ------------------------------------------------------------------ join
 const codeIn = $('#code'), nameIn = $('#name');
-try { nameIn.value = localStorage.getItem('mf_name') || ''; pendingCls = localStorage.getItem('mf_cls'); } catch (e) {}
+try { nameIn.value = localStorage.getItem('mf_name') || ''; pendingCls = localStorage.getItem('mf_cls'); pendingGender = localStorage.getItem('mf_gender') === 'f' ? 'f' : 'm'; } catch (e) {}
 if (qs.get('code')) codeIn.value = qs.get('code').replace(/\D/g, '').slice(0, 6);
 codeIn.addEventListener('input', () => { codeIn.value = codeIn.value.replace(/\D/g, '').slice(0, 6); });
 $('#joinForm').addEventListener('submit', e => {
@@ -93,7 +94,7 @@ $('#joinForm').addEventListener('submit', e => {
 });
 function join(data) {
   $('#joinErr').textContent = '';
-  socket.emit('join', { ...data, cls: pendingCls }, res => {
+  socket.emit('join', { ...data, cls: pendingCls, gender: pendingGender }, res => {
     if (!res || !res.ok) {
       if (data.token) { sessionStorage.removeItem('mf_session'); showScreen('join'); }
       $('#joinErr').textContent = (res && res.msg) || 'Could not join.';
@@ -130,6 +131,7 @@ function showScreen(name) {
 function onState(st) {
   skew = Date.now() - st.now;
   const prev = state; state = st;
+  if (!prev && st.you && st.you.gender) pendingGender = st.you.gender;   // rejoin keeps the server's look
   $('#paused').classList.toggle('show', !!st.paused);
   if (st.state === 'ended') { if (!ended) showEnded(); return; }
   if (st.state === 'lobby' || !st.run) { showScreen('lobby'); renderLobby(); return; }
@@ -177,14 +179,16 @@ function renderLobby() {
   const team = state.members || [];
   const taken = {};
   for (const m of team) if (m.cls && m.id !== me.playerId) (taken[m.cls] = taken[m.cls] || []).push(m.name);
-  const sig = JSON.stringify([you.cls, taken]);
+  const gender = pendingGender;
+  for (const b of $$('#genderPick button')) { b.classList.toggle('on', b.dataset.g === gender); b.setAttribute('aria-pressed', b.dataset.g === gender ? 'true' : 'false'); }
+  const sig = JSON.stringify([you.cls, gender, taken]);
   if (box.dataset.sig !== sig) {
     box.dataset.sig = sig;
     clear(box);
     for (const cls of C.HERO_ORDER) {
       const H = C.HEROES[cls];
       const card = h('button', { class: 'hero-card' + (you.cls === cls ? ' picked' : ''), onclick: () => pickHero(cls), 'aria-pressed': you.cls === cls ? 'true' : 'false' },
-        h('div', { class: 'art' }, h('img', { src: SP.heroFullURL(cls, 0, 'idle0', 3), alt: '', 'data-cls': cls })),
+        h('div', { class: 'art' }, h('img', { src: SP.heroFullURL(cls + ':' + gender, 0, 'idle0', 3), alt: '', 'data-cls': cls + ':' + gender })),
         h('h3', null, H.name), h('div', { class: 'role' }, H.role + ' · ' + H.hp + ' HP'),
         h('p', { class: 'blurb' }, H.blurb),
         h('div', { class: 'sk' }, ...H.skills.flatMap(id => [h('img', { src: SP.iconURL(C.SKILLS[id].icon, 2), alt: '' }), h('div', null, h('b', null, C.SKILLS[id].name, h('span', { class: 'skcost' }, C.SKILLS[id].cost + ' energy')), C.skillDesc(id, 1))])),
@@ -196,7 +200,7 @@ function renderLobby() {
   const tb = $('#teamBox');
   clear(tb); tb.className = 'team-box panel';
   tb.append(h('h3', { style: { color: state.team.color } }, 'Team ' + state.team.name), h('div', { style: { color: 'var(--muted)', fontSize: '14px', marginBottom: '6px' } }, 'Your teacher may move you to another team.'));
-  for (const m of team) tb.appendChild(h('div', { class: 'mem' }, h('img', { src: m.cls ? SP.portraitURL(m.cls, 0, 'open', 2) : SP.iconURL('focus', 2), alt: '' }), h('div', null, h('div', { style: { fontWeight: 800 } }, m.name + (m.id === me.playerId ? ' (you)' : '')), h('div', { class: 'cls' }, m.cls ? C.HEROES[m.cls].name : 'Choosing…'))));
+  for (const m of team) tb.appendChild(h('div', { class: 'mem' }, h('img', { src: m.cls ? SP.portraitURL(m.cls + ':' + (m.gender || 'm'), 0, 'open', 2) : SP.iconURL('focus', 2), alt: '' }), h('div', null, h('div', { style: { fontWeight: 800 } }, m.name + (m.id === me.playerId ? ' (you)' : '')), h('div', { class: 'cls' }, m.cls ? C.HEROES[m.cls].name : 'Choosing…'))));
   $('#lobbyWait').textContent = you.cls ? 'Ready! Waiting for your teacher to start the game…' : 'Pick a hero, then wait for your teacher to start.';
 }
 // idle animation for hero cards
@@ -208,8 +212,20 @@ setInterval(() => {
 function pickHero(cls) {
   sfx('click'); pendingCls = cls;
   try { localStorage.setItem('mf_cls', cls); } catch (e) {}
-  socket.emit('pickHero', { cls }, r => { if (!r.ok && r.msg) toast(r.msg); });
+  socket.emit('pickHero', { cls, gender: pendingGender }, r => { if (!r.ok && r.msg) toast(r.msg); });
 }
+// Boy / Girl switch: changes the art on every card; if a hero is already picked, it re-sends the pick.
+for (const b of $$('#genderPick button')) b.addEventListener('click', () => {
+  const g = b.dataset.g; if (g === pendingGender) return;
+  sfx('click'); const was = pendingGender; pendingGender = g;
+  try { localStorage.setItem('mf_gender', g); } catch (e) {}
+  if (state && state.you) renderLobby();
+  if (state && state.you && state.you.cls) socket.emit('pickHero', { cls: state.you.cls, gender: g }, r => {
+    if (r.ok) return;
+    if (r.msg) toast(r.msg);
+    pendingGender = was; if (state && state.you) renderLobby();
+  });
+});
 
 // ------------------------------------------------------------------ HUD
 function renderHUD() {
@@ -254,7 +270,7 @@ function renderParty(fromScene) {
     }
     const card = h('div', { class: ['pc', hdat.id === me.playerId ? 'me' : '', scene.allyTarget === hdat.id ? 'ally' : '', downed ? 'down' : '', hdat.connected ? '' : 'off'].join(' '), title: hdat.id === me.playerId ? 'You' : 'Tap to target ' + hdat.name,
       onclick: () => { if (run.phase !== 'combat' || hdat.id === me.playerId) { scene.allyTarget = null; } else scene.allyTarget = scene.allyTarget === hdat.id ? null : hdat.id; renderParty(); renderActions(); } },
-      h('img', { class: 'pt', src: SP.portraitURL(hdat.cls, hdat.variant, downed ? 'closed' : pct < 30 ? 'hurt' : 'open', 2), alt: '' }),
+      h('img', { class: 'pt', src: SP.portraitURL(hdat.skin || hdat.cls, hdat.variant, downed ? 'closed' : pct < 30 ? 'hurt' : 'open', 2), alt: '' }),
       h('div', { class: 'nm' }, hdat.name, h('small', null, C.HEROES[hdat.cls].name)),
       h('div', { class: 'hpbar' }, h('i', { class: pct < 30 ? 'lo' : '', style: { width: pct + '%' } })),
       h('div', { class: 'hpline' }, h('span', null, `${hp}/${maxHp}`), block ? h('span', { class: 'blk' }, `🛡 ${block}`) : h('span')),
@@ -310,7 +326,7 @@ function renderActions() {
   const phase = c.phase;
   const enemyTurn = phase === 'enemy';
   const over = phase === 'won' || phase === 'lost';
-  const head = h('div', { class: 'am-head' }, h('img', { src: SP.portraitURL(hero.cls, hero.variant, 'determined', 2), alt: '' }), h('div', null, h('div', null, hero.name), h('div', { class: 'hint' },
+  const head = h('div', { class: 'am-head' }, h('img', { src: SP.portraitURL(hero.skin || hero.cls, hero.variant, 'determined', 2), alt: '' }), h('div', null, h('div', null, hero.name), h('div', { class: 'hint' },
     over ? 'Battle over' : hero.downed ? 'You are knocked out' : hero.acted ? 'Done for this round' : hero.ready ? 'Your action fires next round' : enemyTurn ? 'Enemies are acting. Plan your next move.' : 'Choose an action')));
   head.appendChild(energyMeter(hero.energy || 0));
   const list = h('div', { class: 'am-list' });
@@ -701,7 +717,7 @@ function makeCampStage() {
     const order = heroes.map((hd, i) => [hd, SEATS[i]]).sort((a, b) => a[1][1] - b[1][1]);
     for (const [hd, [sx, sy, flip]] of order) {
       const pose = Math.floor(t * 3.5) % 4;
-      const fr = SP.heroFrame(hd.cls, hd.variant, SP.hasPose(hd.cls, 'sit') ? 'sit' : 'idle' + pose);
+      const fr = SP.heroFrame(hd.skin || hd.cls, hd.variant, SP.hasPose(hd.skin || hd.cls, 'sit') ? 'sit' : 'idle' + pose);
       x.save();
       if (flip) { x.translate(sx, 0); x.scale(-1, 1); x.drawImage(fr, -SP.ANCHOR_X, sy - SP.ANCHOR_Y); }
       else x.drawImage(fr, sx - SP.ANCHOR_X, sy - SP.ANCHOR_Y);

@@ -166,6 +166,12 @@ def recolour(im, hue_shift):
 
 VARIANTS = [0, 0.38, -0.30]            # blue (original), crimson, emerald
 
+def load_idle_strip():
+    path = os.path.join(ROOT, 'tools', 'art-src', 'knight_idle.png')
+    if not os.path.exists(path): return None
+    strip = Image.open(path).convert('RGBA')
+    return [strip.crop((i * FW, 0, (i + 1) * FW, FH)) for i in range(4)]
+
 def update_manifest(cls, entry):
     man_path = os.path.join(OUT_DIR, 'manifest.json')
     man = json.load(open(man_path)) if os.path.exists(man_path) else {}
@@ -179,6 +185,9 @@ def build():
     for vi, hs in enumerate(VARIANTS):
         body = recolour(orig_body, hs)
         P = make_poses(body)
+        idles = load_idle_strip()
+        if idles:
+            for i in range(4): P['idle%d' % i] = recolour(idles[i], hs)
         P['down'] = down_frame()
         P['sit'] = down_frame(dark=False)
         for pi, name in enumerate(POSES):
@@ -186,11 +195,13 @@ def build():
     body = orig_body
     os.makedirs(OUT_DIR, exist_ok=True)
     sheet.save(os.path.join(OUT_DIR, 'knight.png'))
-    update_manifest('knight', {
+    entry = {
         'sheet': 'knight.png', 'frame': [FW, FH], 'variants': len(VARIANTS), 'variantRows': 1,
         'poses': {n: [i, 0] for i, n in enumerate(POSES)},
         'portrait': [OX + 25, OY - 2, 26, 26]
-    })
+    }
+    # one knight for now: boys and girls share it until a second knight sprite exists
+    update_manifest('knight:m', entry); update_manifest('knight:f', entry)
     print('wrote knight.png', sheet.size)
 
 if __name__ == '__main__':

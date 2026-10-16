@@ -117,7 +117,7 @@ export class MapView {
       const voters = Object.entries(votes).filter(([, v]) => v === n.id).map(([pid]) => heroes[pid]).filter(Boolean);
       if (voters.length) {
         const vs = h('div', { class: 'voters' });
-        for (const v of voters) vs.appendChild(h('img', { src: SP.portraitURL(v.cls, v.variant, 'open', 2), alt: v.name, title: v.name }));
+        for (const v of voters) vs.appendChild(h('img', { src: SP.portraitURL(v.skin || v.cls, v.variant, 'open', 2), alt: v.name, title: v.name }));
         btn.appendChild(vs);
       }
       if (here) btn.appendChild(h('span', { class: 'banner-pin', style: { '--team': state.team.color } }));

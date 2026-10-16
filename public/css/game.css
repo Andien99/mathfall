@@ -68,6 +68,9 @@ body.screen-lobby #lobby { display: grid; grid-template-columns: 1fr 280px; grid
 .lobby-head { grid-column: 1 / -1; text-align: center; }
 .lobby-head h2 { font-family: var(--display); font-size: 36px; margin: 0; color: var(--brass-hi); text-shadow: 0 2px 0 #2a1606; }
 .lobby-head p { margin: 4px 0 0; color: var(--muted); }
+.gender-pick { display: inline-flex; margin-top: 10px; border: 1px solid var(--edge); border-radius: 999px; overflow: hidden; background: rgba(12, 14, 36, 0.8); }
+.gender-pick button { padding: 7px 22px; font-weight: 800; color: var(--muted); background: none; border: 0; min-width: 84px; }
+.gender-pick button.on { background: var(--brass); color: #2a1606; }
 .hero-cards { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 14px; }
 .hero-card { position: relative; text-align: left; padding: 10px 12px 14px; border-radius: 8px; border: 1px solid var(--edge); background: linear-gradient(180deg, rgba(30, 40, 92, 0.86), rgba(12, 14, 36, 0.92)); transition: transform 0.12s, border-color 0.12s; }
 .hero-card:hover { transform: translateY(-3px); border-color: var(--edge-hi); }

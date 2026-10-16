@@ -169,7 +169,7 @@ export class BattleScene {
         a = { id: h.id, type: 'hero', order: i, name: h.name, cls: h.cls, variant: h.variant, x: 0, y: 0, ox: 0, oy: 0, pose: null, poseUntil: 0, flashUntil: 0, alpha: 1, phase: Math.random() * 1000 };
         this.actors.set(h.id, a); this.needLayout = true; a.fresh = true;
       }
-      a.order = i; a.name = h.name; a.cls = h.cls; a.variant = h.variant;
+      a.order = i; a.name = h.name; a.cls = h.cls; a.skin = h.skin || h.cls; a.variant = h.variant;
       a.connected = h.connected; a.acted = h.acted || h.ready; a.busy = h.busy; a.focus = h.focus;
       if (!this.playing || opts.force || a.fresh) { Object.assign(a, { hp: h.hp, maxHp: h.maxHp, block: h.block, st: h.st, downed: h.downed }); a.fresh = false; }
       else a.maxHp = h.maxHp;
@@ -630,7 +630,7 @@ export class BattleScene {
     if (a.type === 'hero') {
       if (!p) p = a.downed ? 'down' : (this.victory ? 'victory' : 'idle' + Math.floor(((t + a.phase) / 260) % 4));
       if (a.downed && p !== 'hurt') p = 'down';
-      return white ? SP.heroWhite(a.cls, a.variant, p) : SP.heroFrame(a.cls, a.variant, p);
+      return white ? SP.heroWhite(a.skin || a.cls, a.variant, p) : SP.heroFrame(a.skin || a.cls, a.variant, p);
     }
     if (!p) p = 'idle' + Math.floor(((t + a.phase) / (a.kind === 'slime' ? 200 : 280)) % 4);
     if (a.intent && a.intent.type === 'charge' && !p.startsWith('hurt') && a.kind === 'sentinel') p = 'charge';
@@ -698,7 +698,7 @@ export class BattleScene {
         const y = Math.round(ft + 4 + row * 10);
         const ph = (time * 1000 + i * 977) % 3200;
         const pose = h.downed ? 'down' : ph < 260 ? 'windup' : ph < 520 ? 'swing1' : 'idle' + Math.floor((time * 4 + i) % 4);
-        const fr = SP.heroFrame(h.cls, h.variant, pose);
+        const fr = SP.heroFrame(h.skin || h.cls, h.variant, pose);
         n.globalAlpha = 0.32;
         n.drawImage(fr, x - SP.ANCHOR_X, y - SP.ANCHOR_Y);
         n.globalAlpha = 0.5; n.fillStyle = h.color; n.fillRect(x - 3, y + 1, 6, 1);

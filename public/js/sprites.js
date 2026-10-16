@@ -787,7 +787,10 @@ function cached(key, make) { if (!cache.has(key)) cache.set(key, make()); return
 // The knight ships this way: public/art/knight.png is built by tools/build_knight.py.
 const artPortrait = {};
 const artPoses = new Set();
-export function hasPose(cls, pose) { return artPoses.has(cls + ':' + pose); }
+// Hero art is keyed by skin = 'class:gender' (e.g. 'mage:f'). A bare class means the boy version.
+export const skinKey = k => (k && k.includes(':')) ? k : (k || 'knight') + ':m';
+const baseCls = k => skinKey(k).split(':')[0];
+export function hasPose(cls, pose) { return artPoses.has(skinKey(cls) + ':' + pose); }
 async function loadArtOverrides() {
   let man;
   try { const r = await fetch('/art/manifest.json', { cache: 'no-cache' }); if (!r.ok) return 0; man = await r.json(); } catch (e) { return 0; }
@@ -817,16 +820,18 @@ async function loadArtOverrides() {
   return n;
 }
 
-export function heroFrame(cls, variant, poseName) {
-  return cached(`h:${cls}:${variant}:${poseName}`, () => {
+export function heroFrame(skin, variant, poseName) {
+  skin = skinKey(skin); const cls = baseCls(skin);
+  return cached(`h:${skin}:${variant}:${poseName}`, () => {
     const look = (HERO_LOOKS[cls] || HERO_LOOKS.knight)[variant % 3];
     const s = drawHero(cls, look, getPose(cls, poseName));
     if (poseName === 'down') s.tint('#5a5470', 0.35);
     return s.toCanvas();
   });
 }
-export function heroWhite(cls, variant, poseName) {
-  return cached(`hw:${cls}:${variant}:${poseName}`, () => {
+export function heroWhite(skin, variant, poseName) {
+  skin = skinKey(skin); const cls = baseCls(skin);
+  return cached(`hw:${skin}:${variant}:${poseName}`, () => {
     const look = (HERO_LOOKS[cls] || HERO_LOOKS.knight)[variant % 3];
     return drawHero(cls, look, getPose(cls, poseName)).tint('#ffffff', 1).toCanvas();
   });
@@ -856,14 +861,15 @@ export function iconURL(name, scale = 3) {
   });
 }
 // Head-and-shoulders portrait for HUD panels.
-export function portraitURL(cls, variant, mood = 'open', scale = 3) {
-  return cached(`p:${cls}:${variant}:${mood}:${scale}`, () => {
-    if (artPortrait[cls]) {
-      const [px, py, pw, ph] = artPortrait[cls];
+export function portraitURL(skin, variant, mood = 'open', scale = 3) {
+  skin = skinKey(skin); const cls = baseCls(skin);
+  return cached(`p:${skin}:${variant}:${mood}:${scale}`, () => {
+    if (artPortrait[skin]) {
+      const [px, py, pw, ph] = artPortrait[skin];
       const c = document.createElement('canvas'); c.width = pw * scale; c.height = ph * scale;
       const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
       if (mood === 'closed') x.filter = 'grayscale(0.8) brightness(0.7)';
-      x.drawImage(heroFrame(cls, variant, 'idle0'), px, py, pw, ph, 0, 0, c.width, c.height);
+      x.drawImage(heroFrame(skin, variant, 'idle0'), px, py, pw, ph, 0, 0, c.width, c.height);
       return c.toDataURL();
     }
     const look = (HERO_LOOKS[cls] || HERO_LOOKS.knight)[variant % 3];
@@ -876,9 +882,10 @@ export function portraitURL(cls, variant, mood = 'open', scale = 3) {
     return c.toDataURL();
   });
 }
-export function heroFullURL(cls, variant, poseName = 'idle0', scale = 3) {
-  return cached(`hf:${cls}:${variant}:${poseName}:${scale}`, () => {
-    const src = heroFrame(cls, variant, poseName);
+export function heroFullURL(skin, variant, poseName = 'idle0', scale = 3) {
+  skin = skinKey(skin);
+  return cached(`hf:${skin}:${variant}:${poseName}:${scale}`, () => {
+    const src = heroFrame(skin, variant, poseName);
     const c = document.createElement('canvas'); c.width = SPRITE_W * scale; c.height = SPRITE_H * scale;
     const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(src, 0, 0, c.width, c.height);
     return c.toDataURL();

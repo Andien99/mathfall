@@ -1,105 +1,95 @@
-"""Builds public/art/ranger.png (14 poses x 3 colour variants) from Andy's ranger sprite.
+"""Builds the ranger and cleric sheets (14 poses x 3 colour variants) from Andy's sprites.
 
 Run: python3 tools/build_ranger.py   (needs Pillow)
-Sources:
-  tools/art-src/ranger_base.png  the ranger at native size (62x56, facing left, bow drawn)
-  tools/art-src/ranger_idle.png  optional: a 4-frame idle strip made with PixelLab's
-                                 animate_image (frames 72x64, the base sits at (5, 6))
-The idle frames come from PixelLab; the other poses lean, recoil, crouch and kneel the
-whole sprite (the bow is held, so it moves with the body).
+  ranger:m  tools/art-src/ranger_base.png    -> public/art/ranger.png
+  ranger:f  tools/art-src/ranger_f_base.png  -> public/art/ranger_f.png
+  cleric:f  tools/art-src/cleric_f_base.png  -> public/art/cleric.png
+  cleric:m  tools/art-src/cleric_m_base.png  -> public/art/cleric_m.png
+These heroes hold their weapon, so every pose moves the whole sprite: lean, recoil, crouch,
+kneel. The idle loop comes from PixelLab when tools/art-src/<sheet>_idle.png exists
+(4 frames of 84x76, played 0-1-2-1 so it loops without a jump).
 """
 import os
 from PIL import Image
-from build_knight import lean, shift_rows, paste_clip, darken, recolour, update_manifest, FW, FH, AX, AY, OUT_DIR
+from build_knight import lean, shift_rows, paste_clip, darken, update_manifest, FW, FH, AX, AY, OUT_DIR
+from heroart import hue_shift, load_idle, ART_SRC
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, 'tools', 'art-src', 'ranger_base.png')
-IDLE = os.path.join(ROOT, 'tools', 'art-src', 'ranger_idle.png')
 POSES = ['idle0', 'idle1', 'idle2', 'idle3', 'windup', 'swing1', 'swing2', 'cast0', 'cast1', 'defend', 'hurt', 'down', 'victory', 'sit']
+GREEN = dict(lo=0.17, hi=0.48, smin=0.12, lmax=0.7)
+CONFIGS = {
+    'ranger:m': dict(src='ranger_base.png', sheet='ranger', variants=[0, -0.24, 0.30], tint=GREEN),            # green, autumn red, river blue
+    'ranger:f': dict(src='ranger_f_base.png', sheet='ranger_f', variants=[0, -0.24, 0.30], tint=GREEN),
+    'cleric:f': dict(src='cleric_f_base.png', sheet='cleric', variants=[0, 0.62, 0.36], tint=dict(lo=0.93, hi=0.04, smin=0.25, lmax=0.7, wrap=True)),  # red, blue, green cape
+    'cleric:m': dict(src='cleric_m_base.png', sheet='cleric_m', variants=[0, 0.16, -0.12], tint=dict(lo=0.55, hi=0.75, smin=0.12, lmax=0.8)),           # blue, violet, teal robe
+}
 
-BASE = Image.open(SRC).convert('RGBA')
-W, H = BASE.size
-GROUND = max(y for y in range(H) for x in range(W) if BASE.getpixel((x, y))[3]) + 1
-OX, OY = AX - 36, AY - GROUND        # body centre over the anchor (the bow reaches out left)
+def anchor_x(im):
+    """Feet centre: the median x of the opaque pixels in the bottom fifth."""
+    W, H = im.size
+    xs = sorted(x for y in range(int(H * 0.8), H) for x in range(W) if im.getpixel((x, y))[3])
+    return xs[len(xs) // 2]
 
-def idle_frames():
-    """PixelLab idle frames, cropped back to the base's box so they line up exactly."""
-    if not os.path.exists(IDLE): return None
-    strip = Image.open(IDLE).convert('RGBA')
-    fw = strip.width // 4
-    out = []
-    for i in range(4):
-        f = strip.crop((i * fw, 0, (i + 1) * fw, strip.height))
-        out.append(f.crop((5, 6, 5 + W, 6 + H)))
-    return out
+def face_box(im):
+    """Where the face is: skin-coloured pixels in the top half, as a 22x22 crop around them."""
+    W, H = im.size
+    pts = []
+    for y in range(int(H * 0.5)):
+        for x in range(W):
+            r, g, b, a = im.getpixel((x, y))
+            if a and r > g > b and r - b > 45 and r > 110 and g > 70: pts.append((x, y))
+    if not pts: return (W // 2 - 11, 0, 22, 22)
+    xs = sorted(p[0] for p in pts); ys = sorted(p[1] for p in pts)
+    cx, cy = xs[len(xs) // 2], ys[len(ys) // 2]
+    return (cx - 11, max(0, cy - 12), 22, 22)
 
-def frame(body, dx=0, dy=0, lean_px=0, upper=None):
-    b = body
-    if lean_px: b = lean(b, 40, lean_px)
-    if upper: b = shift_rows(b, *upper)
-    f = Image.new('RGBA', (FW, FH))
-    paste_clip(f, b, (OX + dx, OY + dy))
-    return f
-
-def kneel(body, dark):
-    knee = 8
-    up = body.crop((0, 0, W, 38)); feet = body.crop((0, 46, W, H))
-    k = Image.new('RGBA', body.size)
-    k.alpha_composite(feet, (0, 46)); k.alpha_composite(lean(up, 38, -2), (0, knee))
-    f = Image.new('RGBA', (FW, FH)); paste_clip(f, k, (OX, OY))
-    return darken(f) if dark else f
-
-def make_poses(body, idles):
-    P = {}
-    if idles:
-        for i in range(4): P['idle%d' % i] = frame(idles[i])
-    else:
-        P['idle0'] = frame(body); P['idle1'] = frame(body, upper=(26, 0, 1)); P['idle2'] = frame(body, upper=(36, 0, 1)); P['idle3'] = frame(body, upper=(26, 0, 1))
-    P['windup'] = frame(body, lean_px=2, dx=1)
-    P['swing1'] = frame(body, lean_px=3, dx=3)              # recoil as the arrow flies
-    P['swing2'] = frame(body, lean_px=1, dx=1)
-    P['cast0'] = frame(body, lean_px=2, upper=(30, 0, -1))
-    P['cast1'] = frame(body, lean_px=-2, dx=-1)
-    P['defend'] = frame(body, upper=(38, 0, 2), lean_px=1)
-    P['hurt'] = frame(body, lean_px=3, dx=2)
-    P['down'] = kneel(body, True)
-    P['victory'] = frame(body, dy=-1, upper=(26, 0, -1))
-    P['sit'] = kneel(body, False)
-    return P
-
-VARIANTS = [0, -0.24, 0.30]          # forest green (original), autumn red, river blue
-
-def recolour_green(im, shift):
-    """Re-hue the greens (cloak, tunic); leave skin, hair, wood and leather alone."""
-    if not shift: return im
-    import colorsys
-    out = im.copy(); p = out.load()
-    for y in range(im.height):
-        for x in range(im.width):
-            r, g, b, a = p[x, y]
-            if not a: continue
-            h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
-            if s > 0.12 and 0.17 < h < 0.48 and l < 0.7:
-                r2, g2, b2 = colorsys.hls_to_rgb((h + shift) % 1, l, s)
-                p[x, y] = (round(r2 * 255), round(g2 * 255), round(b2 * 255), a)
-    return out
-
-def build():
-    idles = idle_frames()
-    sheet = Image.new('RGBA', (FW * len(POSES), FH * len(VARIANTS)))
-    for vi, hs in enumerate(VARIANTS):
-        body = recolour_green(BASE, hs)
-        idl = [recolour_green(f, hs) for f in idles] if idles else None
-        P = make_poses(body, idl)
-        for pi, name in enumerate(POSES):
-            sheet.alpha_composite(P[name], (pi * FW, vi * FH))
-    sheet.save(os.path.join(OUT_DIR, 'ranger.png'))
-    update_manifest('ranger', {
-        'sheet': 'ranger.png', 'frame': [FW, FH], 'variants': len(VARIANTS), 'variantRows': 1,
-        'poses': {n: [i, 0] for i, n in enumerate(POSES)},
-        'portrait': [OX + 26, OY + 1, 22, 22]
+def build_one(key):
+    cfg = CONFIGS[key]
+    base = Image.open(os.path.join(ART_SRC, cfg['src'])).convert('RGBA')
+    W, H = base.size
+    ground = max(y for y in range(H) for x in range(W) if base.getpixel((x, y))[3]) + 1
+    OX, OY = AX - anchor_x(base), AY - ground
+    pivot = int(H * 0.72)
+    def frame(body, dx=0, dy=0, lean_px=0, upper=None):
+        b = body
+        if lean_px: b = lean(b, pivot, lean_px)
+        if upper: b = shift_rows(b, *upper)
+        f = Image.new('RGBA', (FW, FH)); paste_clip(f, b, (OX + dx, OY + dy)); return f
+    def kneel(body, dark):
+        a, c = int(H * 0.68), int(H * 0.82); knee = c - a
+        k = Image.new('RGBA', body.size)
+        k.alpha_composite(body.crop((0, c, W, H)), (0, c)); k.alpha_composite(lean(body.crop((0, 0, W, a)), a, -2), (0, knee))
+        f = Image.new('RGBA', (FW, FH)); paste_clip(f, k, (OX, OY))
+        return darken(f) if dark else f
+    t = cfg['tint']
+    shade = lambda im, hs: hue_shift(im, t['lo'], t['hi'], hs, t['smin'], t['lmax'], t.get('wrap', False))
+    idles = load_idle(cfg['sheet'])
+    up1, up2 = int(H * 0.46), int(H * 0.64)
+    sheet = Image.new('RGBA', (FW * len(POSES), FH * len(cfg['variants'])))
+    for vi, hs in enumerate(cfg['variants']):
+        body = shade(base, hs)
+        P = {}
+        if idles:
+            for i in range(4): P['idle%d' % i] = shade(idles[i], hs)
+        else:
+            P['idle0'] = frame(body); P['idle1'] = frame(body, upper=(up1, 0, 1)); P['idle2'] = frame(body, upper=(up2, 0, 1)); P['idle3'] = P['idle1']
+        P['windup'] = frame(body, lean_px=2, dx=1)
+        P['swing1'] = frame(body, lean_px=3, dx=3)
+        P['swing2'] = frame(body, lean_px=1, dx=1)
+        P['cast0'] = frame(body, lean_px=2, upper=(up2, 0, -1))
+        P['cast1'] = frame(body, lean_px=-2, dx=-1)
+        P['defend'] = frame(body, upper=(int(H * 0.68), 0, 2), lean_px=1)
+        P['hurt'] = frame(body, lean_px=3, dx=2)
+        P['down'] = kneel(body, True)
+        P['victory'] = frame(body, dy=-1, upper=(up1, 0, -1))
+        P['sit'] = kneel(body, False)
+        for pi, name in enumerate(POSES): sheet.alpha_composite(P[name], (pi * FW, vi * FH))
+    sheet.save(os.path.join(OUT_DIR, cfg['sheet'] + '.png'))
+    px, py, pw, ph = face_box(base)
+    update_manifest(key, {
+        'sheet': cfg['sheet'] + '.png', 'frame': [FW, FH], 'variants': len(cfg['variants']), 'variantRows': 1,
+        'poses': {n: [i, 0] for i, n in enumerate(POSES)}, 'portrait': [OX + px, OY + py, pw, ph]
     })
-    print('wrote ranger.png', sheet.size, 'idle from PixelLab' if idles else 'idle generated')
+    print('wrote', cfg['sheet'] + '.png', 'size', base.size, 'anchor', (OX, OY), 'idle from PixelLab' if idles else 'idle drawn')
 
 if __name__ == '__main__':
-    build()
+    for k in CONFIGS: build_one(k)
