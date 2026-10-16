@@ -161,6 +161,21 @@ $('#createBtn').addEventListener('click', () => {
   });
 });
 
+// Solo test game: the same questions and settings, played by the teacher in a new tab
+$('#testBtn').addEventListener('click', () => {
+  $('#createErr').textContent = '';
+  const tab = window.open('about:blank', '_blank');   // opened during the click so pop-up blockers allow it
+  const sets = sel.setIds.map(id => mySets.find(s => s.id === id)).filter(Boolean).map(s => ({ title: s.title, questions: s.questions, modified: s.modified || [] }));
+  socket.emit('host:create', { settings, test: { invincible: $('#testInv').checked }, questions: { bankIds: sel.bankIds, sets, gens: sel.gens, format: sel.format } }, res => {
+    if (!res.ok) { if (tab) tab.close(); $('#createErr').textContent = res.msg || 'Could not create the test game.'; return; }
+    session = { code: res.code, hostToken: res.hostToken };
+    sessionStorage.setItem('mf_host', JSON.stringify(session));
+    const url = `/?test=1&code=${res.code}`;
+    if (tab) tab.location.href = url; else location.href = url;
+    show('lobby');
+  });
+});
+
 // ------------------------------------------------------------------ socket
 socket.on('connect', () => {
   const saved = (() => { try { return JSON.parse(sessionStorage.getItem('mf_host') || 'null'); } catch (e) { return null; } })();

@@ -237,3 +237,7 @@ main { max-width: 1320px; margin: 0 auto; padding: 22px 24px 60px; }
 .tw .ttoken { background: rgba(10, 8, 20, 0.88); }
 .tw .ttoken .asc { background: #ffd26a; color: #2a1a00; }
 @media (max-width: 760px) { .tw-boss { grid-template-columns: 1fr; } .tw-floor { grid-template-columns: 0 40px 1fr 0; } .tw .win { display: none; } }
+/* solo test game */
+.test-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.test-inv { display: flex; align-items: center; gap: 6px; font-size: 15px; }
+.test-tip { margin: 6px 0 0; font-size: 13px; }

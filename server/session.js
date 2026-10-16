@@ -56,6 +56,7 @@ class Session {
     this.hostToken = tok();
     this.hostSockets = new Set();
     this.settings = defaultSettings(settings);
+    this.test = null;   // teacher's solo test game: { invincible }
     this.qconfig = qconfig;
     this.qs = new QuestionService({ ...qconfig, hints: this.settings.hints });
     this.state = 'lobby';
@@ -152,7 +153,7 @@ class Session {
     return {
       id: p.id, name: p.name, cls: p.cls, gender, skin, variant, maxHp: H.hp, hp: H.hp, block: 0, st: {},
       skills: H.skills.map(id => ({ id, lvl: 1 })), focus: 0, energy: 0, downed: false, acted: false, gold: 0,
-      lv: { atk: 0, def: 0, hp: 0 }, free: false, nextFight: null,
+      lv: { atk: 0, def: 0, hp: 0 }, free: false, nextFight: null, invincible: !!(this.test && this.test.invincible),
       readyAction: null, lastTarget: null, stats: { dmg: 0, heal: 0, taken: 0, skills: 0 }
     };
   }
@@ -628,7 +629,7 @@ class Session {
   }
   youFor(team, p) {
     const run = team.run;
-    const you = { id: p.id, name: p.name, cls: p.cls, gender: p.gender, track: this.trackFor(p) === 'modified' ? 'support' : 'main', joining: !!(run && !run.heroes[p.id]) };
+    const you = { id: p.id, name: p.name, cls: p.cls, gender: p.gender, track: this.trackFor(p) === 'modified' ? 'support' : 'main', joining: !!(run && !run.heroes[p.id]), test: this.test };
     if (p.pending) you.pendingQ = p.pending.answered ? null : p.pending.pub.qid;
     const room = run && run.room;
     if (room && room.type === 'treasure' && room.chests[p.id]) { const ch = room.chests[p.id]; you.chest = { rarity: ch.rarity, opened: ch.opened, decided: ch.decided, gold: ch.gold, offer: ch.opened ? ch.offer : null }; }
@@ -813,6 +814,7 @@ function attach(io, banks) {
       const test = new QuestionService(qconfig);
       if (test.isEmpty) return reply(cb, { ok: false, msg: 'Add at least one question set or topic first.' });
       const s = new Session(io, data && data.settings, qconfig);
+      if (data && data.test) s.test = { invincible: !!data.test.invincible };
       sessions.set(s.code, s);
       s.hostSockets.add(socket.id); hosting = s;
       reply(cb, { ok: true, code: s.code, hostToken: s.hostToken });
@@ -866,13 +868,16 @@ function attach(io, banks) {
       p.modified = !!d.on; reply(cb, { ok: true });
       const t = s.team(p.teamId); if (t) s.flush(t);
     }));
-    socket.on('host:start', hostOnly((s, d, cb) => {
-      if (s.state !== 'lobby') return reply(cb, { ok: false, msg: 'Already started.' });
-      if (!s.players.size) return reply(cb, { ok: false, msg: 'Wait for students to join first.' });
+    const startGame = s => {
       s.pruneEmptyTeams();
       s.state = 'playing';
       s.endsAt = s.settings.timeLimit ? now() + s.settings.timeLimit * 60000 : 0;
       for (const t of s.teams) if (t.members.length) s.startRun(t, 0);
+    };
+    socket.on('host:start', hostOnly((s, d, cb) => {
+      if (s.state !== 'lobby') return reply(cb, { ok: false, msg: 'Already started.' });
+      if (!s.players.size) return reply(cb, { ok: false, msg: 'Wait for students to join first.' });
+      startGame(s);
       reply(cb, { ok: true });
     }));
     socket.on('host:pause', hostOnly((s, d, cb) => {
@@ -953,6 +958,7 @@ function attach(io, banks) {
       if (d.gender === 'm' || d.gender === 'f') p.gender = d.gender;
       if (run && run.heroes[p.id]) { const h = s.heroFor(t, p); h.gold = run.heroes[p.id].gold; run.heroes[p.id] = h; }
       reply(cb, { ok: true });
+      if (s.test && s.state === 'lobby') { startGame(s); s.emitHost(true); }   // solo test game: picking a hero starts the run
       s.flush(t);
     }));
 
@@ -1180,9 +1186,10 @@ function attach(io, banks) {
       return reply(cb, { ok: false });
     }));
 
-    if (process.env.MATHFALL_TEST === '1') {
-      // Test-only shortcut to jump a team into any room type.
+    {
+      // Shortcut to jump a team into any room type: automated tests (MATHFALL_TEST=1) and the teacher's test games only.
       socket.on('dev:room', student((s, p, t, d, cb) => {
+        if (process.env.MATHFALL_TEST !== '1' && !s.test) return reply(cb, { ok: false });
         const run = t && t.run; if (!run) return reply(cb, { ok: false });
         const ty = d.type;
         if (d.asc != null) run.asc = d.asc;

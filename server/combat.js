@@ -62,7 +62,7 @@ function hitHero(e, h, base, opts = {}) {
   const blocked = Math.min(h.block, d);
   h.block -= blocked;
   const dmg = d - blocked;
-  h.hp = Math.max(0, h.hp - dmg);
+  if (!h.invincible) h.hp = Math.max(0, h.hp - dmg);   // teacher test games can make heroes invincible
   let downed = false;
   if (h.hp <= 0 && !h.downed) { h.downed = true; h.block = 0; h.st = {}; downed = true; h.focus = 0; }
   if (h.stats) h.stats.taken += dmg;

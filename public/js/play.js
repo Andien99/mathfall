@@ -139,7 +139,9 @@ function join(data) {
 function tryResume() {
   let saved = null;
   try { saved = JSON.parse(sessionStorage.getItem('mf_session') || 'null'); } catch (e) {}
-  if (saved && saved.code && saved.token) join({ code: saved.code, token: saved.token, name: saved.name });
+  if (saved && saved.code && saved.token && (!qs.get('test') || saved.code === qs.get('code'))) join({ code: saved.code, token: saved.token, name: saved.name });
+  // the teacher's solo test game (opened from the host screen): join straight away
+  else if (qs.get('test') && qs.get('code')) join({ code: qs.get('code').replace(/\D/g, '').slice(0, 6), name: 'Teacher' });
 }
 
 socket.on('connect', () => { $('#conn').classList.remove('show'); if (me) join({ code: me.code, token: me.token, name: me.name }); else tryResume(); });
@@ -258,7 +260,24 @@ for (const b of $$('#genderPick button')) b.addEventListener('click', () => {
 });
 
 // ------------------------------------------------------------------ HUD
+// Teacher test game: a small panel of shortcuts to any room, so every part of a run can be checked solo
+function renderTestTools() {
+  const t = state && state.you && state.you.test;
+  let box = $('#testTools');
+  if (!t || !state.run) { if (box) box.remove(); return; }
+  if (box) return;
+  const go = (type, label) => h('button', { class: 'btn small', onclick: () => socket.emit('dev:room', { type }, r => { if (!r || !r.ok) toast('Not available right now.'); else toast(label); }) }, label);
+  const panel = h('div', { class: 'tt-panel' },
+    h('div', { class: 'tt-head' }, 'Test game', t.invincible ? h('span', { class: 'tt-inv' }, 'Invincible') : null),
+    h('div', { class: 'tt-grid' }, go('normal1', 'Monsters'), go('normal2', 'Harder monsters'), go('elite', 'Elite'), go('boss', 'Boss'),
+      go('bosshalf', 'Boss to half HP'), go('treasure', 'Treasure'), go('merchant', 'Merchant'), go('rest', 'Campfire'),
+      go('event', 'Unknown event'), go('victory', 'Victory screen'), go('complete', 'Act complete'), go('energy', 'Full energy'),
+      go('hurt', 'Low health'), go('raid', 'Raid boss')));
+  box = h('div', { id: 'testTools' }, h('button', { class: 'tt-toggle', onclick: () => box.classList.toggle('open') }, 'TEST'), panel);
+  document.body.append(box);
+}
 function renderHUD() {
+  renderTestTools();
   if (!state || !state.run) return;
   const run = state.run;
   const node = run.map.nodes.find(n => n.id === run.map.pos);

@@ -600,3 +600,13 @@ body.portrait .qpanel.compact { align-items: flex-end; }
 .result-screen.mobile .rs-more { padding: 10px 10px 0 16px; }
 /* phones: the party cards step aside while the result is up, so the celebrating heroes have room above the rewards */
 @media (max-width: 700px) { body:has(.result-screen.mobile) #party { display: none; } }
+
+/* Teacher's solo test game: shortcut panel */
+#testTools { position: fixed; left: 8px; bottom: calc(8px + var(--sab)); z-index: 60; }
+#testTools .tt-toggle { font: 800 12px/1 system-ui, sans-serif; letter-spacing: .08em; padding: 7px 10px; border-radius: 6px; background: #b8336a; color: #fff; border: 0; box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+#testTools .tt-panel { display: none; position: absolute; left: 0; bottom: 36px; width: min(340px, 92vw); padding: 10px; border-radius: 10px; background: rgba(16, 14, 34, 0.96); border: 1px solid #b8336a; }
+#testTools.open .tt-panel { display: block; }
+#testTools .tt-head { font-weight: 800; color: #ffd0e2; margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
+#testTools .tt-inv { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: #2e6b4a; color: #c8ffd8; }
+#testTools .tt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#testTools .tt-grid .btn { padding: 7px 8px; font-size: 14px; }
