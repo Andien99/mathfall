@@ -19,6 +19,8 @@ const STATUS_SHORT = { burn: 'B', poison: 'P', str: 'S', mark: 'Mk', regen: '+',
 const SUP_COL = { heal: '#9dffb0', heal_party: '#9dffb0', revive: '#9dffb0', revive_party: '#ffe27a', bless_party: '#ffe9a0', aegis: '#ffe9a0', buff_party: '#ff9a7a', empower: '#ff9a7a', rally_party: '#ffc08a',
   taunt: '#ffd36b', counter: '#ffe08a', unbreakable: '#ffd36b', surge: '#9fd8ff', shield_ice: '#a8f0ff', smoke: '#c8c4d8', ward: '#ffe9a0', divine: '#fff6c8', shield_self: '#c8d4e8' };
 const SUPPORT = ['defend', 'shield_party', ...Object.keys(SUP_COL)];
+// Champion's Combo cross-slash impacts: the blades' directions (degrees) for the 1st, 2nd and 3rd slash
+const CROSS_ANGLES = [[38, -58], [-36, 62], [-4, 52, -72]];
 // which projectile a skill's effect fires
 const projKind = fx => ({ mark: 'proj_arrow', multishot: 'proj_arrow', ricochet: 'proj_arrow', missiles: 'proj_arcane' }[fx] || fx);
 // the Minotaur's Ground Slam: PixelLab earth spikes that burst out of the floor (public/art/fx)
@@ -48,7 +50,7 @@ export class BattleScene {
     this.onAfter = opts.onAfter || (() => {});
     this.shake = 0; this.shakeT = 0;
     this.trails = []; this.cam = null; this.stars = []; this.rings = []; this.ribbons = []; this.auras = [];
-    this.zaps = []; this.ripples = []; this.residue = [];   // Champion's Combo: blade aura, ground ripples, leftover crackle
+    this.zaps = []; this.ripples = []; this.residue = []; this.xhits = []; this.slivers = [];   // Champion's Combo: blade aura, ground ripples, leftover crackle
     this.cracks = []; this.spikes = []; this.ghosts = [];
     this.slowmo = 1;   // <1 plays everything in slow motion (used by the /dev/lab.html animation lab)
     this.freezeUntil = 0;
@@ -682,7 +684,7 @@ export class BattleScene {
       const p = this.pos(t.id); if (!p) continue;
       const k = seen[t.id] = (seen[t.id] || 0) + 1, dy = (k - 1) * 11;   // repeat hits on one target stack upwards
       if (t.dmg != null && !t.shatter) {
-        const colr = { slash_heavy: '#ff9a3c', slash_wide: '#ffd0a0', proj_fire: '#ff8a3c', proj_firearrow: '#ff8a3c', flamewave: '#ff8a3c', proj_arcane: '#b8a6ff', missiles: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', timestop: '#cfe8ff', proj_poison: '#9cff6b', venom: '#9cff6b', phantom: '#a8ffe0', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8', radiance: '#fff0a8', pillar: '#fff2a8', quake: '#e0a060', combo: '#ffb347', ricochet: '#fff2c0' }[fx] || '#ffffff';
+        const colr = { slash_heavy: '#ff9a3c', slash_wide: '#ffd0a0', proj_fire: '#ff8a3c', proj_firearrow: '#ff8a3c', flamewave: '#ff8a3c', proj_arcane: '#b8a6ff', missiles: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', timestop: '#cfe8ff', proj_poison: '#9cff6b', venom: '#9cff6b', phantom: '#a8ffe0', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8', radiance: '#fff0a8', pillar: '#fff2a8', quake: '#e0a060', combo: '#ffb347', xslash: '#9fd8ff', ricochet: '#fff2c0' }[fx] || '#ffffff';
         this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy');
         this.elementHit(p.x, p.y - 16, { proj_firearrow: 'proj_fire', flamewave: 'proj_fire', missiles: 'proj_arcane', timestop: 'proj_ice' }[fx] || fx);
         this.glows.push({ x: p.x, y: p.y - 16, r: 34 + Math.min(40, t.dmg * 1.5), color: colr, t: 0, life: 0.35, a: 0.8 });
@@ -736,6 +738,80 @@ export class BattleScene {
     return T(end + 420);
   }
 
+  // where a blade meets an enemy: the middle of its body (higher up on big ones)
+  _hitPoint(e) {
+    const p = this.pos(e.id) || { x: e.x, y: e.y };
+    const info = SP.enemyInfo(e.kind);
+    return { x: p.x + 2, y: p.y - Math.min(54, Math.max(12, info.ay * 0.36)) };
+  }
+  // Cross-slash impact (Champion's Combo): long thin blue blades of light crossing at the point of contact, a white
+  // flare where they meet, and blue sparks that burst out and linger as residue. angles: the blades' directions (deg).
+  crossHit(x, y, angles, T = ms => ms) {
+    const t0 = now();
+    angles.forEach((deg, i) => {
+      const long = 95 + Math.random() * 35, short = 45 + Math.random() * 25;
+      this.xhits.push({ kind: 'blade', x, y, a: deg * Math.PI / 180, l1: i % 2 ? short : long, l2: i % 2 ? long : short, w: 5.5 - i * 0.7, t0: t0 + i * T(30), life: T(620) });
+    });
+    this.xhits.push({ kind: 'flare', x, y, t0, life: T(360) });
+    for (let k = 0; k < 8; k++) this.xhits.push({ kind: 'blade', x, y, a: Math.random() * Math.PI * 2, l1: 12 + Math.random() * 18, l2: 0, w: 1.8, t0, life: T(260) });
+    for (let k = 0; k < 24; k++) {   // sparks flung out, slowing down, then drifting and twinkling a while
+      const a = Math.random() * Math.PI * 2, v = 80 + Math.random() * 200;
+      this.slivers.push({ x: x + Math.cos(a) * 5, y: y + Math.sin(a) * 5, vx: Math.cos(a) * v, vy: Math.sin(a) * v, len: 8 + Math.random() * 12, t0, last: t0, life: T(600 + Math.random() * 600) });
+    }
+    for (let k = 0; k < 14; k++) this.slivers.push({ x: x + (Math.random() - 0.5) * 44, y: y + (Math.random() - 0.5) * 34, vx: (Math.random() - 0.5) * 14, vy: -6 - Math.random() * 16, len: 2.5 + Math.random() * 2.5, t0: t0 + T(100 + Math.random() * 200), last: t0, life: T(900 + Math.random() * 700), twinkle: true });
+    sfx('zap');
+  }
+  drawXHits(ctx, t, sx, sy) {
+    if (!this.xhits.length && !this.slivers.length) return;
+    const s = this.s;
+    const lens = (x0, y0, x1, y1, w, col) => {   // a thin pointed blade from (x0,y0) to (x1,y1), widest a third of the way along
+      const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+      const mx = x0 + dx * 0.38, my = y0 + dy * 0.38;
+      ctx.beginPath(); ctx.moveTo(x0, y0);
+      ctx.quadraticCurveTo(mx + nx * w, my + ny * w, x1, y1);
+      ctx.quadraticCurveTo(mx - nx * w, my - ny * w, x0, y0);
+      ctx.fillStyle = col; ctx.fill();
+    };
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = this.xhits.length - 1; i >= 0; i--) {
+      const h = this.xhits[i], age = t - h.t0;
+      if (age > h.life) { this.xhits.splice(i, 1); continue; }
+      if (age < 0) continue;
+      const k = age / h.life, X = h.x * s + sx, Y = h.y * s + sy;
+      if (h.kind === 'flare') {
+        const r = (5 + 15 * Math.min(1, k / 0.25)) * s, a = k < 0.2 ? 1 : 1 - (k - 0.2) / 0.8;
+        const g = ctx.createRadialGradient(X, Y, 0, X, Y, r);
+        g.addColorStop(0, hexA('#ffffff', 0.95 * a)); g.addColorStop(0.2, hexA('#c8f0ff', 0.7 * a)); g.addColorStop(0.55, hexA('#3a8aff', 0.28 * a)); g.addColorStop(1, hexA('#1a4aff', 0));
+        ctx.fillStyle = g; ctx.fillRect(X - r, Y - r, r * 2, r * 2);
+        continue;
+      }
+      const grow = Math.min(1, k / 0.12), ease = 1 - Math.pow(1 - grow, 3);   // shoots out fast, holds, then thins away
+      const thin = k < 0.3 ? 1 : Math.max(0, 1 - (k - 0.3) / 0.7);
+      const ca = Math.cos(h.a), sa = Math.sin(h.a);
+      const x0 = X - ca * h.l2 * ease * s, y0 = Y - sa * h.l2 * ease * s, x1 = X + ca * h.l1 * ease * s, y1 = Y + sa * h.l1 * ease * s;
+      const w = h.w * s * (0.3 + 0.7 * thin);
+      ctx.shadowColor = '#4aa8ff'; ctx.shadowBlur = s * 10 * thin;
+      lens(x0, y0, x1, y1, w * 2.6, hexA('#2a6aff', 0.35 * thin));
+      ctx.shadowBlur = 0;
+      lens(x0, y0, x1, y1, w * 1.5, hexA('#7fc8ff', 0.75 * thin));
+      lens(x0, y0, x1, y1, w * 0.55, hexA('#ffffff', thin));
+    }
+    for (let i = this.slivers.length - 1; i >= 0; i--) {
+      const p = this.slivers[i], age = t - p.t0;
+      if (age > p.life) { this.slivers.splice(i, 1); continue; }
+      const dt = Math.max(0, Math.min(0.05, (t - p.last) / 1000)); p.last = t;
+      if (age < 0) continue;
+      p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= Math.pow(0.04, dt); p.vy *= Math.pow(0.04, dt);
+      const k = age / p.life, a = (1 - k) * (p.twinkle ? 0.5 + 0.5 * Math.sin(age / 35 + i) : 1);
+      const sp = Math.hypot(p.vx, p.vy) || 1, L = p.twinkle ? p.len : Math.max(1.5, p.len * Math.min(1, sp / 60));
+      const X = p.x * s + sx, Y = p.y * s + sy, ux = p.twinkle ? 0 : p.vx / sp, uy = p.twinkle ? 1 : p.vy / sp;
+      if (p.twinkle) { lens(X - L * s, Y, X + L * s, Y, 0.9 * s, hexA('#bfe8ff', a)); lens(X, Y - L * s, X, Y + L * s, 0.9 * s, hexA('#bfe8ff', a)); lens(X - L * 0.4 * s, Y, X + L * 0.4 * s, Y, 1.6 * s, hexA('#ffffff', a * 0.8)); continue; }
+      lens(X - ux * L * s, Y - uy * L * s, X + ux * L * 0.4 * s, Y + uy * L * 0.4 * s, 1.8 * s, hexA('#4aa8ff', 0.85 * a));
+      lens(X - ux * L * 0.7 * s, Y - uy * L * 0.7 * s, X + ux * L * 0.35 * s, Y + uy * L * 0.35 * s, 0.8 * s, hexA('#ffffff', a));
+    }
+    ctx.restore();
+  }
+
   // a jagged line from a to b (for bolts)
   _zig(a, b, n, j) { const pts = [a]; for (let i = 1; i < n; i++) pts.push({ x: lerp(a.x, b.x, i / n) + (Math.random() - 0.5) * j, y: lerp(a.y, b.y, i / n) + (Math.random() - 0.5) * j }); pts.push(b); return pts; }
 
@@ -759,10 +835,14 @@ export class BattleScene {
       setTimeout(() => {
         const e = this.actors.get(t.id);
         if (e && e !== firstE && !e.gone) { const d = reach(e); this.move(A, d.x - home.x, d.y - home.y, T(90), true); }
-        this.trails.push({ x: A.x + A.ox - 6, y: A.y + A.oy - 30 + (i - 1) * 5, r: 34, t0: now(), life: T(300), up: i === 1 });
         sfx('slash');
       }, T(st + at[idx] - 50));
-      setTimeout(() => { this.impact(ev, tgt, 'slash', rc, [t], true); this.shake = Math.max(this.shake, 2); this.shakeT = now(); }, T(st + at[idx] + 20));
+      setTimeout(() => {
+        const e = this.actors.get(t.id) || firstE, c = this._hitPoint(e);
+        this.crossHit(c.x, c.y, CROSS_ANGLES[i % CROSS_ANGLES.length], T);
+        this.impact(ev, tgt, 'xslash', rc, [t], true);
+        this.shake = Math.max(this.shake, 3); this.shakeT = now(); this.freezeUntil = now() + 70;
+      }, T(st + at[idx] + 20));
     });
     // the charge: aura round the blade, the screen dims, lightning drops from the sky into the sword
     const [h0, h1] = anim.holdAt || [0, 0];
@@ -1538,6 +1618,7 @@ export class BattleScene {
     // ---- display-resolution post: lights, fog, shafts, vignette
     this.post(ctx, time, sx, sy);
     this.drawTrails(ctx, t, sx, sy);
+    this.drawXHits(ctx, t, sx, sy);
     this.drawOverlays(ctx, t, sx, sy);
     this.applyCam(ctx, t);
   }
