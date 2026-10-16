@@ -131,7 +131,14 @@
       -59,
       -41
      ],
-     "zoom": 1.08
+     "zoom": 1.08,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "defend": {
      "sheet": "mage_defend.png",
@@ -176,7 +183,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "channel": {
      "sheet": "mage_channel.png",
@@ -233,7 +247,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     }
    }
   },
@@ -368,7 +389,14 @@
       -43,
       -37
      ],
-     "zoom": 1.08
+     "zoom": 1.08,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "defend": {
      "sheet": "mage_m_defend.png",
@@ -413,7 +441,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "channel": {
      "sheet": "mage_m_channel.png",
@@ -470,7 +505,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     }
    }
   },
@@ -629,7 +671,14 @@
       -66,
       -48
      ],
-     "zoom": 1.06
+     "zoom": 1.06,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "defend": {
      "sheet": "ranger_defend.png",
@@ -690,7 +739,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "volley": {
      "sheet": "ranger_volley.png",
@@ -702,7 +758,7 @@
       80,
       104
      ],
-     "frames": 9,
+     "frames": 10,
      "variants": 3,
      "timeline": [
       [
@@ -711,7 +767,7 @@
       ],
       [
        1,
-       50
+       60
       ],
       [
        2,
@@ -731,15 +787,19 @@
       ],
       [
        6,
-       160
+       900
       ],
       [
        7,
-       80
+       90
       ],
       [
        8,
-       180
+       90
+      ],
+      [
+       9,
+       120
       ]
      ],
      "hit": 7,
@@ -749,9 +809,57 @@
      "cast": true,
      "strike": null,
      "release": null,
-     "charge": null,
+     "charge": 5,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": [
+      [
+       -6,
+       -56
+      ],
+      [
+       -41,
+       -74
+      ],
+      [
+       -24,
+       -84
+      ],
+      [
+       -25,
+       -96
+      ],
+      [
+       -36,
+       -97
+      ],
+      [
+       -9,
+       -86
+      ],
+      [
+       -9,
+       -86
+      ],
+      [
+       -36,
+       -97
+      ],
+      [
+       -24,
+       -84
+      ],
+      [
+       -6,
+       -56
+      ]
+     ],
+     "chargeTo": 7,
+     "swing": null,
+     "aura": null,
+     "ring": true,
+     "upswing": null,
+     "dashAt": null
     }
    }
   },
@@ -894,7 +1002,14 @@
       -44,
       -40
      ],
-     "zoom": 1.06
+     "zoom": 1.06,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "defend": {
      "sheet": "ranger_f_defend.png",
@@ -955,7 +1070,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "volley": {
      "sheet": "ranger_f_volley.png",
@@ -967,7 +1089,7 @@
       80,
       104
      ],
-     "frames": 9,
+     "frames": 11,
      "variants": 3,
      "timeline": [
       [
@@ -976,7 +1098,7 @@
       ],
       [
        1,
-       50
+       60
       ],
       [
        2,
@@ -996,15 +1118,23 @@
       ],
       [
        6,
-       160
+       900
       ],
       [
        7,
-       80
+       90
       ],
       [
        8,
-       180
+       90
+      ],
+      [
+       9,
+       90
+      ],
+      [
+       10,
+       120
       ]
      ],
      "hit": 7,
@@ -1014,9 +1144,61 @@
      "cast": true,
      "strike": null,
      "release": null,
-     "charge": null,
+     "charge": 5,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": [
+      [
+       -5,
+       -55
+      ],
+      [
+       -28,
+       -62
+      ],
+      [
+       -11,
+       -72
+      ],
+      [
+       -9,
+       -73
+      ],
+      [
+       -4,
+       -82
+      ],
+      [
+       -10,
+       -83
+      ],
+      [
+       -10,
+       -83
+      ],
+      [
+       -4,
+       -82
+      ],
+      [
+       -9,
+       -73
+      ],
+      [
+       -28,
+       -62
+      ],
+      [
+       -5,
+       -55
+      ]
+     ],
+     "chargeTo": 7,
+     "swing": null,
+     "aura": null,
+     "ring": true,
+     "upswing": null,
+     "dashAt": null
     }
    }
   },
@@ -1168,7 +1350,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "defend": {
      "sheet": "cleric_defend.png",
@@ -1221,7 +1410,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "pray": {
      "sheet": "cleric_pray.png",
@@ -1282,7 +1478,138 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
+    },
+    "chant": {
+     "sheet": "cleric_chant.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 11,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       80
+      ],
+      [
+       2,
+       160
+      ],
+      [
+       3,
+       260
+      ],
+      [
+       4,
+       260
+      ],
+      [
+       5,
+       260
+      ],
+      [
+       6,
+       90
+      ],
+      [
+       7,
+       90
+      ],
+      [
+       8,
+       90
+      ],
+      [
+       9,
+       90
+      ],
+      [
+       10,
+       260
+      ]
+     ],
+     "hit": 9,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": 2,
+     "muzzle": null,
+     "zoom": null,
+     "tips": [
+      [
+       -27,
+       -60
+      ],
+      [
+       -30,
+       -60
+      ],
+      [
+       -19,
+       -94
+      ],
+      [
+       -19,
+       -96
+      ],
+      [
+       -19,
+       -96
+      ],
+      [
+       -19,
+       -96
+      ],
+      [
+       -14,
+       -84
+      ],
+      [
+       -6,
+       -77
+      ],
+      [
+       0,
+       -58
+      ],
+      [
+       13,
+       -73
+      ],
+      [
+       -1,
+       -58
+      ]
+     ],
+     "chargeTo": 6,
+     "swing": [
+      6,
+      10
+     ],
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     }
    }
   },
@@ -1434,7 +1761,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "defend": {
      "sheet": "cleric_m_defend.png",
@@ -1495,7 +1829,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "pray": {
      "sheet": "cleric_m_pray.png",
@@ -1552,7 +1893,146 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
+    },
+    "chant": {
+     "sheet": "cleric_m_chant.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 12,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       70
+      ],
+      [
+       2,
+       90
+      ],
+      [
+       3,
+       150
+      ],
+      [
+       4,
+       200
+      ],
+      [
+       5,
+       200
+      ],
+      [
+       6,
+       200
+      ],
+      [
+       7,
+       200
+      ],
+      [
+       8,
+       90
+      ],
+      [
+       9,
+       90
+      ],
+      [
+       10,
+       90
+      ],
+      [
+       11,
+       240
+      ]
+     ],
+     "hit": 10,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": 3,
+     "muzzle": null,
+     "zoom": null,
+     "tips": [
+      [
+       -2,
+       -55
+      ],
+      [
+       -32,
+       -59
+      ],
+      [
+       -23,
+       -84
+      ],
+      [
+       -20,
+       -96
+      ],
+      [
+       -20,
+       -97
+      ],
+      [
+       -20,
+       -93
+      ],
+      [
+       -20,
+       -93
+      ],
+      [
+       -20,
+       -95
+      ],
+      [
+       10,
+       -73
+      ],
+      [
+       7,
+       -68
+      ],
+      [
+       12,
+       -63
+      ],
+      [
+       12,
+       -63
+      ]
+     ],
+     "chargeTo": 8,
+     "swing": [
+      8,
+      11
+     ],
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     }
    }
   },
@@ -1700,7 +2180,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "defend": {
      "sheet": "knight_defend.png",
@@ -1757,7 +2244,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "rally": {
      "sheet": "knight_rally.png",
@@ -1818,7 +2312,89 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
+    },
+    "power": {
+     "sheet": "knight_power.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 10,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       70
+      ],
+      [
+       2,
+       90
+      ],
+      [
+       3,
+       110
+      ],
+      [
+       4,
+       120
+      ],
+      [
+       5,
+       130
+      ],
+      [
+       6,
+       140
+      ],
+      [
+       7,
+       110
+      ],
+      [
+       8,
+       90
+      ],
+      [
+       9,
+       380
+      ]
+     ],
+     "hit": 9,
+     "trail": null,
+     "dashFrames": 8,
+     "dash": 10,
+     "cast": false,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": [
+      1,
+      7
+     ],
+     "ring": null,
+     "upswing": 9,
+     "dashAt": 7
     }
    }
   },
@@ -1974,7 +2550,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "defend": {
      "sheet": "knight_f_defend.png",
@@ -2027,7 +2610,14 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     },
     "rally": {
      "sheet": "knight_f_rally.png",
@@ -2088,7 +2678,85 @@
      "release": null,
      "charge": null,
      "muzzle": null,
-     "zoom": null
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
+    },
+    "power": {
+     "sheet": "knight_f_power.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 9,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       60
+      ],
+      [
+       1,
+       70
+      ],
+      [
+       2,
+       110
+      ],
+      [
+       3,
+       120
+      ],
+      [
+       4,
+       130
+      ],
+      [
+       5,
+       140
+      ],
+      [
+       6,
+       110
+      ],
+      [
+       7,
+       90
+      ],
+      [
+       8,
+       380
+      ]
+     ],
+     "hit": 8,
+     "trail": null,
+     "dashFrames": 7,
+     "dash": 10,
+     "cast": false,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": [
+      1,
+      6
+     ],
+     "ring": null,
+     "upswing": 8,
+     "dashAt": 6
     }
    }
   }

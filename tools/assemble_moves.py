@@ -52,18 +52,42 @@ PLAN = {
     'mage_defend': [0, 1, 8, 8, 1], 'mage_m_defend': [0, 1, 8, 8, 1],
     'mage_channel': [0, 1, 2, 3, 4, 4, 3, 0], 'mage_m_channel': [0, 1, 2, 3, 4, 5, 6, 6],
     'ranger_defend': [0, 1, 2, 3, 4, 5, 6, 7, 8], 'ranger_f_defend': [0, 1, 2, 3, 4, 5, 6, 7, 8],
-    'ranger_volley': [0, 1, 2, 3, 4, 5, 6, 7, 8], 'ranger_f_volley': [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    # volley: raise the bow almost straight up (0-8, pinned to an edit_image keyframe), hold the draw while the
+    # star charges, then lower it again (the arrow itself is drawn by the game). The girl's in-betweens (16+) come
+    # from an earlier 45-degree take because PixelLab baked arrow streaks into the pinned ones; 9-15 are unused
+    # release takes that drifted back to a forward aim.
+    'ranger_volley': [0, 2, 4, 6, 7, 8, 8, 7, 4, 0], 'ranger_f_volley': [0, 18, 19, 21, 7, 8, 8, 7, 21, 18, 0],
     'cleric_defend': [0, 1, 2, 3, 4, 4, 8], 'cleric_m_defend': [0, 1, 2, 3, 4, 5, 6, 7, 8],
     'cleric_pray': [0, 1, 2, 3, 4, 5, 5, 6, 7], 'cleric_m_pray': [0, 1, 2, 3, 4, 5, 6, 7],
+    # cleric chant (defend / heal / bless): raise the staff over the open book, chant eyes closed, sweep it round
+    'cleric_chant': [0, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12], 'cleric_m_chant': [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 11],
+    # knight power strike: crouch and power up, then the rising slash (PixelLab's glitchy/VFX frames skipped)
+    'knight_power': [0, 2, 3, 4, 5, 6, 7, 8, 9, 11], 'knight_f_power': [0, 2, 4, 5, 6, 7, 8, 9, 10],
 }
+
+def fire_tint(im):
+    """Turn PixelLab's bright cyan sword glow orange, so it matches the flame aura."""
+    out = im.copy(); p = out.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            r, g, b, a = p[x, y]
+            if not a: continue
+            h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+            if 0.42 < h < 0.62 and s > 0.28 and v > 0.78:
+                r2, g2, b2 = colorsys.hsv_to_rgb(0.07 + (1 - v) * 0.1, min(1, s + 0.25), v)
+                p[x, y] = (int(r2 * 255), int(g2 * 255), int(b2 * 255), a)
+    return out
 if __name__ == '__main__':
     jobs = json.load(open(sys.argv[1])); blob = sys.argv[2]
+    only = sys.argv[3:]
     for name, order in PLAN.items():
+        if only and name not in only: continue
         if name not in jobs: print('missing', name); continue
         fr = [Image.open(os.path.join(blob, 'mcp-Pixel_Lab-blob-%s.png' % b)).convert('RGBA') for b in jobs[name]]
         box = fr[0].getbbox()
         fr = [clean(f, box) for f in fr]
         if name == 'mage_channel': fr = [fr[0]] + [strip_fire(f, box[1] - 2, box[0] + 30) for f in fr[1:]]
+        if name.endswith('_power'): fr = [fr[0]] + [fire_tint(f) for f in fr[1:]]
         strip = Image.new('RGBA', (128 * len(order), 112))
         for i, k in enumerate(order): strip.alpha_composite(fr[k], (i * 128, 0))
         sheet, move = name.rsplit('_', 1)

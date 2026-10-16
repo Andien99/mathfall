@@ -161,8 +161,14 @@ Hero frames are 84×76 with the feet at (46, 72), facing left. Enemy frame sizes
 |---|---|---|
 | Knight | Guard – sword raised to block | Rally – sword thrust up with a war cry (Shield Wall, Battle Cry, Aegis, any heal/buff or area spell) |
 | Mage | Ward – staff held out | Channel – staff raised overhead (Lightning, Frost Nova, Meteor, Starfall, Venom Storm, any heal/buff) |
-| Ranger | Evade – crouch and backflip | Volley – bow aimed at the sky (Volley, Starfall, Venom Storm, any area spell) |
-| Cleric | Holy guard – warding gesture | Pray – staff lifted, head bowed (Healing Light, Blessing, Sanctuary, Phoenix Feather, any area spell) |
+| Ranger | Evade – crouch and backflip | Volley – bow raised almost straight up; a star grows at the bow tip while a yellow ring shrinks onto it, then the arrow shoots up (Volley, Starfall, Venom Storm, any area spell) |
+| Cleric | Chant – see below | Pray – staff lifted, head bowed (Sanctuary, any area spell) |
+
+**Cleric chant.** The clerics' defend, Healing Light, Phoenix Feather and Blessing share one move (`anims.chant`): the cleric holds the staff up over the open book and chants with eyes closed while a light gathers at the staff's tip and slowly grows (blue for the defend, yellow for heals, pale gold for Blessing), then sweeps the staff round in the air, leaving a trail of that light. The tip is measured per frame by `build_attack.py` (`track: 'top'`), so the glow follows the staff.
+
+**Knight Power Strike.** Its own move (`anims.power`): the knight crouches and powers up inside a flame aura that grows the longer she charges (PixelLab's blue sword glow is re-tinted orange by `assemble_moves.py`), then dashes in and swings upward, leaving an orange crescent and throwing fire sparks up and out. `dashAt` holds the dash until the power-up ends.
+
+These hand-timed moves are in `EXTRA` in `build_attack.py` (`charge` / `chargeTo` for the growing light, `swing` for the trail, `ring` for the volley's shrinking ring, `aura`, `dashAt` and `upswing` for Power Strike). The volley's raise was pinned to a near-vertical keyframe made with `edit_image`, because PixelLab's free animation would only aim the bow to about 45°.
 
 PixelLab paints its own magic into many frames; `tools/assemble_moves.py` keeps only the character (the largest connected shape plus anything touching the idle sprite's box), so detached swirls and orbs are dropped, and strips the fire it drew above the mage's staff. The frame order and holds per move are in its `PLAN`; timings and hit frames in `SIMPLE` in `build_attack.py`. Move sheets load in the background after the page opens; the join form can no longer submit (and reload the page) before the game has loaded.
 

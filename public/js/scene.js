@@ -35,7 +35,7 @@ export class BattleScene {
     this.onAnimDone = opts.onAnimDone || (() => {});
     this.onAfter = opts.onAfter || (() => {});
     this.shake = 0; this.shakeT = 0;
-    this.trails = []; this.cam = null; this.stars = [];
+    this.trails = []; this.cam = null; this.stars = []; this.rings = []; this.ribbons = []; this.auras = [];
     this.slowmo = 1;   // <1 plays everything in slow motion (used by the /dev/lab.html animation lab)
     this.freezeUntil = 0;
     this.flash = 0;
@@ -323,6 +323,9 @@ export class BattleScene {
   // Which hand-animated move (if any) plays before a support skill, defend or big spell.
   // Each class has a defend plus one "big move" every party/area skill maps onto.
   _preAnimName(A, fx) {
+    const has = n => SP.heroAnim(A.skin || A.cls, n);
+    // cleric: reading the book + staff glow + circular swing for guard, heals and blessings
+    if (A.cls === 'cleric' && ['defend', 'heal', 'heal_party', 'revive', 'bless_party'].includes(fx) && has('chant')) return 'chant';
     if (fx === 'defend') return 'defend';
     const big = { knight: 'rally', mage: 'channel', ranger: 'volley', cleric: 'pray' }[A.cls];
     if (['shield_party', 'taunt', 'aegis', 'heal', 'heal_party', 'bless_party', 'revive', 'buff_party'].includes(fx)) return A.cls === 'ranger' ? null : big;
@@ -339,6 +342,7 @@ export class BattleScene {
         const at = []; let acc = 0; for (const [, ms] of pre.timeline) { at.push(acc); acc += ms; }
         A.anim = { d: pre, t0: now(), speed: T(1000) / 1000, at, total: acc };
         setTimeout(() => { A.anim = null; }, T(acc + 60));
+        this._moveFx(A, pre, at, T, fx);
         if (nm !== 'defend') this.cam = { x: A.x - 30, y: A.y - 36, t0: now(), dur: T(acc + 400), z: pre.zoom || 1.06 };
         const hitAt = at[pre.hit] != null ? at[pre.hit] : acc * 0.6;
         if (nm === 'rally') sfx('roar');
@@ -376,7 +380,7 @@ export class BattleScene {
 
     // offence
     const home = { x: A.x, y: A.y };
-    const bigMove = melee && first && fx !== 'whirl' && SP.heroAnim(A.skin || A.cls, ['slash_heavy', 'shadow', 'dragon'].includes(fx) ? 'slash' : fx);   // knight: slash, cleric: smite
+    const bigMove = melee && first && fx !== 'whirl' && ((fx === 'slash_heavy' && SP.heroAnim(A.skin || A.cls, 'power')) || SP.heroAnim(A.skin || A.cls, ['slash_heavy', 'shadow', 'dragon'].includes(fx) ? 'slash' : fx));   // knight: slash, cleric: smite
     if (bigMove) return this._bigSlash(A, first, ev, tgt, fx, rc, bigMove, T, home);
     if (melee && first && fx !== 'whirl') {
       const dest = { x: first.x + (first.size === 'xl' ? 46 : first.size === 'l' ? 26 : 20), y: first.y + 2 };
@@ -459,9 +463,9 @@ export class BattleScene {
     const dest = cast ? home : { x: first.x + (first.size === 'xl' ? 46 : first.size === 'l' ? 26 : 20) + (anim.dash || 0), y: first.y + 2 };
     A.anim = { d: anim, t0: now(), speed, at, total };
     if (!cast) {
-      const dashMs = at[Math.min(tl.length - 1, anim.dashFrames || 4)];
-      this.move(A, dest.x - home.x, dest.y - home.y, T(Math.max(120, dashMs)), true);
-      sfx('whirl');
+      const d0 = anim.dashAt ? at[anim.dashAt] : 0;   // power strike: powers up in place first, then dashes
+      const dashMs = at[Math.min(tl.length - 1, anim.dashFrames || 4)] - d0;
+      setTimeout(() => { this.move(A, dest.x - home.x, dest.y - home.y, T(Math.max(120, dashMs)), true); sfx('whirl'); }, T(d0));
     } else if (anim.release == null) sfx('cast');
     this.cam = cast ? { x: (home.x * 0.6 + first.x * 0.4), y: home.y - 34, t0: now(), dur: T(total + 260), z: anim.zoom || 1.1 }
                     : { x: (dest.x + first.x) / 2 - 6, y: dest.y - 30, t0: now(), dur: T(total + 260), z: 1.14 };
@@ -483,6 +487,17 @@ export class BattleScene {
       }, T(at[anim.charge]));
       setTimeout(() => { if (star) { star.done = true; this.burst(from.x, from.y, star.color, 14, 50, 0); this.glows.push({ x: from.x, y: from.y, r: 30, color: star.color, t: 0, life: 0.3, a: 0.9 }); } this.projectile(from, to, fx, T(fly)); sfx('bow'); this.glows.push({ x: from.x, y: from.y, r: 18, color: fx === 'proj_poison' ? '#9cff6b' : '#fff2c0', t: 0, life: 0.25, a: 0.8 }); }, T(at[anim.release]));
     }
+    if (anim.aura) {   // powering up: a flame aura that grows until the dash
+      const [f0, f1] = anim.aura;
+      setTimeout(() => { this.auras.push({ follow: A, t0: performance.now(), until: performance.now() + T(at[f1] - at[f0]) }); sfx('burn'); }, T(at[f0]));
+    }
+    if (anim.upswing != null) setTimeout(() => {   // rising slash: orange crescent sweeping up, fire sparks thrown up and out
+      this.trails.push({ x: A.x + A.ox - 10, y: A.y + A.oy - 26, r: 40, t0: now(), life: T(520), up: true, color: 'fire' });
+      const p = { x: A.x + A.ox - 34, y: A.y + A.oy - 20 };
+      for (let i = 0; i < 34; i++) { const a = -Math.PI * (0.15 + Math.random() * 0.75), v = 80 + Math.random() * 120; this.particles.push({ x: p.x, y: p.y, vx: Math.cos(a) * v - 30, vy: Math.sin(a) * v, g: 140, life: 0.6 + Math.random() * 0.5, t: 0, c: ['#ff6a2a', '#ffb347', '#ffd25a', '#fff6c8'][i % 4], streak: 3 + (i % 3), drag: 0.9 }); }
+      this.glows.push({ x: p.x, y: p.y, r: 60, color: '#ff7a2a', t: 0, life: 0.45, a: 1 });
+      sfx('heavy');
+    }, T(at[anim.upswing]));
     if (anim.trail != null) setTimeout(() => {
       this.trails.push({ x: A.x + A.ox - 4, y: A.y + A.oy - 32, r: 38, t0: now(), life: T(460) });
       sfx(fx === 'slash_heavy' || fx === 'dragon' ? 'heavy' : 'slash');
@@ -490,6 +505,37 @@ export class BattleScene {
     setTimeout(() => { this.impact(ev, tgt, fx, rc); this.shake = Math.max(this.shake, 4); this.shakeT = now(); }, T(hitAt));
     setTimeout(() => { A.anim = null; if (!cast) this.move(A, 0, 0, T(240), true); }, T(total + 60));
     return T(Math.max(ev.dur || 1000, Math.max(total, hitAt) + 320));
+  }
+  // where the staff / arrow tip is right now (from the per-frame 'tips' the builder measured)
+  _tipAt(a) {
+    const m = a.anim; if (!m || !m.d.tips) return null;
+    const el = (now() - m.t0) / m.speed;
+    let i = 0; while (i + 1 < m.at.length && el >= m.at[i + 1]) i++;
+    const tp = m.d.tips[m.d.timeline[i][0]]; if (!tp) return null;
+    return { x: a.x + a.ox + tp[0], y: a.y + a.oy + tp[1] };
+  }
+  // charge-ups that follow the tip: a growing orb or star, a shrinking ring, and a light trail while it swings
+  _moveFx(A, anim, at, T, fx) {
+    const col = { defend: '#7fc8ff', heal: '#ffe27a', heal_party: '#ffe27a', revive: '#ffe27a', bless_party: '#fff0b8', volley: '#ffe9a0' }[fx] || '#ffe27a';
+    if (anim.charge != null && anim.tips) {
+      const end = anim.chargeTo != null ? anim.chargeTo : anim.hit;
+      const grow = T(at[end] - at[anim.charge]);
+      let st = null;
+      setTimeout(() => {
+        st = { kind: anim.ring ? 'star' : 'orb', follow: A, x: A.x, y: A.y, t0: now(), grow, color: col };
+        this.stars.push(st); sfx(anim.ring ? 'twinkle' : 'cast');
+        if (anim.ring) this.rings.push({ follow: A, t0: now(), dur: grow, color: '#ffe27a' });
+      }, T(at[anim.charge]));
+      setTimeout(() => {
+        if (!st) return; st.done = true;
+        this.burst(st.x, st.y, col, 18, 50, 0); this.glows.push({ x: st.x, y: st.y, r: 34, color: col, t: 0, life: 0.35, a: 0.9 });
+        if (anim.ring) { this.projectile({ x: st.x, y: st.y }, { x: st.x - 30, y: -40 }, 'proj_arrow', T(240)); sfx('bow'); }   // the volley's arrow shoots up out of sight
+      }, T(at[end]));
+    }
+    if (anim.swing && anim.tips) {
+      const [a0, a1] = anim.swing;
+      setTimeout(() => this.ribbons.push({ follow: A, pts: [], color: col, until: now() + T(at[Math.min(a1 + 1, at.length - 1)] - at[a0]) + T(80) }), T(at[a0]));
+    }
   }
   _animAt(a, t) {
     const m = a.anim; if (!m) return null;
@@ -505,7 +551,7 @@ export class BattleScene {
     for (const t of ev.targets) {
       const p = this.pos(t.id); if (!p) continue;
       if (t.dmg != null && !t.shatter) {
-        const colr = { proj_fire: '#ff8a3c', proj_arcane: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', proj_poison: '#9cff6b', venom: '#9cff6b', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8' }[fx] || '#ffffff';
+        const colr = { slash_heavy: '#ff9a3c', proj_fire: '#ff8a3c', proj_arcane: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', proj_poison: '#9cff6b', venom: '#9cff6b', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8' }[fx] || '#ffffff';
         this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy');
         this.elementHit(p.x, p.y - 16, fx);
         this.glows.push({ x: p.x, y: p.y - 16, r: 34 + Math.min(40, t.dmg * 1.5), color: colr, t: 0, life: 0.35, a: 0.8 });
@@ -717,6 +763,10 @@ export class BattleScene {
       for (let j = 1; j <= sp; j++) { if (rot) { n.fillRect(x - j, y, 1, 1); n.fillRect(x + j, y, 1, 1); n.fillRect(x, y - j - 1, 1, 1); n.fillRect(x, y + j + 1, 1, 1); } else { const d = Math.round(j * 0.75); n.fillRect(x - d, y - d, 1, 1); n.fillRect(x + d, y - d, 1, 1); n.fillRect(x - d, y + d, 1, 1); n.fillRect(x + d, y + d, 1, 1); } }
       disc(R * 0.8, '#9fe8ff'); disc(Math.max(0.5, R * 0.4), '#ffffff');
       if (Math.random() < 0.7) { const a = Math.random() * Math.PI * 2, d = 12 + Math.random() * 6; this.particles.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, vx: -Math.cos(a) * d * 3.5, vy: -Math.sin(a) * d * 3.5, g: 0, life: 0.26, t: 0, c: Math.random() < 0.5 ? '#e8ffff' : '#8fe3ff', fade: true }); }
+    } else if (st.kind === 'orb') {   // soft holy light gathering at a staff tip
+      const pulse = Math.sin(el * 12) * 0.5;
+      disc(R + 2 + pulse, st.color); disc(R * 0.65 + 0.5, '#ffffff');
+      if (Math.random() < 0.5) { const a = Math.random() * Math.PI * 2, d = 10 + Math.random() * 6; this.particles.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, vx: -Math.cos(a) * d * 3, vy: -Math.sin(a) * d * 3, g: 0, life: 0.3, t: 0, c: st.color, plus: Math.random() < 0.3, fade: true }); }
     } else {   // arcane: violet orb with two motes orbiting it, sparks spiralling in
       disc(R + 1, '#4a3aa8'); disc(R, '#7a6aff'); disc(Math.max(0.5, R * 0.45), '#e0d8ff');
       for (let k = 0; k < 2; k++) { const a = el * 9 + k * Math.PI, o = R + 3; n.fillStyle = '#d8ceff'; n.fillRect(Math.round(x + Math.cos(a) * o), Math.round(y + Math.sin(a) * o * 0.6), 2, 2); }
@@ -928,10 +978,16 @@ export class BattleScene {
       else n.fillRect(Math.round(p.x), Math.round(p.y), p.spark && k > 0.5 ? 2 : 1, 1);
     }
     n.globalAlpha = 1;
+    for (const au of this.auras) {   // flame licks rising from the aura
+      const k = Math.min(1, (t - au.t0) / (au.until - au.t0)); if (t > au.until) continue;
+      const n = 1 + Math.floor(k * 3);
+      for (let j = 0; j < n; j++) { const ax = au.follow.x + au.follow.ox + (Math.random() - 0.5) * (22 + 20 * k), ay = au.follow.y + au.follow.oy - Math.random() * 10; this.particles.push({ x: ax, y: ay, vx: (Math.random() - 0.5) * 8, vy: -30 - Math.random() * 40 * (0.5 + k), g: 0, life: 0.45 + Math.random() * 0.3, t: 0, c: Math.random() < 0.5 ? '#ff8a2a' : '#ffc24a', blob: Math.random() < 0.3 ? 1 : 0, fade: true }); }
+    }
     // charge stars (ranger arrow tip): grow, twinkle between + and x shapes
     for (let i = this.stars.length - 1; i >= 0; i--) {
       const st = this.stars[i];
       if (st.done) { this.stars.splice(i, 1); continue; }
+      if (st.follow) { const tp = this._tipAt(st.follow); if (tp) { st.x = tp.x; st.y = tp.y; } }
       const g = Math.min(1, (t - st.t0) / st.grow), arm = Math.round(1 + g * 5), x = Math.round(st.x), y = Math.round(st.y);
       if (st.kind !== 'star') { this.drawCharge(n, st, g, x, y, t); continue; }
       const diag = Math.floor((t - st.t0) / 90) % 2 === 1, pulse = 0.75 + 0.25 * Math.sin((t - st.t0) / 40);
@@ -998,11 +1054,13 @@ export class BattleScene {
       const grow = Math.min(1, k * 5);                      // the arc sweeps in fast, then fades
       const fade = k < 0.2 ? 1 : 1 - (k - 0.2) / 0.8;
       const cx = tr.x * s + sx, cy = tr.y * s + sy, R = tr.r * s;
-      const a0 = -1.45, a1 = a0 - 2.15 * grow;               // from just behind the head, round the front, down low
-      for (const [w, col, al] of [[0.34, '150,200,255', 0.22], [0.2, '200,232,255', 0.45], [0.08, '255,255,255', 0.9]]) {
+      const up = !!tr.up;
+      const a0 = up ? 2.55 : -1.45, a1 = up ? a0 + 2.2 * grow : a0 - 2.15 * grow;   // down-slash: behind head -> low front; up-slash: low front -> overhead
+      const cols = tr.color === 'fire' ? [[0.34, '255,90,30', 0.3], [0.2, '255,170,60', 0.55], [0.08, '255,240,190', 0.95]] : [[0.34, '150,200,255', 0.22], [0.2, '200,232,255', 0.45], [0.08, '255,255,255', 0.9]];
+      for (const [w, col, al] of cols) {
         ctx.beginPath();
-        ctx.arc(cx, cy, R, a0, a1, true);
-        ctx.arc(cx - R * w * 0.5, cy, R * (1 - w), a1, a0, false);
+        ctx.arc(cx, cy, R, a0, a1, !up);
+        ctx.arc(cx - R * w * 0.5, cy, R * (1 - w), a1, a0, up);
         ctx.closePath();
         ctx.fillStyle = `rgba(${col},${al * fade})`; ctx.fill();
       }
@@ -1151,6 +1209,37 @@ export class BattleScene {
         if (G.tall) { ctx.save(); ctx.translate(x, y); ctx.scale(0.6, 1.8); ctx.translate(-x, -y); ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.restore(); }
         else ctx.fillRect(x - r, y - r, r * 2, r * 2);
       }
+    }
+    // shrinking charge ring (ranger volley): a circle closing in on the arrow tip
+    for (let i = this.rings.length - 1; i >= 0; i--) {
+      const rg = this.rings[i], k = (performance.now() - rg.t0) / rg.dur;
+      if (k >= 1) { this.rings.splice(i, 1); continue; }
+      const tp = this._tipAt(rg.follow) || { x: rg.follow.x, y: rg.follow.y - 40 };
+      const r = (4 + 40 * (1 - k) * (1 - k)) * s, x = tp.x * s + sx, y = tp.y * s + sy;
+      ctx.strokeStyle = hexA(rg.color, 0.35 + 0.6 * k); ctx.lineWidth = Math.max(2, s * (1.2 + k));
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    // light ribbon following a swinging staff tip
+    for (let i = this.ribbons.length - 1; i >= 0; i--) {
+      const rb = this.ribbons[i], tnow = performance.now();
+      if (tnow < rb.until) { const tp = this._tipAt(rb.follow); if (tp) rb.pts.push({ x: tp.x, y: tp.y, t: tnow }); }
+      rb.pts = rb.pts.filter(p => tnow - p.t < 380);
+      if (!rb.pts.length && tnow >= rb.until) { this.ribbons.splice(i, 1); continue; }
+      for (let j = 1; j < rb.pts.length; j++) {
+        const p0 = rb.pts[j - 1], p1 = rb.pts[j], a = 1 - (tnow - p1.t) / 380;
+        ctx.strokeStyle = hexA(rb.color, 0.8 * a); ctx.lineWidth = Math.max(2, s * 3 * a); ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(p0.x * s + sx, p0.y * s + sy); ctx.lineTo(p1.x * s + sx, p1.y * s + sy); ctx.stroke();
+      }
+    }
+    // power-up aura (knight power strike): a flickering flame glow around the hero that grows
+    for (let i = this.auras.length - 1; i >= 0; i--) {
+      const au = this.auras[i], tnow = performance.now(), k = (tnow - au.t0) / (au.until - au.t0);
+      if (k >= 1.25) { this.auras.splice(i, 1); continue; }
+      const a = au.follow, g = Math.min(1, k), fade = k > 1 ? 1 - (k - 1) / 0.25 : 1;
+      const x = (a.x + a.ox) * s + sx, y = (a.y + a.oy - 24) * s + sy, r = (18 + 26 * g + Math.sin(tnow / 40) * 2) * s;
+      const rg2 = ctx.createRadialGradient(x, y, r * 0.2, x, y, r);
+      rg2.addColorStop(0, hexA('#ffb347', 0.25 * fade)); rg2.addColorStop(0.6, hexA('#ff7a2a', 0.35 * fade * (0.6 + g * 0.4))); rg2.addColorStop(1, hexA('#ff4a1a', 0));
+      ctx.save(); ctx.translate(x, y); ctx.scale(0.8, 1.25); ctx.translate(-x, -y); ctx.fillStyle = rg2; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.restore();
     }
     // charge-star glow
     for (const st of this.stars) {

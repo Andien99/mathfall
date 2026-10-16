@@ -50,14 +50,31 @@ SIMPLE = {   # skin: {move: (ms per frame, hit frame)}
     'knight:f': {'defend': ([50, 50, 60, 60, 80, 160, 260], 4), 'rally': ([50, 50, 60, 70, 90, 220, 220, 80, 80], 4)},
     'mage:f': {'defend': ([60, 90, 220, 380, 90], 2), 'channel': ([60, 70, 70, 80, 220, 300, 90, 80], 4)},
     'mage:m': {'defend': ([60, 90, 220, 380, 90], 2), 'channel': ([60, 70, 70, 80, 220, 300, 90, 80], 4)},
-    'ranger:m': {'defend': ([50, 60, 60, 70, 70, 70, 70, 80, 160], 3), 'volley': ([50, 50, 60, 70, 80, 120, 160, 80, 180], 7)},
-    'ranger:f': {'defend': ([50, 60, 60, 70, 70, 70, 70, 80, 160], 3), 'volley': ([50, 50, 60, 70, 80, 120, 160, 80, 180], 7)},
+    'ranger:m': {'defend': ([50, 60, 60, 70, 70, 70, 70, 80, 160], 3)},
+    'ranger:f': {'defend': ([50, 60, 60, 70, 70, 70, 70, 80, 160], 3)},
     'cleric:f': {'defend': ([60, 60, 70, 90, 260, 160, 100], 3), 'pray': ([60, 60, 70, 80, 220, 260, 100, 80, 80], 4)},
     'cleric:m': {'defend': ([60, 60, 70, 90, 220, 120, 100, 100, 100], 4), 'pray': ([60, 60, 70, 80, 220, 260, 100, 80], 4)},
 }
 for skin, moves in SIMPLE.items():
     for mv, (ms, hit) in moves.items():
         MOVES[skin + '/' + mv] = dict(sheet=MOVES[skin]['sheet'], move=mv, shade=SHADES[skin], variants=VARS[skin], ms=ms, hit=hit, cast=True, skin=skin)
+
+# Hand-timed moves with their own effects (see scene.js _moveFx / _bigSlash):
+#  chant - clerics' defend / heal / blessing: staff up over the book, a light grows at the tip from 'charge' to
+#          'chargeTo' (blue = defend, yellow = heal), then the staff sweeps round ('swing' frames leave a light trail)
+#  power - knight Power Strike: flame aura grows over the 'aura' frames, dash from 'dashAt', rising slash at 'upswing'
+EXTRA = {
+    'cleric:f/chant': dict(base='cleric:f', ms=[60, 80, 160, 260, 260, 260, 90, 90, 90, 90, 260], hit=9, charge=2, chargeTo=6, swing=[6, 10], track='top'),
+    'cleric:m/chant': dict(base='cleric:m', ms=[60, 70, 90, 150, 200, 200, 200, 200, 90, 90, 90, 240], hit=10, charge=3, chargeTo=8, swing=[8, 11], track='top'),
+    # volley: bow aimed almost straight up; star + shrinking yellow ring at the tip from 'charge' to 'chargeTo', then the shot
+    'ranger:m/volley': dict(base='ranger:m', ms=[50, 60, 60, 70, 80, 120, 900, 90, 90, 120], hit=7, charge=5, chargeTo=7, ring=True, track='top'),
+    'ranger:f/volley': dict(base='ranger:f', ms=[50, 60, 60, 70, 80, 120, 900, 90, 90, 90, 120], hit=7, charge=5, chargeTo=7, ring=True, track='top'),
+    'knight:m/power': dict(base='knight:m', ms=[60, 70, 90, 110, 120, 130, 140, 110, 90, 380], hit=9, aura=[1, 7], dashAt=7, dashFrames=8, upswing=9, dash=10, cast=False),
+    'knight:f/power': dict(base='knight:f', ms=[60, 70, 110, 120, 130, 140, 110, 90, 380], hit=8, aura=[1, 6], dashAt=6, dashFrames=7, upswing=8, dash=10, cast=False),
+}
+for key, e in EXTRA.items():
+    base = MOVES[e.pop('base')]; skin, mv = key.split('/')
+    MOVES[key] = dict(dict(sheet=base['sheet'], shade=base['shade'], variants=base['variants'], cast=True, skin=skin, move=mv), **e)
 
 def build(skin):
     m = MOVES[skin]
@@ -71,12 +88,20 @@ def build(skin):
             out.alpha_composite(m['shade'](src.crop((i * AW, 0, (i + 1) * AW, AH)), hs), (i * AW, vi * AH))
     name = m['sheet'] + '_' + mv + '.png'
     out.save(os.path.join(OUT_DIR, name))
+    tips = None
+    if m.get('track') == 'top':   # topmost pixel per frame (staff tip / arrow tip), relative to the feet
+        tips = []
+        for i in range(n):
+            fr = src.crop((i * AW, 0, (i + 1) * AW, AH)); bb = fr.getbbox()
+            y = bb[1]; xs = [x for x in range(AW) if fr.getpixel((x, y))[3]]
+            tips.append([xs[len(xs) // 2] - AAX, y - AAY])
     path = os.path.join(OUT_DIR, 'manifest.json')
     man = json.load(open(path))
     man['heroes'][m.get('skin', skin)].setdefault('anims', {})[mv] = {
         'sheet': name, 'frame': [AW, AH], 'anchor': [AAX, AAY], 'frames': n, 'variants': len(m['variants']),
         'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m['hit'], 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
-        'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom')}
+        'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom'),
+        'tips': tips, 'chargeTo': m.get('chargeTo'), 'swing': m.get('swing'), 'aura': m.get('aura'), 'ring': m.get('ring'), 'upswing': m.get('upswing'), 'dashAt': m.get('dashAt')}
     json.dump(man, open(path, 'w'), indent=1)
     print('wrote', name, n, 'frames', sum(m['ms']), 'ms')
 
