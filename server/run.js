@@ -63,7 +63,7 @@ function generateMap(length) {
   for (const n of nodes) idOf.set(key(n.row, n.col), 'n' + (++id));
   const out = nodes.map(n => ({
     id: idOf.get(key(n.row, n.col)), row: n.row, col: n.col, type: n.type,
-    x: Math.min(1, Math.max(0, (n.col + 0.5) / COLS + (Math.random() - 0.5) * 0.06)),
+    x: Math.min(1, Math.max(0, (n.col + 0.5) / COLS + (Math.random() - 0.5) * 0.03)),
     y: n.row + (Math.random() - 0.5) * 0.22,
     next: [...n.next].map(k => idOf.get(k))
   }));

@@ -127,7 +127,7 @@ function createCombat(run, encounterType) {
 // The raid boss: one shared health pool for every team. Each team fights its own copy
 // (own intents, block and statuses) whose hp reads and writes the shared pool.
 function createRaidCombat(run, raid, teamId) {
-  const mult = { hp: 1, dmg: 1 + 0.1 * (run.asc || 0) };
+  const mult = { hp: 1, dmg: 1.2 + 0.1 * (run.asc || 0) };
   const c = { enemies: [], round: 0, phase: 'player', roundEndsAt: 0, phaseEndsAt: 0, nextId: 0, type: 'raid', mult, events: 0, raid: true };
   const def = C.ENEMIES.voidmaw;
   const e = { id: 'raid', kind: 'voidmaw', name: def.name, size: def.size, tier: 'raid', block: 0, st: {}, intent: null, mem: {}, dmgMult: mult.dmg };

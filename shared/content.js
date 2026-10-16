@@ -131,7 +131,7 @@
     colossus: { name: 'The Iron Colossus', title: 'Warden of the Middle Floors', hp: 250, size: 'xl', kind: 'boss' },
     hollowking: { name: 'The Hollow King', title: 'Lord of the High Crypt', hp: 240, size: 'xl', kind: 'boss' },
     thrall:   { name: 'Bone Thrall', hp: 14, size: 's', kind: 'minion' },
-    voidmaw:  { name: 'Voidmaw', title: 'Heart of the Tower', hp: 80, size: 'xl', kind: 'raid' },
+    voidmaw:  { name: 'Voidmaw', title: 'Heart of the Tower', hp: 130, size: 'xl', kind: 'raid' },
     shard:    { name: 'Crystal Shard', hp: 16, size: 's', kind: 'minion' }
   };
 
@@ -183,7 +183,7 @@
       ]
     },
     shrine: {
-      title: 'Shrine of Numbers', art: 'scene:shrine',
+      title: 'Shrine of Numbers', art: 'shrine.png',
       text: 'A cracked altar hums with [gold]golden numerals[/] that drift like fireflies.\nA voice asks for a single correct answer.',
       options: [
         { id: 'pray', label: 'Pray', desc: 'Answer a question. Right: heal [green]20%[/] and gain [gold]35 gold[/]. Wrong: nothing happens.', quiz: true },
@@ -240,7 +240,7 @@
       ]
     },
     ambush: {
-      title: 'Ambush!', art: 'scene:ambush',
+      title: 'Ambush!', art: 'ambush.png',
       text: '[red]Monsters[/] leap from the shadows of the stairwell!\nYour team has a moment to decide.',
       team: true,
       options: [
