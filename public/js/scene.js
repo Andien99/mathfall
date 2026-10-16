@@ -1004,7 +1004,7 @@ export class BattleScene {
       let alpha = a.alpha == null ? 1 : a.alpha;
       if (a.spawnAt) { alpha = clamp((t - a.spawnAt) / 500, 0, 1); a.alpha = alpha; if (alpha >= 1) a.spawnAt = 0; }
       if (a.dying) alpha = Math.max(0, 1 - (t - a.dying) / 300);
-      if (a.type === 'hero' && !a.connected) alpha *= 0.55;
+      if (a.type === 'hero' && !a.connected && !this.victory) alpha *= 0.55;   // everyone celebrates at full colour
       n.globalAlpha = alpha;
       // my hero: cyan rim glow (drawn as offset white silhouettes)
       if (a.id === this.myId || a.id === this.allyTarget) {

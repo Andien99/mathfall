@@ -258,6 +258,92 @@
      "ring": null,
      "upswing": null,
      "dashAt": null
+    },
+    "victory": {
+     "sheet": "mage_victory.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 12,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       130
+      ],
+      [
+       1,
+       130
+      ],
+      [
+       2,
+       130
+      ],
+      [
+       3,
+       130
+      ],
+      [
+       4,
+       130
+      ],
+      [
+       5,
+       130
+      ],
+      [
+       6,
+       130
+      ],
+      [
+       7,
+       130
+      ],
+      [
+       8,
+       130
+      ],
+      [
+       9,
+       130
+      ],
+      [
+       10,
+       130
+      ]
+     ],
+     "hit": null,
+     "loop": [
+      [
+       10,
+       650
+      ],
+      [
+       11,
+       650
+      ]
+     ],
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     }
    }
   },
@@ -1375,6 +1461,84 @@
      "ring": true,
      "upswing": null,
      "dashAt": null
+    },
+    "victory": {
+     "sheet": "ranger_f_victory.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 10,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       130
+      ],
+      [
+       1,
+       130
+      ],
+      [
+       2,
+       130
+      ],
+      [
+       3,
+       130
+      ],
+      [
+       4,
+       130
+      ],
+      [
+       5,
+       130
+      ],
+      [
+       6,
+       130
+      ],
+      [
+       7,
+       130
+      ],
+      [
+       8,
+       130
+      ]
+     ],
+     "hit": null,
+     "loop": [
+      [
+       8,
+       650
+      ],
+      [
+       9,
+       650
+      ]
+     ],
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     }
    }
   },
@@ -1786,6 +1950,84 @@
       6,
       10
      ],
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
+    },
+    "victory": {
+     "sheet": "cleric_victory.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 10,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       130
+      ],
+      [
+       1,
+       130
+      ],
+      [
+       2,
+       130
+      ],
+      [
+       3,
+       130
+      ],
+      [
+       4,
+       130
+      ],
+      [
+       5,
+       130
+      ],
+      [
+       6,
+       130
+      ],
+      [
+       7,
+       130
+      ],
+      [
+       8,
+       130
+      ]
+     ],
+     "hit": null,
+     "loop": [
+      [
+       8,
+       650
+      ],
+      [
+       9,
+       650
+      ]
+     ],
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
      "aura": null,
      "ring": null,
      "upswing": null,
@@ -3113,6 +3355,92 @@
      "ring": null,
      "upswing": 8,
      "dashAt": 6
+    },
+    "victory": {
+     "sheet": "knight_f_victory.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 12,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       130
+      ],
+      [
+       1,
+       130
+      ],
+      [
+       2,
+       130
+      ],
+      [
+       3,
+       130
+      ],
+      [
+       4,
+       130
+      ],
+      [
+       5,
+       130
+      ],
+      [
+       6,
+       130
+      ],
+      [
+       7,
+       130
+      ],
+      [
+       8,
+       130
+      ],
+      [
+       9,
+       130
+      ],
+      [
+       10,
+       130
+      ]
+     ],
+     "hit": null,
+     "loop": [
+      [
+       10,
+       650
+      ],
+      [
+       11,
+       650
+      ]
+     ],
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null
     }
    }
   }
