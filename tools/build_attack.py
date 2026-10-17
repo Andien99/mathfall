@@ -105,6 +105,15 @@ EXTRA = {
                            quake=dict(jumpAt=1, holdAt=[2, 7], spinAt=8, blade=39)),
     'knight:f/quake': dict(base='knight:f', ms=[140, 90, 90, 140, 150, 150, 150, 150, 380, 90, 560], hit=9, track='top', cast=False,
                            quake=dict(jumpAt=1, holdAt=[2, 7], spinAt=8, blade=37)),
+    # Phantom Volley leap (tools/art-src/atk/<sheet>_leap_src.png; PixelLab edit_image keyframe of the airborne aim, then
+    # animate_image in-betweens): idle, crouch, spring up (from 'jumpAt' the game lifts her off the floor), the airborne aim
+    # with one knee raised ('aim'), 'loose' (the same frame with the arrow gone) and 'redraw' for the rapid release, then
+    # she drops ('fallAt') and lands ('landAt'). The drawn arrow points 'aimDeg' below level; the game tilts her the rest
+    # of the way to 45 degrees. 'height': how high she jumps (px).
+    'ranger:m/leap': dict(base='ranger:m', ms=[50, 90, 60, 50, 50, 50, 600, 40, 40, 70, 70, 80, 70, 90, 200], hit=6, charge=6, release=7, muzzle=[-70, -34],
+                          leap=dict(jumpAt=2, aim=6, loose=7, redraw=8, fallAt=10, landAt=12, aimDeg=27, height=34)),
+    'ranger:f/leap': dict(base='ranger:f', ms=[50, 90, 60, 50, 50, 50, 600, 40, 40, 70, 70, 80, 70, 90, 200], hit=6, charge=6, release=7, muzzle=[-62, -36],
+                          leap=dict(jumpAt=2, aim=6, loose=7, redraw=8, fallAt=10, landAt=12, aimDeg=28, height=34)),
     'knight:m/power': dict(base='knight:m', ms=[60, 70, 90, 110, 120, 130, 140, 110, 90, 380], hit=9, aura=[1, 7], dashAt=7, dashFrames=8, upswing=9, dash=10, cast=False),
     'knight:f/power': dict(base='knight:f', ms=[60, 70, 110, 120, 130, 140, 110, 90, 380], hit=8, aura=[1, 6], dashAt=6, dashFrames=7, upswing=8, dash=10, cast=False),
 }
@@ -138,7 +147,7 @@ def build(skin):
         'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m.get('hit'), 'loop': m.get('loop'), 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
         'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom'),
         'tips': tips, 'chargeTo': m.get('chargeTo'), 'swing': m.get('swing'), 'aura': m.get('aura'), 'ring': m.get('ring'), 'upswing': m.get('upswing'), 'dashAt': m.get('dashAt'),
-        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor'), 'quake': m.get('quake')}
+        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor'), 'quake': m.get('quake'), 'leap': m.get('leap')}
     json.dump(man, open(path, 'w'), indent=1)
     print('wrote', name, n, 'frames', sum(m['ms']), 'ms')
 

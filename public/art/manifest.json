@@ -1425,6 +1425,118 @@
      "ring": null,
      "upswing": null,
      "dashAt": null
+    },
+    "leap": {
+     "sheet": "ranger_leap.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 15,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       90
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       50
+      ],
+      [
+       4,
+       50
+      ],
+      [
+       5,
+       50
+      ],
+      [
+       6,
+       600
+      ],
+      [
+       7,
+       40
+      ],
+      [
+       8,
+       40
+      ],
+      [
+       9,
+       70
+      ],
+      [
+       10,
+       70
+      ],
+      [
+       11,
+       80
+      ],
+      [
+       12,
+       70
+      ],
+      [
+       13,
+       90
+      ],
+      [
+       14,
+       200
+      ]
+     ],
+     "hit": 6,
+     "loop": null,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": 7,
+     "charge": 6,
+     "muzzle": [
+      -70,
+      -34
+     ],
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null,
+     "slashAt": null,
+     "holdAt": null,
+     "arcAt": null,
+     "blade": null,
+     "meteor": null,
+     "quake": null,
+     "leap": {
+      "jumpAt": 2,
+      "aim": 6,
+      "loose": 7,
+      "redraw": 8,
+      "fallAt": 10,
+      "landAt": 12,
+      "aimDeg": 27,
+      "height": 34
+     }
     }
    }
   },
@@ -1845,6 +1957,118 @@
      "ring": null,
      "upswing": null,
      "dashAt": null
+    },
+    "leap": {
+     "sheet": "ranger_f_leap.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 15,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       50
+      ],
+      [
+       1,
+       90
+      ],
+      [
+       2,
+       60
+      ],
+      [
+       3,
+       50
+      ],
+      [
+       4,
+       50
+      ],
+      [
+       5,
+       50
+      ],
+      [
+       6,
+       600
+      ],
+      [
+       7,
+       40
+      ],
+      [
+       8,
+       40
+      ],
+      [
+       9,
+       70
+      ],
+      [
+       10,
+       70
+      ],
+      [
+       11,
+       80
+      ],
+      [
+       12,
+       70
+      ],
+      [
+       13,
+       90
+      ],
+      [
+       14,
+       200
+      ]
+     ],
+     "hit": 6,
+     "loop": null,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": 7,
+     "charge": 6,
+     "muzzle": [
+      -62,
+      -36
+     ],
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null,
+     "slashAt": null,
+     "holdAt": null,
+     "arcAt": null,
+     "blade": null,
+     "meteor": null,
+     "quake": null,
+     "leap": {
+      "jumpAt": 2,
+      "aim": 6,
+      "loose": 7,
+      "redraw": 8,
+      "fallAt": 10,
+      "landAt": 12,
+      "aimDeg": 28,
+      "height": 34
+     }
     }
    }
   },

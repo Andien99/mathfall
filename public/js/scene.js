@@ -518,7 +518,7 @@ export class BattleScene {
     if (fx === 'quake') { const own = SP.heroAnim(A.skin || A.cls, 'quake'); if (own && own.quake) return this._quakeAnim(A, ev, T, own); }
     if (ev.skill === 'resurrection' && this.pixelFx) return this._resurrectAnim(A, ev, T);
     if (ev.skill === 'wrath_of_heaven' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'chant'); if (own) return this._wrathAnim(A, ev, T, own); }
-    if (fx === 'phantom' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'shoot'); if (own && own.release != null && own.charge != null) return this._phantomAnim(A, ev, T, own); }
+    if (fx === 'phantom' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'leap') || SP.heroAnim(A.skin || A.cls, 'shoot'); if (own && own.release != null && own.charge != null) return this._phantomAnim(A, ev, T, own); }
     if (fx === 'starfall' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'volley'); if (own && own.charge != null) return this._starfallAnim(A, ev, T, own); }
     if (ev.skill === 'dragons_wrath' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'cast'); if (own && own.muzzle) return this._dragonAnim(A, ev, T, own); }
     if (fx === 'timestop' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'channel'); if (own) return this._timeStopAnim(A, ev, T, own); }
@@ -731,6 +731,23 @@ export class BattleScene {
     setTimeout(() => { A.anim = null; if (!cast) this.move(A, 0, 0, T(240), true); }, T(total + 60));
     return T(Math.max(ev.dur || 1000, Math.max(total, hitAt) + 320));
   }
+  // How high an actor is off the floor right now (px). setLift eases it from where it is to 'to' over 'ms':
+  // 'out' rises fast and slows at the top (a jump), 'in' starts slow and speeds up (a fall).
+  _liftOf(a, t = now()) {
+    const L = a.liftT; if (!L) return a.lift || 0;
+    const k = clamp((t - L.t0) / L.ms, 0, 1), e = L.ease === 'in' ? k * k : L.ease === 'out' ? 1 - (1 - k) * (1 - k) : k;
+    a.lift = lerp(L.from, L.to, e); if (k >= 1) a.liftT = null;
+    return a.lift;
+  }
+  // How far the sprite is leaned (radians, round the middle of the body); setTilt eases it like setLift.
+  _tiltOf(a, t = now()) {
+    const L = a.tiltT; if (!L) return a.tilt || 0;
+    const k = clamp((t - L.t0) / L.ms, 0, 1), e = 1 - (1 - k) * (1 - k);
+    a.tilt = lerp(L.from, L.to, e); if (k >= 1) a.tiltT = null;
+    return a.tilt;
+  }
+  setTilt(a, to, ms) { a.tiltT = { t0: now(), from: this._tiltOf(a), to, ms: Math.max(1, ms) }; }
+  setLift(a, to, ms, ease) { a.liftT = { t0: now(), from: this._liftOf(a), to, ms: Math.max(1, ms), ease }; }
   // where the staff / arrow tip is right now (from the per-frame 'tips' the builder measured)
   _tipAt(a) {
     const m = a.anim; if (!m || !m.d.tips) return null;
@@ -1466,34 +1483,56 @@ export class BattleScene {
     if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
     if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
     if (!ens.length) { this._applyAfter(ev); return T(600); }
-    // the timeline: a fast draw, a held full draw, then release / recoil / redraw for each arrow, then the recoil to idle
-    const frs = shoot.timeline.map(x => x[0]), C0 = shoot.charge, R0 = shoot.release, R1 = frs.includes(R0 + 1) ? R0 + 1 : R0;
-    const nShots = 24;   // arrows loosed in the rapid release (the hits are spread across them)
-    const tl = [];
-    for (const f of frs) if (f < C0) tl.push([f, 38]);
-    const holdIdx = tl.length; tl.push([C0, 640]);
-    const relIdx = [];
-    for (let i = 0; i < nShots; i++) { relIdx.push(tl.length); tl.push([R0, 25], [R1, 25]); if (i < nShots - 1) tl.push([C0, 30]); }
-    const tail = shoot.timeline.filter(x => x[0] > R1);
-    if (tail.length) for (const x of tail) tl.push([x[0], x[1]]); else tl.push([R1, 220]);
+    // the timeline: the draw (or, with the leap animation, the spring up into the air), a held full draw, then
+    // release / recoil / redraw for each arrow, then the recoil to idle (or the drop and landing)
+    const LP = shoot.leap, nShots = 24;   // arrows loosed in the rapid release (the hits are spread across them)
+    const tl = [], relIdx = []; let holdIdx, fallIdx = -1, landIdx = -1;
+    if (LP) {
+      for (const [f, ms] of shoot.timeline) if (f < LP.aim) tl.push([f, ms]);
+      holdIdx = tl.length; tl.push([LP.aim, 600]);
+      for (let i = 0; i < nShots; i++) { relIdx.push(tl.length); tl.push([LP.loose, 30], [LP.redraw, 25]); if (i < nShots - 1) tl.push([LP.aim, 25]); }
+      tl.push([LP.aim, 120]);
+      for (const [f, ms] of shoot.timeline) if (f > LP.redraw) { if (f === LP.fallAt) fallIdx = tl.length; if (f === LP.landAt) landIdx = tl.length; tl.push([f, ms]); }
+    } else {
+      const frs = shoot.timeline.map(x => x[0]), C0 = shoot.charge, R0 = shoot.release, R1 = frs.includes(R0 + 1) ? R0 + 1 : R0;
+      for (const f of frs) if (f < C0) tl.push([f, 38]);
+      holdIdx = tl.length; tl.push([C0, 640]);
+      for (let i = 0; i < nShots; i++) { relIdx.push(tl.length); tl.push([R0, 25], [R1, 25]); if (i < nShots - 1) tl.push([C0, 30]); }
+      const tail = shoot.timeline.filter(x => x[0] > R1);
+      if (tail.length) for (const x of tail) tl.push([x[0], x[1]]); else tl.push([R1, 220]);
+    }
     const anim = Object.assign({}, shoot, { timeline: tl });
     const at = []; let acc = 0; for (const [, ms] of tl) { at.push(acc); acc += ms; }
     const t0 = now(), lastRel = at[relIdx[nShots - 1]];
     A.anim = { d: anim, t0, speed: T(1000) / 1000, at, total: acc };
     setTimeout(() => { if (A.anim && A.anim.d === anim) A.anim = null; }, T(acc + 60));
-    this.cam = { x: A.x - 44, y: A.y - 38, t0, dur: T(at[relIdx[0]] + 160), z: 1.07 };
+    // the leap: from 'jumpAt' she springs up (fast, easing out at the top) and leans forward so the drawn arrow points
+    // 45 degrees down at the enemies; she hangs there for the whole barrage, then drops and lands
+    const H = LP ? LP.height : 0, TILT = LP ? -(45 - LP.aimDeg) * Math.PI / 180 : 0;
+    if (LP) {
+      const j = tl.findIndex(x => x[0] === LP.jumpAt), up = at[holdIdx] - at[j];
+      setTimeout(() => { this.setLift(A, H, T(up + 60), 'out'); this.setTilt(A, TILT, T(up + 60)); sfx('whoosh'); this.burst(A.x + A.ox, A.y + A.oy - 2, '#a8ffe0', 10, 40, 0); }, T(at[j]));
+      setTimeout(() => { this.setLift(A, 0, T(at[landIdx] - at[fallIdx]), 'in'); this.setTilt(A, 0, T(at[landIdx] - at[fallIdx])); }, T(at[fallIdx]));
+      setTimeout(() => { this.burst(A.x + A.ox, A.y + A.oy - 1, '#a8c8ff', 12, 36, 0); this.shake = Math.max(this.shake, 2); this.shakeT = now(); sfx('stomp'); }, T(at[landIdx]));
+      setTimeout(() => { A.lift = 0; A.liftT = null; A.tilt = 0; A.tiltT = null; }, T(acc + 80));
+    }
+    this.cam = { x: A.x - 50, y: A.y - 38 - H * 0.6, t0, dur: T(at[relIdx[0]] + 160), z: 1.07 };
+    // where the arrow tip is at full draw: the muzzle (px from the feet) turned with her lean round the middle of her body
     const [mx, my] = shoot.muzzle || [-30, -40];
-    const tip = { x: A.x + A.ox + mx, y: A.y + A.oy + my };
+    const cs = Math.cos(TILT), sn = Math.sin(TILT), qy = my + 30;
+    const tip = { x: A.x + A.ox + mx * cs - qy * sn, y: A.y + A.oy - H - 30 + mx * sn + qy * cs };
     // 1. phantom draw: after-images of the moving arms and bow (cyan silhouettes behind the sprite) through the draw and
     // every rapid release
-    const ghost = () => {
+    const ghost = (ga = 0.55) => {
       if (!A.anim || A.anim.d !== anim) return;
       const an = this._animAt(A, now()); if (!an) return;
-      this.ghosts.push({ img: this.tinted(an.wh, '#7affd8'), x: Math.round(A.x + A.ox - an.ax), y: Math.round(A.y + A.oy - an.ay), t0: now(), life: T(230), a: 0.55, add: true });
+      const lift = this._liftOf(A), rot = this._tiltOf(A), fx0 = A.x + A.ox, fy0 = A.y + A.oy - lift;
+      this.ghosts.push({ img: this.tinted(an.wh, '#7affd8'), x: Math.round(fx0 - an.ax), y: Math.round(fy0 - an.ay), rot, px: Math.round(fx0), py: Math.round(fy0 - 30), t0: now(), life: T(230), a: ga, add: true });
     };
-    for (let ms = 0; ms < at[holdIdx] + 80; ms += 40) setTimeout(ghost, T(ms));
+    for (let ms = 0; ms < at[holdIdx] + 80; ms += LP ? 55 : 40) setTimeout(() => ghost(LP ? 0.3 : 0.55), T(ms));   // lighter while she springs up
     for (let ms = at[relIdx[0]]; ms < lastRel + 170; ms += 35) setTimeout(ghost, T(ms));
-    this.mets.push({ kind: 'pcharge', x: tip.x, y: tip.y, t0, orb: T(at[holdIdx]), life: T(lastRel + 60) });
+    if (LP) setTimeout(() => this.mets.push({ kind: 'pcharge', x: tip.x, y: tip.y, t0: now(), orb: T(140), life: T(lastRel - at[holdIdx] + 60) }), T(at[holdIdx]));
+    else this.mets.push({ kind: 'pcharge', x: tip.x, y: tip.y, t0, orb: T(at[holdIdx]), life: T(lastRel + 60) });
     sfx('charge');
     setTimeout(() => { sfx('twinkle'); this.glows.push({ x: tip.x, y: tip.y, r: 16, color: '#7affd8', t: 0, life: 0.35, a: 0.8 }); }, T(at[holdIdx]));
     // which records each arrow carries (round robin), and where it splits: about halfway, a little above the line
@@ -1505,13 +1544,16 @@ export class BattleScene {
     groups.forEach((recs, i) => {
       const rel = at[relIdx[i]];
       // the arrows climb to split points well above the enemies, so the copies always have room to fan down onto them
-      const split = { x: lerp(tip.x, cx, 0.55) + (i - (nShots - 1) / 2) * 3, y: Math.max(22, Math.min(tip.y, topY) - 40 - (i % 4) * 7) };
-      const fly1 = clamp(Math.hypot(split.x - tip.x, split.y - tip.y) * 1.3, 130, 210);
+      // leaping: they fly straight down the 45-degree line and split partway to the enemies' height
+      const s45 = LP ? clamp((topY + 18 - tip.y) * (0.45 + (i % 4) * 0.06), 22, 80) : 0;
+      const split = LP ? { x: tip.x - s45 + (i % 3 - 1) * 2, y: tip.y + s45 }
+        : { x: lerp(tip.x, cx, 0.55) + (i - (nShots - 1) / 2) * 3, y: Math.max(22, Math.min(tip.y, topY) - 40 - (i % 4) * 7) };
+      const fly1 = LP ? clamp(Math.hypot(split.x - tip.x, split.y - tip.y) * 1.6, 70, 140) : clamp(Math.hypot(split.x - tip.x, split.y - tip.y) * 1.3, 130, 210);
       // 2. rapid release: a sharp cyan flash at the bow and the arrow away
       setTimeout(() => {
         this.glows.push({ x: tip.x, y: tip.y, r: 26, color: '#c8fff0', t: 0, life: 0.18, a: 1 });
         this.burst(tip.x, tip.y, '#7affd8', 8, 46, 0);
-        this.mets.push({ kind: 'parrow', from: tip, ctrl: { x: lerp(tip.x, split.x, 0.35), y: tip.y - 6 }, to: split, t0: now(), life: T(fly1), a: 1, pts: [] });
+        this.mets.push({ kind: 'parrow', from: tip, ctrl: LP ? { x: (tip.x + split.x) / 2, y: (tip.y + split.y) / 2 } : { x: lerp(tip.x, split.x, 0.35), y: tip.y - 6 }, to: split, t0: now(), life: T(fly1), a: 1, pts: [] });
         if (i % 3 === 0) sfx('bow'); if (i === 0) sfx('whoosh');
       }, T(rel));
       // 3. spectral duplication: a flash, then the copies fan out on their own curves, staggered
@@ -1529,7 +1571,8 @@ export class BattleScene {
         const to = c.rec ? { x: hp.x + (Math.random() - 0.5) * 8, y: hp.y + (Math.random() - 0.5) * 8 }
           : { x: c.e.x + (Math.random() < 0.5 ? -1 : 1) * (16 + Math.random() * 20), y: c.e.y - 1 + (Math.random() - 0.5) * 8 };
         const d = Math.hypot(to.x - split.x, to.y - split.y), side = (j % 2 ? 1 : -1) * (8 + Math.random() * 20);
-        const ctrl = { x: (split.x + to.x) / 2 + side * (to.y - split.y) / Math.max(1, d), y: (split.y + to.y) / 2 - side * (to.x - split.x) / Math.max(1, d) - 8 };
+        const ctrl = LP ? { x: split.x - d * 0.3 + side * 0.5, y: Math.min(split.y + d * 0.3, (split.y + to.y) / 2 + 10) + side * 0.3 }
+          : { x: (split.x + to.x) / 2 + side * (to.y - split.y) / Math.max(1, d), y: (split.y + to.y) / 2 - side * (to.x - split.x) / Math.max(1, d) - 8 };
         const fly2 = clamp(d * 1.25, 180, 300), go = sAt + j * 30;
         let met = null;
         setTimeout(() => { met = { kind: 'parrow', from: split, ctrl, to, t0: now(), life: T(fly2), a: j === 0 ? 1 : c.rec ? 0.8 : 0.6, pts: [] }; this.mets.push(met); }, T(go));
@@ -3280,7 +3323,9 @@ export class BattleScene {
       const g = this.ghosts[i]; const k = (t - g.t0) / g.life;
       if (k >= 1) { this.ghosts.splice(i, 1); continue; }
       n.globalAlpha = (g.a || 0.38) * (1 - k); if (g.add) n.globalCompositeOperation = 'lighter';
-      n.drawImage(g.img, g.x, g.y); n.globalAlpha = 1; n.globalCompositeOperation = 'source-over';
+      if (g.rot) { n.save(); n.translate(g.px, g.py); n.rotate(g.rot); n.translate(-g.px, -g.py); n.drawImage(g.img, g.x, g.y); n.restore(); }
+      else n.drawImage(g.img, g.x, g.y);
+      n.globalAlpha = 1; n.globalCompositeOperation = 'source-over';
     }
     if (this.pixelFx) this.drawBehindFx(n, t);   // Dragon's Wrath: the eyes and the dragon while it is still behind the mage
     // actors sorted by depth
@@ -3297,13 +3342,15 @@ export class BattleScene {
       const fr = this.frameFor(a);
       const anf = a.type === 'hero' ? this._animAt(a, t) : null;
       const info = a.type === 'enemy' ? SP.enemyInfo(a.kind) : anf ? { ax: anf.ax, ay: anf.ay } : { ax: SP.ANCHOR_X, ay: SP.ANCHOR_Y };
-      let x = Math.round(a.x + a.ox + kx - info.ax), y = Math.round(a.y + a.oy - info.ay);
+      const lift = this._liftOf(a, t);   // in the air (the ranger's Phantom Volley leap): the sprite rises, its shadow stays on the floor
+      let x = Math.round(a.x + a.ox + kx - info.ax), y = Math.round(a.y + a.oy - lift - info.ay);
       if (a.kind === 'shard') y += Math.round(Math.sin(time * 2 + a.phase) * 2);
       // shadow (not for the raid dragon's rock: it stands in lava)
       const inLava = this.infernoOn && a.kind === 'voidmaw';
       n.globalAlpha = inLava ? 0 : 0.45 * (a.alpha == null ? 1 : a.alpha);
       n.fillStyle = '#05030a';
-      const shw = a.type === 'hero' ? 9 : a.size === 'xl' ? 50 : a.size === 'l' ? 18 : 12;
+      let shw = a.type === 'hero' ? 9 : a.size === 'xl' ? 50 : a.size === 'l' ? 18 : 12;
+      if (lift) { const q = 1 / (1 + lift / 40); n.globalAlpha *= q; shw = Math.max(4, shw * q); }
       n.beginPath(); n.ellipse(Math.round(a.x + a.ox + kx), Math.round(a.y + a.oy) - 1, shw, Math.max(2, shw * 0.28), 0, 0, Math.PI * 2); n.fill();
       let alpha = a.alpha == null ? 1 : a.alpha;
       if (a.spawnAt) { alpha = clamp((t - a.spawnAt) / 500, 0, 1); a.alpha = alpha; if (alpha >= 1) a.spawnAt = 0; }
@@ -3312,6 +3359,8 @@ export class BattleScene {
       if (a.type === 'hero' && !a.connected && !this.victory) alpha *= 0.55;   // everyone celebrates at full colour
       n.globalAlpha = alpha;
       const spun = a.spin && t < a.spin.t0 + a.spin.dur;
+      const tilt = !spun ? this._tiltOf(a, t) : 0;
+      if (tilt) { const px = Math.round(a.x + a.ox + kx), py = Math.round(a.y + a.oy - lift - 30); n.save(); n.translate(px, py); n.rotate(tilt); n.translate(-px, -py); }
       if (spun) {   // Earthshatter's dive: the sprite (and its outline) turns over round the middle of the body
         const k = Math.max(0, (t - a.spin.t0) / a.spin.dur), cxp = Math.round(a.x + a.ox + kx), cyp = Math.round(a.y + a.oy - 24);
         n.save(); n.translate(cxp, cyp); n.rotate(-k * a.spin.turns * Math.PI * 2); n.translate(-cxp, -cyp);
@@ -3367,7 +3416,7 @@ export class BattleScene {
       if (a.redUntil && t < a.redUntil) { n.globalAlpha = 0.8 * Math.min(1, (a.redUntil - t) / 120); n.drawImage(this.tinted(this.frameFor(a, true), '#ff3a20'), x, y); n.globalAlpha = alpha; }
       // frozen overlay
       if (a.st && a.st.freeze) { n.globalAlpha = 0.45; n.drawImage(this.tinted(this.frameFor(a, true), '#bff6ff'), x, y); }
-      if (spun) n.restore();
+      if (spun || tilt) n.restore();
       n.globalAlpha = 1;
       if (this.pixelFx && a.type === 'hero') this._drawDome(n, a, t, kx);
       if (inLava) this.drawLavaLip(n, t, time, a, x + info.ax);
