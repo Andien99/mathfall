@@ -1013,9 +1013,9 @@ export class BattleScene {
     // where he lands: in front of the nearest enemy (the one furthest right)
     const near = ens.length ? ens.reduce((a, e) => (e.x > a.x ? e : a)) : null;
     const land = near ? { x: near.x + (near.size === 'xl' ? 46 : near.size === 'l' ? 26 : 20) + 14, y: near.y + 2 } : { x: A.x - 90, y: A.y };
-    // the raised sword and its doubled flame reach ~135px above his feet, so a hero standing high up the screen first
+    // the raised sword and its flames reach ~158px above his feet, so a hero standing high up the screen first
     // steps forward and down to a launch spot low enough for the leap to fit on screen
-    const HEAD = 135, floor = this.stage.y + this.stage.h - 8;
+    const HEAD = 158, floor = this.stage.y + this.stage.h - 8;
     const launch = { x: A.x - 16, y: Math.min(floor, Math.max(A.y, HEAD + 40)) };
     const rise = Math.max(30, Math.min(74, launch.y - HEAD));
     const apex = { x: launch.x - A.x - rise / Math.tan(70 * Math.PI / 180), y: launch.y - A.y - rise };   // 70 degrees up and towards the enemy
