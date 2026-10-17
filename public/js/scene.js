@@ -53,7 +53,14 @@ const PFX = {
   wImpact: FX_SHEET('wrath_impact.png', 128, 80, 4, 12, 15, 64, 67, false),
   wAfter: FX_SHEET('wrath_after_wide.png', 192, 96, 4, 12, 12, 96, 48, false),
   wRingIn: FX_SHEET('wrath_ring_inner.png', 128, 128, 1, 1, 1, 64, 64, true),   // top-down rune circles (create_image_pro), spun in code
-  wRingOut: FX_SHEET('wrath_ring_outer.png', 128, 128, 1, 1, 1, 64, 64, true)
+  wRingOut: FX_SHEET('wrath_ring_outer.png', 128, 128, 1, 1, 1, 64, 64, true),
+  // Dragon's Wrath (mage): the spectral dragon's head (2 frames, open and shut, facing left, anchored on the mouth), the two
+  // eyes in the dark, the claw sweep, the molten blast (anchored on its ground line) and one flame spike (tools/build_dragon_wrath.py)
+  dHead: FX_SHEET('dragon_head.png', 160, 128, 2, 2, 1, 32, 66, true),
+  dEyes: FX_SHEET('dragon_eyes.png', 160, 64, 4, 15, 12, 80, 32, false),
+  dClaws: FX_SHEET('dragon_claws.png', 200, 160, 4, 10, 12, 100, 85, false),
+  dBlast: FX_SHEET('dragon_blast.png', 103, 116, 4, 12, 12, 51, 76, false),
+  dSpike: FX_SHEET('dragon_spike.png', 48, 96, 3, 8, 13, 24, 92, false)
 };
 const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') !== 'code'; } catch (e) { return true; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
@@ -459,6 +466,7 @@ export class BattleScene {
     if (fx === 'quake') { const own = SP.heroAnim(A.skin || A.cls, 'quake'); if (own && own.quake) return this._quakeAnim(A, ev, T, own); }
     if (ev.skill === 'wrath_of_heaven' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'chant'); if (own) return this._wrathAnim(A, ev, T, own); }
     if (fx === 'starfall' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'volley'); if (own && own.charge != null) return this._starfallAnim(A, ev, T, own); }
+    if (ev.skill === 'dragons_wrath' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'cast'); if (own && own.muzzle) return this._dragonAnim(A, ev, T, own); }
     if (!ev._pre) {
       const nm = this._preAnimName(A, fx), pre = nm && SP.heroAnim(A.skin || A.cls, nm);
       if (pre) {   // play the move, then run the usual effects from its hit frame
@@ -1149,6 +1157,10 @@ export class BattleScene {
         const cols = ['#bfe8ff', '#8fb8ff', '#b48cff', '#ffe08a', '#ffffff'];
         for (let j = 0; j < (m.kind === 'sarrow' ? 3 : 2); j++) this.particles.push({ x: x + (Math.random() - 0.5) * 4, y: y + (Math.random() - 0.5) * 4, vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 14 + 6, g: 0, life: 0.45 + Math.random() * 0.4, t: 0, c: cols[Math.floor(Math.random() * cols.length)], plus: Math.random() < 0.3, fade: true });
       }
+      else if (m.kind === 'dhead' && this._dheadPose(m, t).front) this._drawDragonHead(n, m, t);
+      else if (m.kind === 'dclaws') { n.save(); n.globalCompositeOperation = 'lighter'; n.globalAlpha = 0.9; frame(PFX.dClaws, age, m.sc, m.x, m.y); n.restore(); }
+      else if (m.kind === 'dblast') frame(PFX.dBlast, age, m.sc, m.x, m.y);
+      else if (m.kind === 'dspike') frame(PFX.dSpike, age, m.sc, m.x, m.y);
       else if (m.kind === 'fblade' && age < m.hold) {   // the blade on fire while he holds it up (not once he starts to spin)
         const A = m.follow, girl = String(A.skin || '').endsWith(':f');
         if (A.cls === 'knight') { n.globalAlpha = Math.min(1, age / 160); frame(girl ? PFX.gsfF : PFX.gsf, age, 1, A.x + A.ox, A.y + A.oy); n.globalAlpha = 1; continue; }
@@ -1277,6 +1289,164 @@ export class BattleScene {
     when(hitAt + hold - 150, () => { if (field) this.mets.push({ kind: 'wafter', x: field.cx, y: field.cy, sx: field.w / 180, sy: field.h / 70, t0: now(), life: T(1000) }); sfx('twinkle'); });
     when(hitAt + LAND + (waves - 1) * GAP + 200, () => this._applyAfter(ev));
     return T(total);
+  }
+  // Dragon's Wrath with PixelLab art (public/art/fx/dragon_*), on the mage's Cast animation re-timed into five beats:
+  // 1. Awakening: she braces (the wide-stance frame, held) while red-orange energy gathers in her hand, embers rise off
+  //    the floor, her silhouette burns, and two enormous dragon eyes open in the dark behind her.
+  // 2. Manifestation: she points the staff and a translucent dragon's head forms out of swirling flame behind her
+  //    (the raid dragon's head), then rears back, fire gathering in its open jaws.
+  // 3. Wrathful strike: it lunges at the target, flaming claws sweeping across ahead of it with a trail of embers.
+  // 4. Infernal impact: the jaws snap shut on the target: a molten blast, a ring of flame spikes, a shockwave, the enemy
+  //    flashing red. 5. It dissolves into spiralling embers and crimson smoke, leaving scorched, glowing cracks.
+  _dragonAnim(A, ev, T, cast) {
+    const isEnemy = id => { const a = this.actors.get(id); return !!a && a.type === 'enemy'; };
+    const tgt = ev.targets.filter(t => !t.shatter && isEnemy(t.id) && (t.dmg != null || t.status));
+    const E = tgt[0] && this.actors.get(tgt[0].id);
+    const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
+    if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
+    if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    // the Cast frames re-timed: brace (3, held) → point (4, 5 held) → release (6) → follow-through (7, held)
+    const tl = [[0, 80], [1, 90], [2, 100], [3, 1050], [4, 80], [5, 1250], [6, 260], [7, 1100]];
+    const d = Object.assign({}, cast, { timeline: tl, loop: null });
+    const at = []; let acc = 0; for (const [, ms] of tl) { at.push(acc); acc += ms; }
+    const t0 = now(), sp = T(1000) / 1000;
+    A.anim = { d, t0, speed: sp, at, total: acc };
+    const met = SP.heroAnim(A.skin || A.cls, 'meteor'), hand0 = (met && met.meteor && met.meteor.hands[0][1]) || [22, -38];
+    const hand = () => ({ x: A.x + A.ox + hand0[0], y: A.y + A.oy + hand0[1] });
+    const when = (ms, fn) => setTimeout(fn, T(ms));
+    const lp = this.lowPower ? 0.5 : 1;
+    // where the head sits behind her (anchored on its mouth, the rest of it behind her back) and where it bites
+    const home = { x: Math.min(A.x - 4, this.W - 146), y: Math.max(64, A.y - 60) };   // the whole head (and its rear-back) stays on screen
+    const bite = E ? { x: E.x + 8, y: E.y - ({ xl: 38, l: 24 }[E.size] || 14) } : { x: A.x - 130, y: A.y - 16 };
+    const BRACE = at[4], STRIKE = at[6], BITE = at[7], GONE = BITE + 260;
+    this.cam = { x: A.x + 18, y: A.y - 58, t0, dur: T(STRIKE + 120), z: 1.07 };
+    // 1. awakening
+    this.mets.push({ kind: 'daura', follow: A, hand, t0, life: T(BRACE + 200) });
+    A.fiery = { t0, until: t0 + T(BITE + 300) };
+    this.rune(A.x, A.y, '#ff5030'); sfx('charge');
+    when(330, () => { const sc = this.W < 260 ? 1.05 : 1.4; this.mets.push({ kind: 'deyes', x: Math.min(A.x + 14, this.W - 70 * sc), y: Math.max(36, A.y - 92), sc, t0: now(), life: T(1250) }); sfx('enemyWind'); });
+    // 2. manifestation: the head forms out of swirling flame, rears back, fire gathers in its jaws
+    const head = { kind: 'dhead', home, bite, t0: t0 + T(BRACE), tE: t0 + T(BRACE + 650), tD: t0 + T(BRACE + 1080), tS: t0 + T(STRIKE), tB: t0 + T(BITE), tX: t0 + T(GONE), life: T(GONE + 720 - BRACE) };
+    when(BRACE, () => {
+      this.mets.push(head);
+      this.mets.push({ kind: 'dorb', follow: A, mz: cast.muzzle, t0: now(), life: T(STRIKE - BRACE + 60) });
+      const c = { x: home.x + 60, y: home.y - 18 };
+      for (let i = 0; i < 46 * lp; i++) {   // flames swirling in to where the head forms
+        const q = Math.random() * Math.PI * 2, r = 46 + Math.random() * 40, v = 2.2 + Math.random();
+        this.particles.push({ x: c.x + Math.cos(q) * r, y: c.y + Math.sin(q) * r * 0.7, vx: (-Math.sin(q) * r * 1.6 - Math.cos(q) * r * v), vy: (Math.cos(q) * r * 1.1 - Math.sin(q) * r * 0.7 * v), g: -10, life: 0.45 + Math.random() * 0.3, t: 0, c: ['#ff5030', '#ff8a3c', '#ffd25a', '#fff2c0'][i % 4], streak: 3, drag: 0.9 });
+      }
+      sfx('burn'); sfx('roar');
+    });
+    when(BRACE + 700, () => sfx('charge'));
+    // 3. the lunge: claws sweep across ahead of it, embers streaming behind
+    when(STRIKE - 60, () => {
+      if (E) this.mets.push({ kind: 'dclaws', x: bite.x - 4, y: bite.y + 2, sc: 1.15, t0: now(), life: T(840) });
+      sfx('whoosh'); sfx('slash');
+    });
+    when(STRIKE, () => {
+      const steps = 8;
+      for (let i = 0; i < steps; i++) setTimeout(() => {   // jagged red energy torn off along its path
+        const P = this._dheadPose(head, now()), mo = this._dheadAt(P, 30, 66);
+        for (let j = 0; j < 4 * lp; j++) this.particles.push({ x: mo.x + 20 + Math.random() * 60, y: mo.y - 30 + Math.random() * 60, vx: 40 + Math.random() * 60, vy: (Math.random() - 0.5) * 40, g: 20, life: 0.4 + Math.random() * 0.4, t: 0, c: ['#ff3a1a', '#ff8a3c', '#ffd25a'][j % 3], streak: 3, drag: 0.9 });
+        if (Math.random() < 0.6) this.arcs.push({ bolt: this._zig({ x: mo.x + 10, y: mo.y + (Math.random() - 0.5) * 30 }, { x: mo.x + 40 + Math.random() * 40, y: mo.y + (Math.random() - 0.5) * 40 }, 4, 8), color: Math.random() < 0.5 ? '#ff5030' : '#ffb347', w: 1, t: 0, life: 0.12 });
+      }, T(i * (BITE - STRIKE) / steps));
+    });
+    // 4. the jaws snap shut on the target
+    when(BITE, () => {   // the snap
+      const mo = { x: bite.x - 6, y: bite.y };
+      this.glows.push({ x: mo.x, y: mo.y, r: 40, color: '#ffd25a', t: 0, life: 0.2, a: 1 });
+      for (let i = 0; i < 18 * lp; i++) { const q = Math.random() * Math.PI * 2, v = 60 + Math.random() * 90; this.particles.push({ x: mo.x, y: mo.y, vx: Math.cos(q) * v, vy: Math.sin(q) * v, g: 60, life: 0.25 + Math.random() * 0.2, t: 0, c: Math.random() < 0.4 ? '#ffffff' : '#ffb347', streak: 3, drag: 0.85 }); }
+      if (E) E.redUntil = now() + T(420);
+      this.shake = Math.max(this.shake, 5); this.shakeT = now(); this.freezeUntil = now() + 70;
+      sfx('crush');
+    });
+    when(BITE + 90, () => {   // and the jaws erupt
+      const gx = E ? E.x : bite.x, gy = E ? E.y + 1 : A.y;
+      this.shake = Math.max(this.shake, 12); this.shakeT = now(); this.flash = Math.max(this.flash || 0, 0.22); this.freezeUntil = now() + 140;
+      this.mets.push({ kind: 'dblast', x: gx, y: gy, sc: E && E.size === 'xl' ? 2 : 1.6, t0: now(), life: T(1000) });
+      for (let j = 0; j < 2; j++) this.mets.push({ kind: 'fring', x: gx, y: gy + 1, t0: now() + T(j * 110), life: T(650), r1: 70 + j * 40 });
+      const N = 9;   // flame spikes erupting in a ring round the target
+      for (let i = 0; i < N; i++) {
+        const q = (i / N) * Math.PI * 2 + Math.random() * 0.3, R = 26 + Math.random() * 14 + (E && E.size === 'xl' ? 24 : 0);
+        this.mets.push({ kind: 'dspike', x: gx + Math.cos(q) * R, y: gy + Math.sin(q) * R * 0.28, sc: 0.8 + Math.random() * 0.5, t0: now() + T(40 + i * 28), life: T(640) });
+      }
+      for (let i = 0; i < 7; i++) { const q = (i / 7) * Math.PI * 2 + Math.random() * 0.5, L = 40 + Math.random() * 40; this._crack(Math.round(gx), Math.round(gy + 1), Math.round(gx + Math.cos(q) * L), Math.round(gy + 1 + Math.sin(q) * L * 0.25), T(180), T(1900)); }
+      for (let i = 0; i < 60 * lp; i++) { const q = Math.random() * Math.PI * 2, v = 60 + Math.random() * 190; this.particles.push({ x: gx, y: gy - 16, vx: Math.cos(q) * v * 1.4, vy: Math.sin(q) * v * 0.8 - 50, g: 140, life: 0.5 + Math.random() * 0.6, t: 0, c: ['#ffffff', '#fff2c0', '#ffd25a', '#ff8a3c', '#ff3a1a'][i % 5], streak: 3 + (i % 4), drag: 0.9 }); }
+      this.mets.push({ kind: 'burn', x: gx, y: gy, w: 40, t0: now() + T(250), life: T(1500) });
+      if (E) this.hitShake(E, 12);
+      this.impact(ev, tgt, 'dragon', rc);
+      sfx('boom');
+    });
+    // 5. it dissolves into spiralling embers and crimson smoke
+    when(GONE, () => {
+      const P = this._dheadPose(head, now()), pts = this._dheadPts(), c = this._dheadAt(P, 70, 50);
+      for (let i = 0; i < Math.min(pts.length, 130 * lp); i++) {
+        const [px, py] = pts[Math.floor(Math.random() * pts.length)], q = this._dheadAt(P, px, py);
+        const dx = q.x - c.x, dy = q.y - c.y, r = Math.hypot(dx, dy) || 1, sw = 50 + Math.random() * 40;
+        this.particles.push({ x: q.x, y: q.y, vx: -dy / r * sw + dx / r * 20, vy: dx / r * sw * 0.6 - 30 - Math.random() * 30, g: -20, life: 0.6 + Math.random() * 0.8, t: 0, c: ['#ff3a1a', '#ff6a2a', '#ffb347', '#ffd25a', '#8a1a14'][i % 5], drag: 0.94, fade: true, plus: i % 9 === 0 });
+      }
+      for (let i = 0; i < 16 * lp; i++) this.particles.push({ x: c.x + (Math.random() - 0.5) * 90, y: c.y + (Math.random() - 0.5) * 50, vx: (Math.random() - 0.5) * 16, vy: -8 - Math.random() * 16, g: -4, life: 1 + Math.random() * 0.9, t: 0, c: Math.random() < 0.5 ? '#5a1418' : '#3a0e14', blob: 1 + Math.random() * 2.5, fade: true });
+      sfx('rise');
+    });
+    setTimeout(() => { A.anim = null; A.fiery = null; }, T(acc + 40));
+    return T(acc + 350);
+  }
+  // where the spectral head is at time t: { x, y (its mouth), sc, rot, a, closed, front }
+  _dheadPose(m, t) {
+    const H = m.home, B = m.bite, back = { x: H.x + 16, y: H.y - 6 };
+    if (t < m.tE) {   // forming out of the flames, rising into place
+      const k = ease(clamp((t - m.t0) / (m.tE - m.t0), 0, 1));
+      return { x: H.x + 10 * (1 - k), y: H.y + 22 * (1 - k), sc: 0.55 + 0.35 * k, rot: 0.06 * (1 - k), a: 0.7 * k, closed: false, front: false };
+    }
+    if (t < m.tS) {   // rearing back, then trembling with the fire gathered in its jaws
+      const k = ease(clamp((t - m.tE) / (m.tD - m.tE), 0, 1)), tr = t > m.tD ? Math.sin(t / 21) : 0;
+      return { x: lerp(H.x, back.x, k) + tr, y: lerp(H.y, back.y, k), sc: 0.9 + 0.06 * k, rot: 0.24 * k + 0.02 * tr, a: 0.7, closed: false, front: false };
+    }
+    if (t < m.tB) {   // the lunge: accelerating, nose dropping to bite
+      const k = (t - m.tS) / (m.tB - m.tS), e = k * k;
+      return { x: lerp(back.x, B.x, e), y: lerp(back.y, B.y, e) - Math.sin(k * Math.PI) * 16, sc: lerp(0.96, 1.25, e), rot: lerp(0.24, -0.12, e), a: 0.86, closed: false, front: true };
+    }
+    if (t < m.tX) {   // jaws shut on the target
+      const k = (t - m.tB) / (m.tX - m.tB);
+      return { x: B.x + Math.sin(t / 17) * (1 - k) * 2, y: B.y, sc: 1.25 + 0.07 * (1 - k), rot: -0.12, a: 0.86, closed: true, front: true };
+    }
+    const k = clamp((t - m.tX) / (m.t0 + m.life - m.tX), 0, 1);   // dissolving
+    return { x: B.x + 4 * k, y: B.y - 8 * k, sc: 1.25 + 0.12 * k, rot: -0.12 + 0.05 * k, a: 0.86 * Math.pow(1 - k, 1.4), closed: true, front: true };
+  }
+  _dheadAt(P, px, py) {   // a point of the head image (frame pixels) on screen
+    const c = Math.cos(P.rot), s = Math.sin(P.rot), x = (px - 32) * P.sc, y = (py - 66) * P.sc;
+    return { x: P.x + x * c - y * s, y: P.y + x * s + y * c };
+  }
+  _dheadPts() {   // opaque pixels of the head (for the dissolve)
+    if (this._dPts) return this._dPts;
+    const img = PFX.dHead.img; if (!img.complete || !img.naturalWidth) return [[60, 50]];
+    const cv = document.createElement('canvas'); cv.width = 160; cv.height = 128;
+    const g = cv.getContext('2d'); g.drawImage(img, -160, 0);
+    const d = g.getImageData(0, 0, 160, 128).data, pts = [];
+    for (let y = 0; y < 128; y += 2) for (let x = 0; x < 160; x += 2) if (d[(y * 160 + x) * 4 + 3] > 128) pts.push([x, y]);
+    return (this._dPts = pts.length ? pts : [[60, 50]]);
+  }
+  _drawDragonHead(n, m, t) {
+    const S = PFX.dHead; if (!S.img.complete || !S.img.naturalWidth) return;
+    const P = this._dheadPose(m, t); if (P.a <= 0.01) return;
+    n.save(); n.translate(Math.round(P.x), Math.round(P.y)); n.rotate(P.rot); n.scale(P.sc, P.sc);
+    const sx = P.closed ? 160 : 0;
+    n.globalAlpha = P.a; n.drawImage(S.img, sx, 0, 160, 128, -32, -66, 160, 128);
+    n.globalCompositeOperation = 'lighter'; n.globalAlpha = P.a * (0.22 + 0.1 * Math.sin(t / 55));   // spectral glow
+    n.drawImage(S.img, sx, 0, 160, 128, -32, -66, 160, 128);
+    n.restore();
+  }
+  // effects drawn behind the fighters (pixel layer)
+  drawBehindFx(n, t) {
+    for (const m of this.mets) {
+      const age = t - m.t0; if (age < 0 || age > m.life) continue;
+      if (m.kind === 'deyes') {
+        const S = PFX.dEyes; if (!S.img.complete || !S.img.naturalWidth) continue;
+        const f = Math.min(S.n - 1, Math.floor(age / 1000 * S.fps));
+        n.globalAlpha = 0.9; n.drawImage(S.img, (f % S.cols) * S.w, Math.floor(f / S.cols) * S.h, S.w, S.h, Math.round(m.x - S.ax * m.sc), Math.round(m.y - S.ay * m.sc), S.w * m.sc, S.h * m.sc); n.globalAlpha = 1;
+      }
+      else if (m.kind === 'dhead' && !this._dheadPose(m, t).front) this._drawDragonHead(n, m, t);
+    }
   }
   drawMeteors(ctx, t, sx, sy) {
     if (!this.mets.length) return;
@@ -1438,6 +1608,27 @@ export class BattleScene {
       } else if (m.kind === 'whalo') { const a = m.follow; glow(X(a.x + a.ox - 2), Y(a.y + a.oy - 66), 22 * s, '#ffe9a0', 0.55); glow(X(a.x + a.ox), Y(a.y + a.oy - 28), 40 * s, '#ffd86a', 0.25);
       } else if (m.kind === 'scharge') { const tip = this._tipAt(m.follow); if (tip) glow(X(tip.x), Y(tip.y), (16 + 14 * Math.min(1, k * 1.5)) * s, '#9fd0ff', 0.7);
       } else if (m.kind === 'sarrow' || m.kind === 'sdrop') { const kk = Math.min(1, age / m.life); let x, y; if (m.kind === 'sarrow') { const u = 1 - kk; x = u * u * m.from.x + 2 * u * kk * m.ctrl.x + kk * kk * m.to.x; y = u * u * m.from.y + 2 * u * kk * m.ctrl.y + kk * kk * m.to.y; } else { x = lerp(m.from.x, m.to.x, kk * kk); y = lerp(m.from.y, m.to.y, kk * kk); } glow(X(x), Y(y), 18 * s, '#a8c8ff', 0.6);
+      } else if (m.kind === 'daura') {   // Dragon's Wrath: the mage's fiery aura, embers rising off the floor, energy pulled into her hand
+        const a = m.follow, env = Math.min(1, k * 6, (1 - k) * 5), hx = m.hand(), lp = this.lowPower ? 0.5 : 1;
+        glow(X(a.x + a.ox), Y(a.y + a.oy - 26), 44 * s * (0.9 + 0.1 * Math.sin(t / 70)), '#ff4a1a', 0.2 * env);
+        glow(X(hx.x), Y(hx.y), (10 + 12 * k) * s, '#ff7a2a', 0.8 * env);
+        if (Math.random() < 0.9 * env * lp) this.particles.push({ x: a.x + (Math.random() - 0.5) * 70, y: a.y + 2 + (Math.random() - 0.5) * 10, vx: (Math.random() - 0.5) * 10, vy: -28 - Math.random() * 40, g: -12, life: 0.7 + Math.random() * 0.7, t: 0, c: ['#ff5030', '#ff8a3c', '#ffd25a'][Math.floor(Math.random() * 3)], fade: true });
+        if (Math.random() < 0.8 * env * lp) { const q = Math.random() * TAU, r = 22 + Math.random() * 16; this.particles.push({ x: hx.x + Math.cos(q) * r, y: hx.y + Math.sin(q) * r, vx: -Math.cos(q) * r * 3.2, vy: -Math.sin(q) * r * 3.2, g: 0, life: 0.3, t: 0, c: Math.random() < 0.4 ? '#fff2c0' : '#ff7a2a', streak: 2 }); }
+      } else if (m.kind === 'deyes') {   // a red haze round the eyes in the dark
+        const env = Math.min(1, k * 4, (1 - k) * 3);
+        glow(X(m.x - 34 * m.sc), Y(m.y), 26 * s * m.sc, '#ff3a1a', 0.55 * env); glow(X(m.x + 34 * m.sc), Y(m.y), 26 * s * m.sc, '#ff3a1a', 0.55 * env);
+        glow(X(m.x), Y(m.y), 90 * s * m.sc, '#a01810', 0.3 * env);
+      } else if (m.kind === 'dhead') {   // the dragon's own light, and the fire gathering in its jaws while it draws back
+        const P = this._dheadPose(m, t), c = this._dheadAt(P, 70, 40), mo = this._dheadAt(P, 30, 66);
+        glow(X(c.x), Y(c.y), 92 * s * P.sc, '#ff4a1a', 0.32 * P.a);
+        if (t > m.tE && t < m.tB) { const g = Math.min(1, (t - m.tE) / (m.tS - m.tE)); glow(X(mo.x), Y(mo.y), (8 + 22 * g) * s * (0.9 + 0.1 * Math.sin(t / 30)), '#ffd25a', 0.5 + 0.4 * g); }
+      } else if (m.kind === 'dorb') {   // the staff tip burning brighter as the dragon forms
+        const a = m.follow, mz = { x: a.x + a.ox + m.mz[0], y: a.y + a.oy + m.mz[1] }, env = Math.min(1, age / 200, (1 - k) * 8);
+        glow(X(mz.x), Y(mz.y), (8 + 16 * k) * s * (0.85 + 0.15 * Math.sin(t / 33)), '#ff6a2a', 0.85 * env);
+        if (Math.random() < 0.7 * env) { const q = Math.random() * TAU, r = 14 + Math.random() * 12; this.particles.push({ x: mz.x + Math.cos(q) * r, y: mz.y + Math.sin(q) * r, vx: -Math.cos(q) * r * 4, vy: -Math.sin(q) * r * 4, g: 0, life: 0.22, t: 0, c: Math.random() < 0.4 ? '#fff6c8' : '#ff8a3c', streak: 2 }); }
+      } else if (m.kind === 'dclaws') { glow(X(m.x), Y(m.y), 70 * s * m.sc, '#ff3a1a', 0.5 * (1 - k));
+      } else if (m.kind === 'dblast') { glow(X(m.x), Y(m.y - 30), 110 * s, '#ff5a1a', 0.75 * Math.max(0, 1 - k * 1.3)); glow(X(m.x), Y(m.y - 20), 46 * s, '#fff2c0', 0.8 * Math.max(0, 1 - k * 3));
+      } else if (m.kind === 'dspike') { glow(X(m.x), Y(m.y - 30 * m.sc), 22 * s * m.sc, '#ff5a1a', 0.45 * (1 - k));
       } else if (m.kind === 'burn') {   // fire left burning on the floor, dying down
         const left = 1 - k;
         glow(X(m.x), Y(m.y - 6), m.w * 1.3 * s, '#ff6a2a', 0.35 * left);
@@ -2096,6 +2287,7 @@ export class BattleScene {
       if (k >= 1) { this.ghosts.splice(i, 1); continue; }
       n.globalAlpha = 0.38 * (1 - k); n.drawImage(g.img, g.x, g.y); n.globalAlpha = 1;
     }
+    if (this.pixelFx) this.drawBehindFx(n, t);   // Dragon's Wrath: the eyes and the dragon while it is still behind the mage
     // actors sorted by depth
     const list = [...this.actors.values()].filter(a => !a.gone).sort((a, b) => (a.y + (a.type === 'enemy' ? -0.5 : 0)) - (b.y));
     for (const a of list) {
@@ -2138,6 +2330,14 @@ export class BattleScene {
       n.drawImage(fr, x, y);
       if (t < a.flashUntil) { n.globalAlpha = 0.85; n.drawImage(this.frameFor(a, true), x, y); }
       if (a.holy && t < a.holy.until) { const k = (t - a.holy.t0) / (a.holy.until - a.holy.t0); n.globalAlpha = alpha * (0.18 + 0.14 * Math.sin(t / 90)) * Math.min(1, k * 4, (1 - k) * 4); n.drawImage(this.tinted(this.frameFor(a, true), '#ffe9a0'), x, y); n.globalAlpha = alpha; }   // Wrath of Heaven: the robes glow
+      if (a.fiery && t < a.fiery.until) {   // Dragon's Wrath: the mage's silhouette burns with red-orange light
+        const k = (t - a.fiery.t0) / (a.fiery.until - a.fiery.t0), env = Math.min(1, k * 5, (1 - k) * 6), wf = this.frameFor(a, true);
+        n.globalAlpha = alpha * env * (0.75 + 0.25 * Math.sin(t / 60)); const rim = this.tinted(wf, '#ff4a1a');
+        for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) n.drawImage(rim, x + ox, y + oy);
+        n.globalAlpha = alpha; n.drawImage(fr, x, y);   // the sprite back on top: only a burning outline shows
+        n.globalAlpha = alpha * env * (0.1 + 0.06 * Math.sin(t / 45)); n.drawImage(this.tinted(wf, '#ff9a4a'), x, y); n.globalAlpha = alpha;
+      }
+      if (a.redUntil && t < a.redUntil) { n.globalAlpha = 0.8 * Math.min(1, (a.redUntil - t) / 120); n.drawImage(this.tinted(this.frameFor(a, true), '#ff3a20'), x, y); n.globalAlpha = alpha; }
       // frozen overlay
       if (a.st && a.st.freeze) { n.globalAlpha = 0.45; n.drawImage(this.tinted(this.frameFor(a, true), '#bff6ff'), x, y); }
       if (spun) n.restore();
