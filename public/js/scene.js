@@ -44,7 +44,14 @@ const PFX = {
   sCharge: FX_SHEET('starfall_charge.png', 48, 48, 3, 8, 12, 24, 24, true),
   sArrow: FX_SHEET('starfall_arrow.png', 64, 24, 3, 6, 10, 32, 12, true),
   sBurst: FX_SHEET('starfall_burst.png', 96, 96, 4, 10, 12, 48, 48, false),
-  sImpact: FX_SHEET('starfall_impact.png', 64, 56, 4, 12, 14, 32, 44, false)
+  sImpact: FX_SHEET('starfall_impact.png', 64, 56, 4, 12, 14, 32, 44, false),
+  // Wrath of Heaven (cleric): halo above the head, holy aura round the body, the mark on the ground, the pillar of light, the impact, the sigil left behind
+  wHalo: FX_SHEET('wrath_halo.png', 48, 24, 3, 8, 12, 24, 12, true),
+  wAura: FX_SHEET('wrath_aura.png', 64, 96, 3, 8, 12, 32, 88, true),
+  wMark: FX_SHEET('wrath_mark.png', 80, 28, 3, 8, 12, 40, 16, true),
+  wPillar: FX_SHEET('wrath_pillar.png', 64, 256, 4, 14, 14, 32, 240, false),   // drawn at 2x
+  wImpact: FX_SHEET('wrath_impact.png', 128, 80, 4, 12, 15, 64, 67, false),
+  wAfter: FX_SHEET('wrath_after.png', 80, 48, 4, 12, 12, 40, 37, false)
 };
 const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') !== 'code'; } catch (e) { return true; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
@@ -448,6 +455,7 @@ export class BattleScene {
     const fx = ev.fx || 'slash';
     if (fx === 'meteor') { const own = SP.heroAnim(A.skin || A.cls, 'meteor'); if (own && own.meteor) return this._meteorAnim(A, ev, T, own); }
     if (fx === 'quake') { const own = SP.heroAnim(A.skin || A.cls, 'quake'); if (own && own.quake) return this._quakeAnim(A, ev, T, own); }
+    if (ev.skill === 'wrath_of_heaven' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'chant'); if (own) return this._wrathAnim(A, ev, T, own); }
     if (fx === 'starfall' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'volley'); if (own && own.charge != null) return this._starfallAnim(A, ev, T, own); }
     if (!ev._pre) {
       const nm = this._preAnimName(A, fx), pre = nm && SP.heroAnim(A.skin || A.cls, nm);
@@ -1095,6 +1103,12 @@ export class BattleScene {
         n.save(); n.translate(cx, cy); n.rotate(-age / 1000 * Math.PI * 2 * 3.2); n.scale(sc * 2, sc * 2);   // 170px across
         n.drawImage(PFX.vortex.img, -42.5, -42.5); n.restore();
       }
+      else if (m.kind === 'whalo') frame(PFX.wHalo, age, 1, m.follow.x + m.follow.ox - 2, m.follow.y + m.follow.oy - 66);
+      else if (m.kind === 'waura') frame(PFX.wAura, age, 1, m.follow.x + m.follow.ox, m.follow.y + m.follow.oy);
+      else if (m.kind === 'wmark') { n.globalAlpha = Math.min(1, 0.35 + age / m.life); frame(PFX.wMark, age * (1 + age / m.life), 1, m.x, m.y); n.globalAlpha = 1; }   // pulses faster and brighter
+      else if (m.kind === 'wpillar') frame(PFX.wPillar, age, 2, m.x, m.y);
+      else if (m.kind === 'wimpact') frame(PFX.wImpact, age, 1, m.x, m.y);
+      else if (m.kind === 'wafter') frame(PFX.wAfter, age, 1, m.x, m.y);
       else if (m.kind === 'scharge') { const tip = this._tipAt(m.follow); if (tip) frame(PFX.sCharge, age, 1, tip.x, tip.y); }
       else if (m.kind === 'sburst') frame(PFX.sBurst, age, 1, m.x, m.y);
       else if (m.kind === 'simpact') frame(PFX.sImpact, age, 1, m.x, m.y);
@@ -1182,6 +1196,55 @@ export class BattleScene {
     }
     setTimeout(() => this._applyAfter(ev), T(end + 80));
     return T(Math.max(acc, end + 700));
+  }
+  // Wrath of Heaven with PixelLab effects (public/art/fx/wrath_*): the cleric's Chant animation raises the staff and holds
+  // it (divine invocation: a golden halo above the head, holy symbols spiralling round the body, the robes glowing), a
+  // golden circle with sacred runes appears under the target and pulses brighter (heaven's mark), and as the staff sweeps
+  // forward a massive column of white-gold light crashes down onto it (divine judgment) with a holy flash; the enemy is
+  // engulfed in a radiant burst with a golden shockwave (impact), the party is healed, and the pillar retracts into the sky
+  // leaving a holy sigil on the ground that dissolves into golden sparkles (afterglow).
+  _wrathAnim(A, ev, T, anim) {
+    const at = []; let acc = 0; for (const [, ms] of anim.timeline) { at.push(acc); acc += ms; }
+    const isEnemy = id => { const a = this.actors.get(id); return !!a && a.type === 'enemy'; };
+    const tgt = ev.targets.filter(t => !t.shatter && isEnemy(t.id) && (t.dmg != null || t.status));
+    const ens = [...new Set(tgt.map(t => t.id))].map(id => this.actors.get(id)).filter(Boolean);
+    const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
+    if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
+    if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    const t0 = now(), hitAt = at[anim.hit], PILLAR = 1170, LAND = 170;
+    const total = Math.max(acc, hitAt + PILLAR) + 300;
+    A.anim = { d: anim, t0, speed: T(1000) / 1000, at, total: acc };
+    setTimeout(() => { A.anim = null; }, T(acc + 60));
+    this.cam = { x: A.x - 40, y: A.y - 44, t0, dur: T(hitAt - 60), z: 1.06 };
+    const when = (ms, fn) => setTimeout(fn, T(ms));
+    // 1. divine invocation, while the staff goes up and is held
+    when(at[2], () => {
+      this.mets.push({ kind: 'whalo', follow: A, t0: now(), life: T(hitAt + 500 - at[2]) });
+      this.mets.push({ kind: 'waura', follow: A, t0: now(), life: T(hitAt + 300 - at[2]) });
+      A.holy = { t0: now(), until: now() + T(hitAt + 300 - at[2]) };
+      sfx('heal'); sfx('cast');
+    });
+    // 2. heaven's mark under the target, pulsing brighter until the strike
+    when(at[3], () => {
+      for (const e of ens) this.mets.push({ kind: 'wmark', x: e.x, y: e.y + 1, t0: now(), life: T(hitAt + LAND + 120 - at[3]) });
+      sfx('charge');
+    });
+    // 3. divine judgment: the pillar crashes down as the staff sweeps forward
+    when(hitAt, () => {
+      for (const e of ens) this.mets.push({ kind: 'wpillar', x: e.x, y: e.y + 2, t0: now(), life: T(PILLAR) });
+      sfx('zap');
+    });
+    // 4. impact: the beam reaches the ground
+    when(hitAt + LAND, () => {
+      for (const e of ens) this.mets.push({ kind: 'wimpact', x: e.x, y: e.y + 2, t0: now(), life: T(860) });
+      this.flash = Math.max(this.flash || 0, 0.3); this.shake = Math.max(this.shake, 7); this.shakeT = now(); this.freezeUntil = now() + 120;
+      this.impact(ev, tgt, 'pillar', rc, ev.targets, true);
+      sfx('hitBig');
+    });
+    // 5. afterglow: as the pillar retracts, a holy sigil is left on the ground and dissolves into golden sparkles
+    when(hitAt + PILLAR - 420, () => { for (const e of ens) this.mets.push({ kind: 'wafter', x: e.x, y: e.y + 2, t0: now(), life: T(1000) }); sfx('twinkle'); });
+    when(hitAt + LAND + 200, () => this._applyAfter(ev));
+    return T(total);
   }
   drawMeteors(ctx, t, sx, sy) {
     if (!this.mets.length) return;
@@ -1337,6 +1400,9 @@ export class BattleScene {
         col(0.38, `rgba(255,245,200,${a})`, 'rgba(255,190,80,0)');
         ctx.fillStyle = hexA('#fff2c8', 0.8 * a); ctx.beginPath(); ctx.ellipse(x, y, W * 1.3, W * 0.35, 0, 0, TAU); ctx.fill();
         if (Math.random() < 0.6 * a) this.particles.push({ x: m.x + (Math.random() - 0.5) * m.w, y: m.y - Math.random() * m.h * up, vx: (Math.random() - 0.5) * 20, vy: -40 - Math.random() * 60, g: 0, life: 0.4, t: 0, c: Math.random() < 0.5 ? '#ffb347' : '#ff6a2a', fade: true });
+      } else if (m.kind === 'wpillar') { const a = k < 0.15 ? k / 0.15 : k > 0.7 ? Math.max(0, (1 - k) / 0.3) : 1; ctx.save(); ctx.translate(X(m.x), Y(m.y - 60)); ctx.scale(0.45, 2.6); glow(0, 0, 50 * s, '#fff2c0', 0.75 * a); ctx.restore(); glow(X(m.x), Y(m.y), 60 * s, '#ffe08a', 0.6 * a);
+      } else if (m.kind === 'wmark') { glow(X(m.x), Y(m.y), (26 + 18 * k) * s, '#ffd86a', 0.25 + 0.45 * k);
+      } else if (m.kind === 'whalo') { const a = m.follow; glow(X(a.x + a.ox - 2), Y(a.y + a.oy - 66), 22 * s, '#ffe9a0', 0.55); glow(X(a.x + a.ox), Y(a.y + a.oy - 28), 40 * s, '#ffd86a', 0.25);
       } else if (m.kind === 'scharge') { const tip = this._tipAt(m.follow); if (tip) glow(X(tip.x), Y(tip.y), (16 + 14 * Math.min(1, k * 1.5)) * s, '#9fd0ff', 0.7);
       } else if (m.kind === 'sarrow' || m.kind === 'sdrop') { const kk = Math.min(1, age / m.life); let x, y; if (m.kind === 'sarrow') { const u = 1 - kk; x = u * u * m.from.x + 2 * u * kk * m.ctrl.x + kk * kk * m.to.x; y = u * u * m.from.y + 2 * u * kk * m.ctrl.y + kk * kk * m.to.y; } else { x = lerp(m.from.x, m.to.x, kk * kk); y = lerp(m.from.y, m.to.y, kk * kk); } glow(X(x), Y(y), 18 * s, '#a8c8ff', 0.6);
       } else if (m.kind === 'burn') {   // fire left burning on the floor, dying down
@@ -2038,6 +2104,7 @@ export class BattleScene {
       }
       n.drawImage(fr, x, y);
       if (t < a.flashUntil) { n.globalAlpha = 0.85; n.drawImage(this.frameFor(a, true), x, y); }
+      if (a.holy && t < a.holy.until) { const k = (t - a.holy.t0) / (a.holy.until - a.holy.t0); n.globalAlpha = alpha * (0.18 + 0.14 * Math.sin(t / 90)) * Math.min(1, k * 4, (1 - k) * 4); n.drawImage(this.tinted(this.frameFor(a, true), '#ffe9a0'), x, y); n.globalAlpha = alpha; }   // Wrath of Heaven: the robes glow
       // frozen overlay
       if (a.st && a.st.freeze) { n.globalAlpha = 0.45; n.drawImage(this.tinted(this.frameFor(a, true), '#bff6ff'), x, y); }
       if (spun) n.restore();
