@@ -39,7 +39,12 @@ const PFX = {
   vortex: FX_SHEET('fire_vortex.png', 85, 85, 1, 1, 1, 42.5, 42.5, true),   // one image, spun in code (Earthshatter's dive)
   // the burning greatsword in Earthshatter's wind-up pose, one per knight, anchored on the feet (made round each wind-up frame)
   gsf: FX_SHEET('knight_greatsword_fire.png', 97, 103, 4, 8, 12, 45, 94, true),
-  gsfF: FX_SHEET('knight_f_greatsword_fire.png', 93, 78, 4, 8, 12, 42, 73, true)
+  gsfF: FX_SHEET('knight_f_greatsword_fire.png', 93, 78, 4, 8, 12, 42, 73, true),
+  // Starfall (ranger): the charge on the arrowhead, the star arrow (points right; rotated in code), the burst in the sky, the impact
+  sCharge: FX_SHEET('starfall_charge.png', 48, 48, 3, 8, 12, 24, 24, true),
+  sArrow: FX_SHEET('starfall_arrow.png', 64, 24, 3, 6, 10, 32, 12, true),
+  sBurst: FX_SHEET('starfall_burst.png', 96, 96, 4, 10, 12, 48, 48, false),
+  sImpact: FX_SHEET('starfall_impact.png', 64, 56, 4, 12, 14, 32, 44, false)
 };
 const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') !== 'code'; } catch (e) { return true; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
@@ -443,6 +448,7 @@ export class BattleScene {
     const fx = ev.fx || 'slash';
     if (fx === 'meteor') { const own = SP.heroAnim(A.skin || A.cls, 'meteor'); if (own && own.meteor) return this._meteorAnim(A, ev, T, own); }
     if (fx === 'quake') { const own = SP.heroAnim(A.skin || A.cls, 'quake'); if (own && own.quake) return this._quakeAnim(A, ev, T, own); }
+    if (fx === 'starfall' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'volley'); if (own && own.charge != null) return this._starfallAnim(A, ev, T, own); }
     if (!ev._pre) {
       const nm = this._preAnimName(A, fx), pre = nm && SP.heroAnim(A.skin || A.cls, nm);
       if (pre) {   // play the move, then run the usual effects from its hit frame
@@ -1089,6 +1095,23 @@ export class BattleScene {
         n.save(); n.translate(cx, cy); n.rotate(-age / 1000 * Math.PI * 2 * 3.2); n.scale(sc * 2, sc * 2);   // 170px across
         n.drawImage(PFX.vortex.img, -42.5, -42.5); n.restore();
       }
+      else if (m.kind === 'scharge') { const tip = this._tipAt(m.follow); if (tip) frame(PFX.sCharge, age, 1, tip.x, tip.y); }
+      else if (m.kind === 'sburst') frame(PFX.sBurst, age, 1, m.x, m.y);
+      else if (m.kind === 'simpact') frame(PFX.sImpact, age, 1, m.x, m.y);
+      else if (m.kind === 'sarrow' || m.kind === 'sdrop') {   // a star arrow in flight: turned along its path, stardust left behind
+        const k = Math.min(1, age / m.life);
+        let x, y, dx, dy;
+        if (m.kind === 'sarrow') { const u = 1 - k; x = u * u * m.from.x + 2 * u * k * m.ctrl.x + k * k * m.to.x; y = u * u * m.from.y + 2 * u * k * m.ctrl.y + k * k * m.to.y; dx = 2 * u * (m.ctrl.x - m.from.x) + 2 * k * (m.to.x - m.ctrl.x); dy = 2 * u * (m.ctrl.y - m.from.y) + 2 * k * (m.to.y - m.ctrl.y); }
+        else { const e = k * k; x = lerp(m.from.x, m.to.x, e); y = lerp(m.from.y, m.to.y, e); dx = m.to.x - m.from.x; dy = m.to.y - m.from.y; }
+        const S = PFX.sArrow;
+        if (S.img.complete && S.img.naturalWidth) {
+          const f = Math.floor(age / 1000 * S.fps) % S.n;
+          n.save(); n.translate(Math.round(x), Math.round(y)); n.rotate(Math.atan2(dy, dx));
+          n.drawImage(S.img, (f % S.cols) * S.w, Math.floor(f / S.cols) * S.h, S.w, S.h, -S.ax - 10, -S.ay, S.w, S.h); n.restore();
+        }
+        const cols = ['#bfe8ff', '#8fb8ff', '#b48cff', '#ffe08a', '#ffffff'];
+        for (let j = 0; j < (m.kind === 'sarrow' ? 3 : 2); j++) this.particles.push({ x: x + (Math.random() - 0.5) * 4, y: y + (Math.random() - 0.5) * 4, vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 14 + 6, g: 0, life: 0.45 + Math.random() * 0.4, t: 0, c: cols[Math.floor(Math.random() * cols.length)], plus: Math.random() < 0.3, fade: true });
+      }
       else if (m.kind === 'fblade' && age < m.hold) {   // the blade on fire while he holds it up (not once he starts to spin)
         const A = m.follow, girl = String(A.skin || '').endsWith(':f');
         if (A.cls === 'knight') { n.globalAlpha = Math.min(1, age / 160); frame(girl ? PFX.gsfF : PFX.gsf, age, 1, A.x + A.ox, A.y + A.oy); n.globalAlpha = 1; continue; }
@@ -1097,6 +1120,68 @@ export class BattleScene {
         n.globalAlpha = Math.min(1, age / 160); frame(PFX.blade, age, 1, tip.x, tip.y + (m.len - 30)); n.globalAlpha = 1;
       }
     }
+  }
+  // Starfall with PixelLab effects (public/art/fx/starfall_*): the ranger's Volley animation draws and aims straight up
+  // while celestial energy gathers on the arrowhead (charge), looses the arrow (hit), which curves up over the enemies
+  // trailing stardust and bursts into a star. Then luminous arrows rain down at different angles, one per hit in each of
+  // the skill's waves (plus a few strays), each landing in a star-shaped flash that fades into tiny stars.
+  _starfallAnim(A, ev, T, anim) {
+    const at = []; let acc = 0; for (const [, ms] of anim.timeline) { at.push(acc); acc += ms; }
+    const isEnemy = id => { const a = this.actors.get(id); return !!a && a.type === 'enemy'; };
+    const tgt = ev.targets.filter(t => !t.shatter && isEnemy(t.id) && t.dmg != null);
+    const ens = [...new Set(tgt.map(t => t.id))].map(id => this.actors.get(id)).filter(Boolean);
+    const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
+    if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
+    if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    const t0 = now();
+    A.anim = { d: anim, t0, speed: T(1000) / 1000, at, total: acc };
+    setTimeout(() => { A.anim = null; }, T(acc + 60));
+    this.cam = { x: A.x - 30, y: A.y - 40, t0, dur: T(at[anim.hit] + 320), z: 1.06 };
+    const when = (f, fn) => setTimeout(fn, T(at[f]));
+    // 1. cast: energy gathers on the arrowhead while the bow is drawn and held
+    when(anim.charge, () => { this.mets.push({ kind: 'scharge', follow: A, t0: now(), life: T(at[anim.hit] - at[anim.charge] + 40) }); sfx('twinkle'); sfx('charge'); });
+    // 2. launch: the arrow curves up to a point above the enemies
+    const cx = ens.length ? ens.reduce((a, e) => a + e.x, 0) / ens.length : A.x - 150;
+    const sky = { x: cx, y: Math.max(28, (ens.length ? Math.min(...ens.map(e => e.y)) : A.y) - 115) };
+    const fly = 520;
+    when(anim.hit, () => {
+      const tip = this._tipAt(A) || { x: A.x, y: A.y - 80 };
+      this.mets.push({ kind: 'sarrow', from: tip, ctrl: { x: (tip.x + sky.x) / 2 + 30, y: Math.min(tip.y, sky.y) - 60 }, to: sky, t0: now(), life: T(fly) });
+      this.glows.push({ x: tip.x, y: tip.y, r: 24, color: '#bfe0ff', t: 0, life: 0.3, a: 0.9 });
+      sfx('bow'); sfx('rise');
+    });
+    // 3. the arrow bursts into a star
+    const burstAt = at[anim.hit] + fly;
+    setTimeout(() => {
+      this.mets.push({ kind: 'sburst', x: sky.x, y: sky.y, t0: now(), life: T(860) });
+      this.glows.push({ x: sky.x, y: sky.y, r: 70, color: '#bfe0ff', t: 0, life: 0.5, a: 0.9 });
+      this.flash = Math.max(this.flash || 0, 0.08); sfx('twinkle'); sfx('zap');
+    }, T(burstAt));
+    // 4. starfall: each wave, one arrow per hit (from somewhere in the burst, so they come in at different angles) and a
+    // few strays that land between the enemies
+    const waves = Math.max(1, ...tgt.map(t => (t.wave || 0) + 1)), gap = 300, drop = 280;
+    let end = burstAt;
+    for (let w = 0; w < waves; w++) {
+      const recs = tgt.filter(t => (t.wave || 0) === w), start = burstAt + 160 + w * gap;
+      const shots = recs.map(r => ({ rec: r, e: this.actors.get(r.id) })).filter(s => s.e);
+      for (let k = 0; k < 2; k++) shots.push({ stray: true, e: ens[Math.floor(Math.random() * ens.length)] });
+      shots.forEach((s, j) => {
+        if (!s.e) return;
+        const from = { x: sky.x + (Math.random() - 0.5) * 110, y: sky.y + (Math.random() - 0.5) * 24 };
+        const to = { x: s.e.x + (s.stray ? (Math.random() < 0.5 ? -1 : 1) * (18 + Math.random() * 20) : (Math.random() - 0.5) * 10), y: s.e.y + (s.stray ? (Math.random() - 0.5) * 14 : 0) - 1 };
+        const t1 = start + j * 45;
+        setTimeout(() => this.mets.push({ kind: 'sdrop', from, to, t0: now(), life: T(drop) }), T(t1));
+        setTimeout(() => {
+          this.mets.push({ kind: 'simpact', x: to.x, y: to.y, t0: now(), life: T(860) });
+          this.glows.push({ x: to.x, y: to.y - 6, r: 30, color: '#bfe0ff', t: 0, life: 0.3, a: 0.9 });
+          if (s.rec) { this.impact(ev, tgt, 'starfall', rc, [s.rec], true); this.shake = Math.max(this.shake, 3); this.shakeT = now(); }
+          else sfx('twinkle');
+        }, T(t1 + drop));
+        end = Math.max(end, t1 + drop);
+      });
+    }
+    setTimeout(() => this._applyAfter(ev), T(end + 80));
+    return T(Math.max(acc, end + 700));
   }
   drawMeteors(ctx, t, sx, sy) {
     if (!this.mets.length) return;
@@ -1252,6 +1337,8 @@ export class BattleScene {
         col(0.38, `rgba(255,245,200,${a})`, 'rgba(255,190,80,0)');
         ctx.fillStyle = hexA('#fff2c8', 0.8 * a); ctx.beginPath(); ctx.ellipse(x, y, W * 1.3, W * 0.35, 0, 0, TAU); ctx.fill();
         if (Math.random() < 0.6 * a) this.particles.push({ x: m.x + (Math.random() - 0.5) * m.w, y: m.y - Math.random() * m.h * up, vx: (Math.random() - 0.5) * 20, vy: -40 - Math.random() * 60, g: 0, life: 0.4, t: 0, c: Math.random() < 0.5 ? '#ffb347' : '#ff6a2a', fade: true });
+      } else if (m.kind === 'scharge') { const tip = this._tipAt(m.follow); if (tip) glow(X(tip.x), Y(tip.y), (16 + 14 * Math.min(1, k * 1.5)) * s, '#9fd0ff', 0.7);
+      } else if (m.kind === 'sarrow' || m.kind === 'sdrop') { const kk = Math.min(1, age / m.life); let x, y; if (m.kind === 'sarrow') { const u = 1 - kk; x = u * u * m.from.x + 2 * u * kk * m.ctrl.x + kk * kk * m.to.x; y = u * u * m.from.y + 2 * u * kk * m.ctrl.y + kk * kk * m.to.y; } else { x = lerp(m.from.x, m.to.x, kk * kk); y = lerp(m.from.y, m.to.y, kk * kk); } glow(X(x), Y(y), 18 * s, '#a8c8ff', 0.6);
       } else if (m.kind === 'burn') {   // fire left burning on the floor, dying down
         const left = 1 - k;
         glow(X(m.x), Y(m.y - 6), m.w * 1.3 * s, '#ff6a2a', 0.35 * left);
