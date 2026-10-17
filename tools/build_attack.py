@@ -88,6 +88,14 @@ EXTRA = {
     'knight:f/combo': dict(base='knight:f', ms=[50, 50, 60, 90,  40, 50, 50, 110,  40, 45, 50, 100,  45, 45, 45, 90,  40, 50, 50, 130,
                                                 70, 60, 60, 60, 60, 80,  260, 260, 260, 260,  70, 60, 60, 70, 45, 45, 70, 420],
                            hit=35, slashAt=[5, 9, 17], holdAt=[26, 29], arcAt=34, blade=28, track='top', dash=18, cast=False),
+    # Meteor (tools/assemble_meteor.py): rise into a hover, crush the flame in the hand ('crushAt'), open it on a tiny
+    # spark ('openAt') that flies up off the screen ('sparkAt'), raise the arm and snap the fingers ('snapAt'); the
+    # meteor falls while she holds the pose and lands on 'hit', then she floats back down. 'palm' / 'snapTip': where the
+    # hand is, px from the feet (sprite facing as drawn); 'lift': how high she floats (px); 'flame': the hand flame's colour.
+    'mage:f/meteor': dict(base='mage:f', ms=[120, 140, 220, 220, 70, 70, 120, 230, 230, 160, 420, 90, 70, 160, 300, 420, 200, 160, 300],
+                          hit=16, meteor=dict(liftAt=0, crushAt=6, openAt=9, sparkAt=10, snapAt=13, downAt=16, palm=[25, -41], snapTip=[17, -62], lift=30, flame='#ff8a3c')),
+    'mage:m/meteor': dict(base='mage:m', ms=[120, 140, 220, 220, 70, 70, 120, 230, 230, 160, 420, 90, 70, 160, 300, 420, 200, 160, 300],
+                          hit=16, meteor=dict(liftAt=0, crushAt=6, openAt=9, sparkAt=10, snapAt=13, downAt=16, palm=[21, -36], snapTip=[16, -54], lift=30, flame='#5ab8ff')),
     'knight:m/power': dict(base='knight:m', ms=[60, 70, 90, 110, 120, 130, 140, 110, 90, 380], hit=9, aura=[1, 7], dashAt=7, dashFrames=8, upswing=9, dash=10, cast=False),
     'knight:f/power': dict(base='knight:f', ms=[60, 70, 110, 120, 130, 140, 110, 90, 380], hit=8, aura=[1, 6], dashAt=6, dashFrames=7, upswing=8, dash=10, cast=False),
 }
@@ -121,7 +129,7 @@ def build(skin):
         'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m.get('hit'), 'loop': m.get('loop'), 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
         'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom'),
         'tips': tips, 'chargeTo': m.get('chargeTo'), 'swing': m.get('swing'), 'aura': m.get('aura'), 'ring': m.get('ring'), 'upswing': m.get('upswing'), 'dashAt': m.get('dashAt'),
-        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade')}
+        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor')}
     json.dump(man, open(path, 'w'), indent=1)
     print('wrote', name, n, 'frames', sum(m['ms']), 'ms')
 

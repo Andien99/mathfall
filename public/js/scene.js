@@ -51,6 +51,7 @@ export class BattleScene {
     this.shake = 0; this.shakeT = 0;
     this.trails = []; this.cam = null; this.stars = []; this.rings = []; this.ribbons = []; this.auras = [];
     this.zaps = []; this.ripples = []; this.residue = []; this.xhits = []; this.slivers = []; this.bigArcs = [];   // Champion's Combo: blade aura, ground ripples, leftover crackle
+    this.mets = [];   // Meteor: hand flame, spark, snap, the rock, its explosion and the fire it leaves
     this.cracks = []; this.spikes = []; this.ghosts = [];
     this.slowmo = 1;   // <1 plays everything in slow motion (used by the /dev/lab.html animation lab)
     this.freezeUntil = 0;
@@ -418,6 +419,7 @@ export class BattleScene {
   _heroAnim(ev, T) {
     const A = this.actors.get(ev.actor); if (!A) { this._applyAfter(ev); return 0; }
     const fx = ev.fx || 'slash';
+    if (fx === 'meteor') { const own = SP.heroAnim(A.skin || A.cls, 'meteor'); if (own && own.meteor) return this._meteorAnim(A, ev, T, own); }
     if (!ev._pre) {
       const nm = this._preAnimName(A, fx), pre = nm && SP.heroAnim(A.skin || A.cls, nm);
       if (pre) {   // play the move, then run the usual effects from its hit frame
@@ -884,6 +886,205 @@ export class BattleScene {
 
   // a jagged line from a to b (for bolts)
   _zig(a, b, n, j) { const pts = [a]; for (let i = 1; i < n; i++) pts.push({ x: lerp(a.x, b.x, i / n) + (Math.random() - 0.5) * j, y: lerp(a.y, b.y, i / n) + (Math.random() - 0.5) * j }); pts.push(b); return pts; }
+
+  // Meteor with its PixelLab animation (anims.meteor): the mage floats up, crushes the flame in her hand (crushAt),
+  // opens it on a tiny spark (openAt) that shoots up off the screen (sparkAt), raises her arm and snaps her fingers
+  // (snapAt). A giant meteor then streaks in from the top right and lands on the middle of the enemies (hit): fireball,
+  // shockwave, cracks, rubble and fire left burning on the floor. She floats back down after it (downAt).
+  _meteorAnim(A, ev, T, anim) {
+    const M = anim.meteor;
+    const at = []; let acc = 0; for (const [, ms] of anim.timeline) { at.push(acc); acc += ms; }
+    const isEnemy = id => { const a = this.actors.get(id); return !!a && a.type === 'enemy'; };
+    const tgt = ev.targets.filter(t => !t.shatter && isEnemy(t.id) && (t.dmg != null || t.status));
+    const ens = [...new Set(tgt.map(t => t.id))].map(id => this.actors.get(id)).filter(Boolean);
+    const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
+    if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
+    if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    const flame = M.flame || '#ff8a3c';
+    const palm = () => ({ x: A.x + A.ox + M.palm[0], y: A.y + A.oy + M.palm[1] });
+    const at0 = now();
+    A.anim = { d: anim, t0: at0, speed: T(1000) / 1000, at, total: acc };
+    const when = (f, fn, extra = 0) => setTimeout(fn, T(at[f] + extra));
+    // where it lands: the middle of the enemies, on the floor
+    const xs = ens.map(e => e.x), cx = ens.length ? xs.reduce((a, b) => a + b, 0) / xs.length : A.x - 160;
+    const cy = ens.length ? ens.reduce((a, e) => a + e.y, 0) / ens.length : A.y;
+    const spread = ens.length ? Math.max(56, (Math.max(...xs) - Math.min(...xs)) / 2 + 40) : 60;
+    // close-up on the mage until the snap, then the camera eases out so the meteor and the enemies fit
+    this.cam = { x: A.x - 4, y: A.y - 58, t0: at0, dur: T(at[M.snapAt] + 260), z: 1.12 };
+    // 1. she rises off the floor on a ring of light
+    this.move(A, 0, -(M.lift || 30), T(at[2] + 120));
+    this.rune(A.x, A.y, flame); this.burst(A.x, A.y - 2, '#d8c8b0', 10, 24, 20); sfx('cast');
+    this.mets.push({ kind: 'hand', follow: palm, color: flame, t0: at0, life: T(at[M.crushAt]) });
+    // 2. she crushes the flame: embers squeeze out between her fingers, a puff of smoke, light leaking from the fist
+    when(M.crushAt, () => {
+      const p = palm();
+      for (let i = 0; i < 22; i++) { const a = Math.random() * Math.PI * 2, v = 50 + Math.random() * 90; this.particles.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, g: 60, life: 0.35 + Math.random() * 0.35, t: 0, c: Math.random() < 0.3 ? '#ffffff' : i % 2 ? flame : '#ffd25a', streak: 2 + (i % 3), drag: 0.85 }); }
+      for (let i = 0; i < 7; i++) this.particles.push({ x: p.x + (Math.random() - 0.5) * 6, y: p.y - 2, vx: (Math.random() - 0.5) * 10, vy: -14 - Math.random() * 12, g: 0, life: 0.7 + Math.random() * 0.4, t: 0, c: '#5a5060', blob: 1, fade: true });
+      this.glows.push({ x: p.x, y: p.y, r: 30, color: flame, t: 0, life: 0.3, a: 0.9 });
+      this.mets.push({ kind: 'fist', follow: palm, color: flame, t0: now(), life: T(at[M.openAt] - at[M.crushAt]) });
+      sfx('crush');
+    });
+    // 3. she opens her hand on a tiny spark, which shoots up and out of the top of the screen
+    when(M.openAt, () => {
+      this.mets.push({ kind: 'spark', follow: palm, color: flame, t0: now(), hold: T(at[M.sparkAt] - at[M.openAt] + 120), fly: T(420), life: T(at[M.sparkAt] - at[M.openAt] + 120 + 420), pts: [] });
+      sfx('twinkle');
+    });
+    when(M.sparkAt, () => { this.darken = { t0: now(), dur: T(at[anim.hit] - at[M.sparkAt] + 700) }; sfx('rise'); }, 120);
+    // 4. the snap: a click of light at her fingertips
+    when(M.snapAt, () => {
+      const tip = { x: A.x + A.ox + M.snapTip[0], y: A.y + A.oy + M.snapTip[1] };
+      this.mets.push({ kind: 'snap', x: tip.x, y: tip.y, t0: now(), life: T(260) });
+      this.glows.push({ x: tip.x, y: tip.y, r: 22, color: '#fff2c0', t: 0, life: 0.25, a: 0.9 });
+      this.flash = Math.max(this.flash || 0, 0.06);
+      sfx('snap');
+    });
+    // 5. the meteor: its shadow and a burning ring mark the spot, the sky glows red, and it streaks in from the top right
+    const fallFrom = at[M.snapAt] + 120, fall = at[anim.hit] - fallFrom;
+    setTimeout(() => {
+      this.mets.push({ kind: 'mark', x: cx, y: cy, w: spread, t0: now(), life: T(fall + 120) });
+      this.mets.push({ kind: 'rock', from: { x: cx + 230, y: cy - 330 }, to: { x: cx, y: cy - 10 }, R: 36, t0: now(), life: T(fall), rot: Math.random() * 6,
+        cracks: Array.from({ length: 6 }, () => { let a = Math.random() * Math.PI * 2, r = 0.1 + Math.random() * 0.3; const pts = []; for (let j = 0; j < 4; j++) { pts.push([Math.cos(a) * r, Math.sin(a) * r]); a += (Math.random() - 0.5) * 0.9; r += 0.18 + Math.random() * 0.15; } return pts; }) });
+      sfx('fall');
+    }, T(fallFrom));
+    // 6. impact
+    when(anim.hit, () => {
+      this.mets.push({ kind: 'boom', x: cx, y: cy, w: spread, t0: now(), life: T(1100) });
+      this.mets.push({ kind: 'burn', x: cx, y: cy, w: spread, t0: now(), life: T(1700) });
+      this.shake = Math.max(this.shake, 12); this.shakeT = now(); this.flash = Math.max(this.flash || 0, 0.22); this.freezeUntil = now() + 150;
+      for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2 + Math.random() * 0.4, L = spread * (0.7 + Math.random() * 0.6); this._crack(Math.round(cx), Math.round(cy + 1), Math.round(cx + Math.cos(a) * L), Math.round(cy + 1 + Math.sin(a) * L * 0.25), T(160), T(1900)); }
+      const lp = this.lowPower ? 0.5 : 1;
+      for (let i = 0; i < 34 * lp; i++) { const a = -Math.PI * (0.08 + Math.random() * 0.84), v = 90 + Math.random() * 170; this.particles.push({ x: cx + (Math.random() - 0.5) * 20, y: cy - 6, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 380, life: 0.8 + Math.random() * 0.6, t: 0, c: ['#3a2418', '#5a3a24', '#7a4a2a', '#ff8a3c'][i % 4], cube: 2 + (i % 2), spin: Math.random() * 6, fade: true }); }
+      for (let i = 0; i < 70 * lp; i++) { const a = Math.random() * Math.PI * 2, v = 60 + Math.random() * 200; this.particles.push({ x: cx, y: cy - 14, vx: Math.cos(a) * v * 1.4, vy: Math.sin(a) * v * 0.8 - 40, g: 90, life: 0.5 + Math.random() * 0.6, t: 0, c: ['#ffffff', '#fff6c8', '#ffd25a', '#ffb347', '#ff6a2a'][i % 5], streak: 3 + (i % 4), drag: 0.9 }); }
+      for (let i = 0; i < 26 * lp; i++) this.particles.push({ x: cx + (Math.random() - 0.5) * spread * 1.6, y: cy - Math.random() * 30, vx: (Math.random() - 0.5) * 30, vy: -10 - Math.random() * 25, g: -6, life: 1.2 + Math.random() * 0.9, t: 0, c: Math.random() < 0.5 ? '#3a3040' : '#54485a', blob: 1 + Math.random() * 2, fade: true });
+      this.impact(ev, tgt, 'meteor', rc);
+      sfx('boom');
+    });
+    // 7. she floats back down, and the flame lights up in her hand again
+    when(M.downAt, () => this.move(A, 0, 0, T(acc - at[M.downAt])));
+    setTimeout(() => { const p = palm(); this.glows.push({ x: p.x, y: p.y, r: 18, color: flame, t: 0, life: 0.35, a: 0.8 }); this.burst(p.x, p.y, flame, 8, 20); }, T(acc - 120));
+    setTimeout(() => { A.anim = null; this.move(A, 0, 0, T(120)); }, T(acc + 60));
+    return T(acc + 450);
+  }
+  drawMeteors(ctx, t, sx, sy) {
+    if (!this.mets.length) return;
+    const s = this.s, TAU = Math.PI * 2, X = x => x * s + sx, Y = y => y * s + sy;
+    const glow = (x, y, r, col, a) => { const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, hexA(col, a)); g.addColorStop(0.4, hexA(col, a * 0.35)); g.addColorStop(1, hexA(col, 0)); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); };
+    const eo = x => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+    ctx.save();
+    for (let i = this.mets.length - 1; i >= 0; i--) {
+      const m = this.mets[i], age = t - m.t0;
+      if (age > m.life) { this.mets.splice(i, 1); continue; }
+      if (age < 0) continue;
+      const k = age / m.life;
+      ctx.globalCompositeOperation = 'lighter';
+      if (m.kind === 'hand') {   // the flame in her palm, burning brighter just before she crushes it
+        const p = m.follow(), fl = 0.85 + 0.15 * Math.sin(t / 37) * Math.sin(t / 91);
+        glow(X(p.x), Y(p.y - 4), (12 + 6 * k) * s * fl, m.color, 0.55 + 0.3 * k);
+        if (Math.random() < 0.5) this.particles.push({ x: p.x + (Math.random() - 0.5) * 4, y: p.y - 6, vx: (Math.random() - 0.5) * 10, vy: -20 - Math.random() * 20, g: 0, life: 0.4, t: 0, c: Math.random() < 0.5 ? m.color : '#ffd25a', fade: true });
+      } else if (m.kind === 'fist') {   // light squeezing out between the fingers, dying down
+        const p = m.follow(), a = 1 - k * 0.7, pulse = 0.7 + 0.3 * Math.sin(t / 45);
+        glow(X(p.x), Y(p.y), 10 * s * pulse, m.color, 0.6 * a);
+        ctx.strokeStyle = hexA('#fff2c0', 0.7 * a); ctx.lineWidth = Math.max(1, s * 0.7);
+        const seed = Math.floor(t / 70);
+        for (let j = 0; j < 4; j++) { const ang = ((seed * 7 + j * 13) % 20) / 20 * TAU, L = (5 + ((seed + j * 3) % 5) * 2) * s; ctx.beginPath(); ctx.moveTo(X(p.x) + Math.cos(ang) * 2 * s, Y(p.y) + Math.sin(ang) * 2 * s); ctx.lineTo(X(p.x) + Math.cos(ang) * L, Y(p.y) + Math.sin(ang) * L); ctx.stroke(); }
+      } else if (m.kind === 'spark') {   // a tiny spark in the open palm, then it shoots up out of the screen
+        let x, y, big = 1;
+        if (age < m.hold) { const p = m.follow(); x = p.x; y = p.y - 3 - Math.min(4, age / m.hold * 8); m.last = { x, y }; }
+        else {
+          const f = (age - m.hold) / m.fly, o = m.last || m.follow(), e = f * f;
+          x = o.x - 18 * e + Math.sin(f * 9) * 3; y = o.y - (o.y + 60) * e; big = 1 + f * 0.6;
+          m.pts.push({ x, y, t });
+          if (Math.random() < 0.7) this.particles.push({ x, y, vx: (Math.random() - 0.5) * 20, vy: 10 + Math.random() * 20, g: 30, life: 0.35, t: 0, c: Math.random() < 0.5 ? '#fff6c8' : m.color, fade: true });
+        }
+        m.pts = m.pts.filter(q => t - q.t < 260);
+        for (let j = 1; j < m.pts.length; j++) {
+          const a0 = m.pts[j - 1], a1 = m.pts[j], fa = 1 - (t - a1.t) / 260;
+          ctx.strokeStyle = hexA(m.color, 0.55 * fa); ctx.lineWidth = s * 3 * fa; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(X(a0.x), Y(a0.y)); ctx.lineTo(X(a1.x), Y(a1.y)); ctx.stroke();
+          ctx.strokeStyle = hexA('#ffffff', 0.8 * fa); ctx.lineWidth = s * 1.2 * fa;
+          ctx.beginPath(); ctx.moveTo(X(a0.x), Y(a0.y)); ctx.lineTo(X(a1.x), Y(a1.y)); ctx.stroke();
+        }
+        const tw = 0.7 + 0.3 * Math.sin(t / 30), L = (3 + 2.5 * tw) * s * big;
+        glow(X(x), Y(y), 9 * s * big, m.color, 0.8);
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = Math.max(1, s * 0.7);
+        ctx.beginPath(); ctx.moveTo(X(x) - L, Y(y)); ctx.lineTo(X(x) + L, Y(y)); ctx.moveTo(X(x), Y(y) - L); ctx.lineTo(X(x), Y(y) + L); ctx.stroke();
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(X(x) - s, Y(y) - s, 2 * s, 2 * s);
+      } else if (m.kind === 'snap') {   // the click: short rays of light and a ring at the fingertips
+        const e = eo(k / 0.5), a = 1 - k;
+        ctx.strokeStyle = hexA('#fff6d8', a); ctx.lineWidth = Math.max(1, s * 1.1); ctx.lineCap = 'round';
+        for (let j = 0; j < 5; j++) { const ang = -Math.PI / 2 + (j - 2) * 0.6, r0 = (3 + 4 * e) * s, r1 = (5 + 8 * e) * s; ctx.beginPath(); ctx.moveTo(X(m.x) + Math.cos(ang) * r0, Y(m.y) + Math.sin(ang) * r0); ctx.lineTo(X(m.x) + Math.cos(ang) * r1, Y(m.y) + Math.sin(ang) * r1); ctx.stroke(); }
+        ctx.strokeStyle = hexA('#ffd25a', 0.6 * a); ctx.beginPath(); ctx.arc(X(m.x), Y(m.y), (3 + 8 * e) * s, 0, TAU); ctx.stroke();
+        glow(X(m.x), Y(m.y), 9 * s, '#ffffff', 0.8 * a);
+      } else if (m.kind === 'mark') {   // the landing spot: a darkening shadow and a burning ring on the floor
+        const e = k * k, x = X(m.x), y = Y(m.y), rx = (m.w * (0.5 + 0.7 * e)) * s;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = `rgba(10,4,4,${0.15 + 0.45 * e})`; ctx.beginPath(); ctx.ellipse(x, y, rx, rx * 0.26, 0, 0, TAU); ctx.fill();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = hexA('#ff6a2a', (0.35 + 0.45 * e) * (0.75 + 0.25 * Math.sin(t / 50))); ctx.lineWidth = Math.max(1.5, s * 1.4);
+        ctx.beginPath(); ctx.ellipse(x, y, m.w * 1.15 * s, m.w * 0.3 * s, 0, 0, TAU); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(x, y, m.w * 1.15 * s * (1 - 0.35 * ((t / 600) % 1)), m.w * 0.3 * s * (1 - 0.35 * ((t / 600) % 1)), 0, 0, TAU); ctx.stroke();
+        // the sky turns red as it comes in
+        const sg = ctx.createLinearGradient(0, 0, 0, this.cv.height * 0.6); sg.addColorStop(0, `rgba(255,70,20,${0.3 * e})`); sg.addColorStop(1, 'rgba(255,70,20,0)');
+        ctx.fillStyle = sg; ctx.fillRect(0, 0, this.cv.width, this.cv.height * 0.6);
+      } else if (m.kind === 'rock') {   // the meteor: a burning rock with a long fiery tail
+        const e = Math.pow(k, 1.6), px = lerp(m.from.x, m.to.x, e), py = lerp(m.from.y, m.to.y, e);
+        const dx = m.to.x - m.from.x, dy = m.to.y - m.from.y, D = Math.hypot(dx, dy), ux = dx / D, uy = dy / D, nx = -uy, ny = ux;
+        const x = X(px), y = Y(py), R = m.R * s, Lt = R * (4 + 3 * k);
+        glow(x, y, R * 3.4, '#ff5a1a', 0.55);
+        const tail = (w, col0, col1, wob) => {   // a flame shape: round at the rock, tapering away behind it
+          const tx = x - ux * Lt, ty = y - uy * Lt, wb = Math.sin(t / 40) * R * wob;
+          const g = ctx.createLinearGradient(x, y, tx, ty); g.addColorStop(0, col0); g.addColorStop(1, col1);
+          ctx.beginPath(); ctx.moveTo(x + nx * R * w, y + ny * R * w);
+          ctx.quadraticCurveTo(x - ux * Lt * 0.5 + nx * (R * w * 0.8 + wb), y - uy * Lt * 0.5 + ny * (R * w * 0.8 + wb), tx, ty);
+          ctx.quadraticCurveTo(x - ux * Lt * 0.5 - nx * (R * w * 0.8 - wb), y - uy * Lt * 0.5 - ny * (R * w * 0.8 - wb), x - nx * R * w, y - ny * R * w);
+          ctx.arc(x, y, R * w, Math.atan2(-ny, -nx), Math.atan2(ny, nx), true);
+          ctx.closePath(); ctx.fillStyle = g; ctx.fill();
+        };
+        tail(1.45, 'rgba(255,60,20,0.55)', 'rgba(120,20,10,0)', 0.25);
+        tail(1.12, 'rgba(255,140,40,0.85)', 'rgba(255,60,20,0)', 0.18);
+        tail(0.75, 'rgba(255,230,150,0.95)', 'rgba(255,140,40,0)', 0.1);
+        // the rock itself, with glowing cracks, and a white-hot front where it cuts through the air
+        ctx.globalCompositeOperation = 'source-over';
+        const rg = ctx.createRadialGradient(x + ux * R * 0.3, y + uy * R * 0.3, R * 0.1, x, y, R * 0.85);
+        rg.addColorStop(0, '#8a3a18'); rg.addColorStop(0.6, '#4a1c10'); rg.addColorStop(1, '#22100a');
+        ctx.fillStyle = rg; ctx.beginPath();
+        for (let j = 0; j <= 14; j++) { const a = j / 14 * TAU, r = R * (0.78 + 0.07 * Math.sin(a * 3 + m.rot)); j ? ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r) : ctx.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r); }
+        ctx.closePath(); ctx.fill();
+        ctx.globalCompositeOperation = 'lighter';
+        const rot = m.rot + age * 0.004, cr = Math.cos(rot), sr = Math.sin(rot);
+        ctx.strokeStyle = 'rgba(255,170,60,0.9)'; ctx.lineWidth = Math.max(1, s * 1.1); ctx.lineJoin = 'round';
+        for (const c of m.cracks) { ctx.beginPath(); c.forEach(([u, v], j) => { const qx = x + (u * cr - v * sr) * R * 0.8, qy = y + (u * sr + v * cr) * R * 0.8; j ? ctx.lineTo(qx, qy) : ctx.moveTo(qx, qy); }); ctx.stroke(); }
+        const fa = Math.atan2(uy, ux);
+        ctx.shadowColor = '#ffb347'; ctx.shadowBlur = 12 * s;
+        ctx.strokeStyle = 'rgba(255,245,210,0.95)'; ctx.lineWidth = R * 0.22;
+        ctx.beginPath(); ctx.arc(x, y, R * 0.8, fa - 1.2, fa + 1.2); ctx.stroke();
+        ctx.shadowBlur = 0;
+        // embers and smoke shed behind it
+        for (let j = 0; j < 4; j++) { const a = Math.random() * TAU, r = m.R * 0.8; this.particles.push({ x: px + Math.cos(a) * r, y: py + Math.sin(a) * r, vx: -ux * (60 + Math.random() * 80) + (Math.random() - 0.5) * 40, vy: -uy * (60 + Math.random() * 80) + (Math.random() - 0.5) * 40, g: 20, life: 0.3 + Math.random() * 0.35, t: 0, c: ['#ffd25a', '#ff8a3c', '#ff5a1a', '#fff6c8'][j], streak: 2, drag: 0.9 }); }
+        if (Math.random() < 0.5) this.particles.push({ x: px - ux * m.R * 2, y: py - uy * m.R * 2, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12, g: -5, life: 0.8, t: 0, c: '#3a2a30', blob: 2, fade: true });
+      } else if (m.kind === 'boom') {   // the explosion: a dome of fire, a tall flash, and two shockwaves over the floor
+        const x = X(m.x), y = Y(m.y), W = m.w * s;
+        const rf = (14 + m.w * 1.25 * eo(k / 0.3)) * s, af = k < 0.2 ? 1 : Math.max(0, 1 - (k - 0.2) / 0.6);
+        glow(x, y - rf * 0.35, rf * 1.6, '#ff5a1a', 0.5 * af * af);
+        const g = ctx.createRadialGradient(x, y - rf * 0.3, 0, x, y - rf * 0.3, rf);
+        g.addColorStop(0, `rgba(255,255,240,${af})`); g.addColorStop(0.25, `rgba(255,230,140,${0.95 * af})`); g.addColorStop(0.55, `rgba(255,140,40,${0.8 * af})`); g.addColorStop(0.85, `rgba(220,50,20,${0.45 * af})`); g.addColorStop(1, 'rgba(120,20,10,0)');
+        ctx.save(); ctx.translate(x, y - rf * 0.3); ctx.scale(1.25, 0.95); ctx.translate(-x, -(y - rf * 0.3)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y - rf * 0.3, rf, 0, TAU); ctx.fill(); ctx.restore();
+        if (k < 0.4) { const ca = 1 - k / 0.4; ctx.save(); ctx.translate(x, y - 60 * s); ctx.scale(0.35, 2.4); glow(0, 0, 50 * s, '#fff2c0', 0.8 * ca); ctx.restore(); }
+        for (const [d, col, wd] of [[0, '#ffb347', 5], [0.12, '#ffffff', 2]]) {
+          const q = (k - d) / 0.65; if (q < 0 || q > 1) continue;
+          const r = (10 + W / s * 1.7 * eo(q)) * s;
+          ctx.strokeStyle = hexA(col, 0.9 * (1 - q)); ctx.lineWidth = Math.max(1.5, s * wd * (1 - q));
+          ctx.beginPath(); ctx.ellipse(x, y + s, r, r * 0.26, 0, 0, TAU); ctx.stroke();
+        }
+      } else if (m.kind === 'burn') {   // fire left burning on the floor, dying down
+        const left = 1 - k;
+        glow(X(m.x), Y(m.y - 6), m.w * 1.3 * s, '#ff6a2a', 0.35 * left);
+        const n = Math.round((this.lowPower ? 2 : 4) * left + 0.5);
+        for (let j = 0; j < n; j++) { const fx = m.x + (Math.random() - 0.5) * m.w * 2, fy = m.y + (Math.random() - 0.5) * 8; this.particles.push({ x: fx, y: fy, vx: (Math.random() - 0.5) * 8, vy: -25 - Math.random() * 35, g: -10, life: 0.35 + Math.random() * 0.35, t: 0, c: ['#ff6a2a', '#ffb347', '#ffd25a'][j % 3], blob: Math.random() < 0.35 ? 1 : 0, fade: true }); }
+      }
+    }
+    ctx.restore();
+  }
 
   // Champion's Combo with its PixelLab animation (anims.combo): dash in, three slashes (slashAt), lift the sword and
   // hold it up while a big electric aura charges round the blade (holdAt), a downward slash that throws a slash arc
@@ -1688,6 +1889,7 @@ export class BattleScene {
     this.drawTrails(ctx, t, sx, sy);
     this.drawXHits(ctx, t, sx, sy);
     this.drawBigArcs(ctx, t, sx, sy);
+    this.drawMeteors(ctx, t, sx, sy);
     this.drawOverlays(ctx, t, sx, sy);
     this.applyCam(ctx, t);
   }

@@ -69,6 +69,11 @@ const SFX = {
   lose: () => { [392, 330, 262].forEach((f, i) => tone(f, 0.4, { type: 'triangle', vol: 0.12, delay: i * 0.22 })); },
   vote: () => { tone(660, 0.08, { type: 'sine', vol: 0.1 }); },
   banner: () => { noise(0.5, { freq: 300, q: 0.5, vol: 0.15, type: 'lowpass', slide: 2 }); },
+  crush: () => { noise(0.18, { freq: 500, q: 0.9, vol: 0.32, type: 'lowpass', slide: 0.5 }); noise(0.35, { freq: 2500, q: 0.6, vol: 0.1, slide: 0.4, delay: 0.05 }); },   // a fist closing on a flame
+  snap: () => { noise(0.04, { freq: 3800, q: 1.5, vol: 0.5 }); tone(1900, 0.05, { type: 'square', vol: 0.05, slide: 0.6 }); },   // finger snap
+  rise: () => { tone(500, 0.5, { type: 'sine', vol: 0.08, slide: 3 }); noise(0.4, { freq: 3000, q: 3, vol: 0.06, slide: 2 }); },
+  fall: () => { noise(0.75, { freq: 300, q: 0.8, vol: 0.35, slide: 3.5 }); tone(200, 0.7, { type: 'sawtooth', vol: 0.08, slide: 0.35 }); },   // meteor screaming in
+  boom: () => { noise(1.1, { freq: 500, q: 0.5, vol: 0.7, type: 'lowpass', slide: 0.25 }); tone(60, 0.9, { type: 'sine', vol: 0.55, slide: 0.5 }); noise(0.3, { freq: 2200, q: 0.6, vol: 0.25, slide: 0.3 }); },
   whoosh: () => { noise(0.22, { freq: 1200, q: 0.6, vol: 0.22, slide: 2.2 }); }
 };
 

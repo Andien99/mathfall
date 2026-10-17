@@ -344,6 +344,137 @@
      "ring": null,
      "upswing": null,
      "dashAt": null
+    },
+    "meteor": {
+     "sheet": "mage_meteor.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 19,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       120
+      ],
+      [
+       1,
+       140
+      ],
+      [
+       2,
+       220
+      ],
+      [
+       3,
+       220
+      ],
+      [
+       4,
+       70
+      ],
+      [
+       5,
+       70
+      ],
+      [
+       6,
+       120
+      ],
+      [
+       7,
+       230
+      ],
+      [
+       8,
+       230
+      ],
+      [
+       9,
+       160
+      ],
+      [
+       10,
+       420
+      ],
+      [
+       11,
+       90
+      ],
+      [
+       12,
+       70
+      ],
+      [
+       13,
+       160
+      ],
+      [
+       14,
+       300
+      ],
+      [
+       15,
+       420
+      ],
+      [
+       16,
+       200
+      ],
+      [
+       17,
+       160
+      ],
+      [
+       18,
+       300
+      ]
+     ],
+     "hit": 16,
+     "loop": null,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null,
+     "slashAt": null,
+     "holdAt": null,
+     "arcAt": null,
+     "blade": null,
+     "meteor": {
+      "liftAt": 0,
+      "crushAt": 6,
+      "openAt": 9,
+      "sparkAt": 10,
+      "snapAt": 13,
+      "downAt": 16,
+      "palm": [
+       25,
+       -41
+      ],
+      "snapTip": [
+       17,
+       -62
+      ],
+      "lift": 30,
+      "flame": "#ff8a3c"
+     }
     }
    }
   },
@@ -691,6 +822,137 @@
      "ring": null,
      "upswing": null,
      "dashAt": null
+    },
+    "meteor": {
+     "sheet": "mage_m_meteor.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 19,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       120
+      ],
+      [
+       1,
+       140
+      ],
+      [
+       2,
+       220
+      ],
+      [
+       3,
+       220
+      ],
+      [
+       4,
+       70
+      ],
+      [
+       5,
+       70
+      ],
+      [
+       6,
+       120
+      ],
+      [
+       7,
+       230
+      ],
+      [
+       8,
+       230
+      ],
+      [
+       9,
+       160
+      ],
+      [
+       10,
+       420
+      ],
+      [
+       11,
+       90
+      ],
+      [
+       12,
+       70
+      ],
+      [
+       13,
+       160
+      ],
+      [
+       14,
+       300
+      ],
+      [
+       15,
+       420
+      ],
+      [
+       16,
+       200
+      ],
+      [
+       17,
+       160
+      ],
+      [
+       18,
+       300
+      ]
+     ],
+     "hit": 16,
+     "loop": null,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null,
+     "slashAt": null,
+     "holdAt": null,
+     "arcAt": null,
+     "blade": null,
+     "meteor": {
+      "liftAt": 0,
+      "crushAt": 6,
+      "openAt": 9,
+      "sparkAt": 10,
+      "snapAt": 13,
+      "downAt": 16,
+      "palm": [
+       21,
+       -36
+      ],
+      "snapTip": [
+       16,
+       -54
+      ],
+      "lift": 30,
+      "flame": "#5ab8ff"
+     }
     }
    }
   },
