@@ -45,6 +45,11 @@ const PFX = {
   sArrow: FX_SHEET('starfall_arrow.png', 64, 24, 3, 6, 10, 32, 12, true),
   sBurst: FX_SHEET('starfall_burst.png', 96, 96, 4, 10, 12, 48, 48, false),
   sImpact: FX_SHEET('starfall_impact.png', 64, 56, 4, 12, 14, 32, 44, false),
+  // Phantom Volley (ranger): the spectral charge on the arrowhead, the ghost arrow (points right, anchored on its tip; rotated
+  // in code) and the spectral impact that breaks into blue-violet wisps
+  pCharge: FX_SHEET('phantom_charge.png', 48, 48, 3, 8, 10, 24, 24, true),
+  pArrow: FX_SHEET('phantom_arrow.png', 64, 24, 3, 6, 10, 60, 12, true),
+  pImpact: FX_SHEET('phantom_impact.png', 64, 56, 4, 12, 16, 32, 38, false),
   // Wrath of Heaven (cleric): halo above the head, holy aura round the body, the mark on the ground, the pillar of light, the impact, the sigil left behind
   wHalo: FX_SHEET('wrath_halo.png', 48, 24, 3, 8, 12, 24, 12, true),
   wAura: FX_SHEET('wrath_aura.png', 64, 96, 3, 8, 12, 32, 88, true),
@@ -465,6 +470,7 @@ export class BattleScene {
     if (fx === 'meteor') { const own = SP.heroAnim(A.skin || A.cls, 'meteor'); if (own && own.meteor) return this._meteorAnim(A, ev, T, own); }
     if (fx === 'quake') { const own = SP.heroAnim(A.skin || A.cls, 'quake'); if (own && own.quake) return this._quakeAnim(A, ev, T, own); }
     if (ev.skill === 'wrath_of_heaven' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'chant'); if (own) return this._wrathAnim(A, ev, T, own); }
+    if (fx === 'phantom' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'shoot'); if (own && own.release != null && own.charge != null) return this._phantomAnim(A, ev, T, own); }
     if (fx === 'starfall' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'volley'); if (own && own.charge != null) return this._starfallAnim(A, ev, T, own); }
     if (ev.skill === 'dragons_wrath' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'cast'); if (own && own.muzzle) return this._dragonAnim(A, ev, T, own); }
     if (!ev._pre) {
@@ -736,7 +742,7 @@ export class BattleScene {
         const colr = { slash_heavy: '#ff9a3c', slash_wide: '#ffd0a0', proj_fire: '#ff8a3c', proj_firearrow: '#ff8a3c', flamewave: '#ff8a3c', proj_arcane: '#b8a6ff', missiles: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', timestop: '#cfe8ff', proj_poison: '#9cff6b', venom: '#9cff6b', phantom: '#a8ffe0', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8', radiance: '#fff0a8', pillar: '#fff2a8', quake: '#e0a060', combo: '#ffb347', xslash: '#9fd8ff', ricochet: '#fff2c0' }[fx] || '#ffffff';
         this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy');
         this.elementHit(p.x, p.y - 16, { proj_firearrow: 'proj_fire', flamewave: 'proj_fire', missiles: 'proj_arcane', timestop: 'proj_ice' }[fx] || fx);
-        this.glows.push({ x: p.x, y: p.y - 16, r: 34 + Math.min(40, t.dmg * 1.5), color: colr, t: 0, life: 0.35, a: 0.8 });
+        if (fx !== 'phantom' || !this.pixelFx) this.glows.push({ x: p.x, y: p.y - 16, r: 34 + Math.min(40, t.dmg * 1.5), color: colr, t: 0, life: 0.35, a: 0.8 });   // Phantom Volley: its own small flashes
         if (['slash', 'slash_heavy', 'slash_wide', 'shadow'].includes(fx)) this.arc(p.x, p.y - 18, fx === 'slash_heavy' ? 20 : 15, colr === '#ffffff' ? '#e8f4ff' : colr);
         if (t.splash) this.burst(p.x, p.y - 12, '#ff8a3c', 24, 50);
         if (t.dmg > 0) { this.flashActor(p.a); this.pose(p.a, 'hurt', 260); this.hitShake(p.a, t.dmg); }
@@ -1140,6 +1146,33 @@ export class BattleScene {
       }   // as wide as the enemy field; the enemies show through it
       else if (m.kind === 'wimpact') frame(PFX.wImpact, age, 1, m.x, m.y);
       else if (m.kind === 'wafter') frameXY(PFX.wAfter, age, m.sx, m.sy, m.x, m.y);
+      else if (m.kind === 'pcharge') {   // Phantom Volley: spirit motes spiral in round the arrow; the charge orb once the bow is drawn
+        if (age >= m.orb) frame(PFX.pCharge, age - m.orb, 1, m.x, m.y);
+        if (age < m.life - 40 && Math.random() < (age >= m.orb ? 0.85 : 0.5) * (this.lowPower ? 0.5 : 1)) {
+          const q = Math.random() * Math.PI * 2, r = 9 + Math.random() * 13, cq = Math.cos(q), sq = Math.sin(q);
+          this.particles.push({ x: m.x + cq * r, y: m.y + sq * r, vx: (-cq * 1.7 - sq * 2.4) * r, vy: (-sq * 1.7 + cq * 2.4) * r, g: 0, life: 0.32, t: 0,
+            c: ['#7affd8', '#c8fff0', '#a8c8ff', '#b48cff'][Math.floor(Math.random() * 4)], plus: Math.random() < 0.2, fade: true });
+        }
+      }
+      else if (m.kind === 'pimpact') frame(PFX.pImpact, age, 1, m.x, m.y);
+      else if (m.kind === 'parrow') {   // a ghost arrow: thin luminous trail (cyan to violet), two after-images, the arrow
+        const k = Math.min(1, age / m.life), P = this._pvAt(m, k);
+        m.pts.push({ x: P.x, y: P.y, t }); while (m.pts.length > 2 && t - m.pts[0].t > 140) m.pts.shift();
+        for (let j = 1; j < m.pts.length; j++) { const q = j / m.pts.length; n.globalAlpha = m.a * (0.25 + 0.75 * q); this.pxLine(n, m.pts[j - 1], m.pts[j], q > 0.65 ? '#7affd8' : q > 0.3 ? '#8fb8ff' : '#9a7aff'); }
+        const S = PFX.pArrow;
+        if (S.img.complete && S.img.naturalWidth) {
+          const f = Math.floor(age / 1000 * S.fps) % S.n;
+          for (const [lag, al] of [[60, 0.2], [30, 0.4], [0, 1]]) {
+            if (lag && age < lag) continue;
+            const Q = lag ? this._pvAt(m, Math.max(0, (age - lag) / m.life)) : P;
+            n.save(); n.globalAlpha = m.a * al; if (lag) n.globalCompositeOperation = 'lighter';
+            n.translate(Math.round(Q.x), Math.round(Q.y)); n.rotate(Math.atan2(Q.dy, Q.dx));
+            n.drawImage(S.img, (f % S.cols) * S.w, Math.floor(f / S.cols) * S.h, S.w, S.h, -S.ax, -S.ay, S.w, S.h); n.restore();
+          }
+        }
+        n.globalAlpha = 1;
+        if (Math.random() < 0.5) this.particles.push({ x: P.x, y: P.y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10 - 4, g: 0, life: 0.3 + Math.random() * 0.25, t: 0, c: Math.random() < 0.5 ? '#9a7aff' : '#a8ffe0', fade: true });
+      }
       else if (m.kind === 'scharge') { const tip = this._tipAt(m.follow); if (tip) frame(PFX.sCharge, age, 1, tip.x, tip.y); }
       else if (m.kind === 'sburst') frame(PFX.sBurst, age, 1, m.x, m.y);
       else if (m.kind === 'simpact') frame(PFX.sImpact, age, 1, m.x, m.y);
@@ -1231,6 +1264,116 @@ export class BattleScene {
     }
     setTimeout(() => this._applyAfter(ev), T(end + 80));
     return T(Math.max(acc, end + 700));
+  }
+  // a ghost arrow's point and heading along its curve (quadratic bezier from -> ctrl -> to)
+  _pvAt(m, k) {
+    const u = 1 - k;
+    return { x: u * u * m.from.x + 2 * u * k * m.ctrl.x + k * k * m.to.x, y: u * u * m.from.y + 2 * u * k * m.ctrl.y + k * k * m.to.y,
+      dx: 2 * u * (m.ctrl.x - m.from.x) + 2 * k * (m.to.x - m.ctrl.x), dy: 2 * u * (m.ctrl.y - m.from.y) + 2 * k * (m.to.y - m.ctrl.y) };
+  }
+  // Phantom Volley with PixelLab effects (public/art/fx/phantom_*), built on the ranger's Shoot animation:
+  // 1. Phantom draw: the draw plays twice as fast while cyan after-images of the arms and bow trail behind (the sprite's
+  //    own silhouette, so only the moving parts show), and spirit motes spiral in round the arrowhead; at full draw the
+  //    spectral charge glows on the tip.
+  // 2. Rapid release: up to three arrows, release - recoil - redraw, each with a sharp cyan flash at the bow.
+  // 3. Spectral duplication: halfway to the enemies each arrow flashes and splits into phantom copies (one per hit it
+  //    carries, plus a stray or two) that fan out on different curves, staggered so they trail after-images.
+  // 4. Phantom barrage: each copy strikes with a small cyan flash and spectral burst (its own damage number and Poison).
+  // 5. Spirit dissipation: the arrows vanish into blue-violet wisps, their trails break into drifting motes, and the
+  //    ranger recoils back to idle.
+  _phantomAnim(A, ev, T, shoot) {
+    const isEnemy = id => { const a = this.actors.get(id); return !!a && a.type === 'enemy'; };
+    const tgt = ev.targets.filter(t => !t.shatter && isEnemy(t.id) && (t.dmg != null || t.status));
+    const ens = [...new Set(tgt.map(t => t.id))].map(id => this.actors.get(id)).filter(Boolean);
+    const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
+    if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
+    if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    if (!ens.length) { this._applyAfter(ev); return T(600); }
+    // the timeline: a fast draw, a held full draw, then release / recoil / redraw for each arrow, then the recoil to idle
+    const frs = shoot.timeline.map(x => x[0]), C0 = shoot.charge, R0 = shoot.release, R1 = frs.includes(R0 + 1) ? R0 + 1 : R0;
+    const nShots = Math.min(3, tgt.length);
+    const tl = [];
+    for (const f of frs) if (f < C0) tl.push([f, 38]);
+    const holdIdx = tl.length; tl.push([C0, 640]);
+    const relIdx = [];
+    for (let i = 0; i < nShots; i++) { relIdx.push(tl.length); tl.push([R0, 50], [R1, 55]); if (i < nShots - 1) tl.push([C0, 85]); }
+    const tail = shoot.timeline.filter(x => x[0] > R1);
+    if (tail.length) for (const x of tail) tl.push([x[0], x[1]]); else tl.push([R1, 220]);
+    const anim = Object.assign({}, shoot, { timeline: tl });
+    const at = []; let acc = 0; for (const [, ms] of tl) { at.push(acc); acc += ms; }
+    const t0 = now(), lastRel = at[relIdx[nShots - 1]];
+    A.anim = { d: anim, t0, speed: T(1000) / 1000, at, total: acc };
+    setTimeout(() => { if (A.anim && A.anim.d === anim) A.anim = null; }, T(acc + 60));
+    this.cam = { x: A.x - 44, y: A.y - 38, t0, dur: T(at[relIdx[0]] + 160), z: 1.07 };
+    const [mx, my] = shoot.muzzle || [-30, -40];
+    const tip = { x: A.x + A.ox + mx, y: A.y + A.oy + my };
+    // 1. phantom draw: after-images of the moving arms and bow (cyan silhouettes behind the sprite) through the draw and
+    // every rapid release
+    const ghost = () => {
+      if (!A.anim || A.anim.d !== anim) return;
+      const an = this._animAt(A, now()); if (!an) return;
+      this.ghosts.push({ img: this.tinted(an.wh, '#7affd8'), x: Math.round(A.x + A.ox - an.ax), y: Math.round(A.y + A.oy - an.ay), t0: now(), life: T(230), a: 0.55, add: true });
+    };
+    for (let ms = 0; ms < at[holdIdx] + 80; ms += 40) setTimeout(ghost, T(ms));
+    for (let ms = at[relIdx[0]]; ms < lastRel + 170; ms += 35) setTimeout(ghost, T(ms));
+    this.mets.push({ kind: 'pcharge', x: tip.x, y: tip.y, t0, orb: T(at[holdIdx]), life: T(lastRel + 60) });
+    sfx('charge');
+    setTimeout(() => { sfx('twinkle'); this.glows.push({ x: tip.x, y: tip.y, r: 16, color: '#7affd8', t: 0, life: 0.35, a: 0.8 }); }, T(at[holdIdx]));
+    // which records each arrow carries (round robin), and where it splits: about halfway, a little above the line
+    const groups = Array.from({ length: nShots }, () => []);
+    tgt.forEach((r, i) => groups[i % nShots].push(r));
+    const cx = ens.reduce((a, e) => a + e.x, 0) / ens.length, topY = Math.min(...ens.map(e => e.y)) - 30;
+    const last = {}; tgt.forEach((t, i) => { last[t.id] = i; });
+    let end = 0;
+    groups.forEach((recs, i) => {
+      const rel = at[relIdx[i]];
+      // the arrows climb to split points well above the enemies, so the copies always have room to fan down onto them
+      const split = { x: lerp(tip.x, cx, 0.55) + (i - 1) * 14, y: Math.max(22, Math.min(tip.y, topY) - 44 - i * 9) };
+      const fly1 = clamp(Math.hypot(split.x - tip.x, split.y - tip.y) * 1.3, 130, 210);
+      // 2. rapid release: a sharp cyan flash at the bow and the arrow away
+      setTimeout(() => {
+        this.glows.push({ x: tip.x, y: tip.y, r: 26, color: '#c8fff0', t: 0, life: 0.18, a: 1 });
+        this.burst(tip.x, tip.y, '#7affd8', 8, 46, 0);
+        this.mets.push({ kind: 'parrow', from: tip, ctrl: { x: lerp(tip.x, split.x, 0.35), y: tip.y - 6 }, to: split, t0: now(), life: T(fly1), a: 1, pts: [] });
+        sfx('bow'); if (i === 0) sfx('whoosh');
+      }, T(rel));
+      // 3. spectral duplication: a flash, then the copies fan out on their own curves, staggered
+      const sAt = rel + fly1;
+      setTimeout(() => {
+        this.glows.push({ x: split.x, y: split.y, r: 8, grow: 22, color: '#7affd8', t: 0, life: 0.28, a: 0.9, ring: true });
+        this.glows.push({ x: split.x, y: split.y, r: 22, color: '#c8fff0', t: 0, life: 0.2, a: 0.9 });
+        sfx('twinkle');
+      }, T(sAt));
+      const shots = recs.map(r => ({ rec: r, e: this.actors.get(r.id) })).filter(c => c.e);
+      const strays = this.lowPower ? 1 : 2;
+      for (let k = 0; k < strays; k++) shots.splice(1 + k * 2, 0, { e: ens[Math.floor(Math.random() * ens.length)] });
+      shots.forEach((c, j) => {
+        const hp = this._hitPoint(c.e);
+        const to = c.rec ? { x: hp.x + (Math.random() - 0.5) * 8, y: hp.y + (Math.random() - 0.5) * 8 }
+          : { x: c.e.x + (Math.random() < 0.5 ? -1 : 1) * (16 + Math.random() * 20), y: c.e.y - 1 + (Math.random() - 0.5) * 8 };
+        const d = Math.hypot(to.x - split.x, to.y - split.y), side = (j % 2 ? 1 : -1) * (8 + Math.random() * 20);
+        const ctrl = { x: (split.x + to.x) / 2 + side * (to.y - split.y) / Math.max(1, d), y: (split.y + to.y) / 2 - side * (to.x - split.x) / Math.max(1, d) - 8 };
+        const fly2 = clamp(d * 1.25, 180, 300), go = sAt + j * 42;
+        let met = null;
+        setTimeout(() => { met = { kind: 'parrow', from: split, ctrl, to, t0: now(), life: T(fly2), a: j === 0 ? 1 : c.rec ? 0.8 : 0.6, pts: [] }; this.mets.push(met); }, T(go));
+        // 4. phantom barrage: a small cyan flash and spectral burst on each strike
+        setTimeout(() => {
+          this.mets.push({ kind: 'pimpact', x: to.x, y: to.y + (c.rec ? 12 : 4), t0: now(), life: T(760) });
+          // 5. spirit dissipation: blue-violet wisps rise off the strike and the trail breaks into drifting motes
+          const lp = this.lowPower ? 0.5 : 1;
+          for (let q = 0; q < 10 * lp; q++) this.particles.push({ x: to.x + (Math.random() - 0.5) * 8, y: to.y + (Math.random() - 0.5) * 8, vx: (Math.random() - 0.5) * 34, vy: -18 - Math.random() * 34, g: -8, life: 0.5 + Math.random() * 0.5, t: 0, c: ['#7affd8', '#a8c8ff', '#9a7aff', '#c8fff0', '#b48cff'][q % 5], plus: q % 4 === 0, fade: true, drag: 0.94 });
+          if (met) met.pts.forEach((p, q) => { if (q % 2 && Math.random() < 0.8 * lp) this.particles.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 14, vy: -6 - Math.random() * 14, g: -4, life: 0.4 + Math.random() * 0.4, t: 0, c: q / met.pts.length > 0.5 ? '#7affd8' : '#9a7aff', fade: true }); });
+          if (c.rec) {
+            this.impact(ev, tgt, 'phantom', rc, [c.rec], true);
+            this.shake = Math.max(this.shake, 2); this.shakeT = now();
+            if (last[c.rec.id] === tgt.indexOf(c.rec)) this._applyAfter(ev, [c.rec.id]);
+          }
+        }, T(go + fly2));
+        end = Math.max(end, go + fly2);
+      });
+    });
+    setTimeout(() => { const rest = ev.targets.filter(t => !tgt.includes(t) && t.heal); if (rest.length) this.impact(ev, [], 'phantom', rc, rest, true); this._applyAfter(ev); }, T(end + 80));
+    return T(Math.max(acc, end + 650));
   }
   // Wrath of Heaven with PixelLab effects (public/art/fx/wrath_*): the cleric's Chant animation raises the staff and holds
   // it (divine invocation: a golden halo above the head, holy symbols spiralling round the body, the robes glowing).
@@ -1606,6 +1749,9 @@ export class BattleScene {
       } else if (m.kind === 'wmark') { glow(X(m.x), Y(m.y), (26 + 18 * k) * s * (m.sx || 1) * 0.8, '#ffd86a', 0.25 + 0.45 * k);
       } else if (m.kind === 'wring') { ctx.save(); ctx.translate(X(m.x), Y(m.y)); ctx.scale(1, m.q); glow(0, 0, m.w * 0.55 * s, '#ffd86a', (0.12 + 0.2 * k) * Math.min(1, age / 260)); ctx.restore();
       } else if (m.kind === 'whalo') { const a = m.follow; glow(X(a.x + a.ox - 2), Y(a.y + a.oy - 66), 22 * s, '#ffe9a0', 0.55); glow(X(a.x + a.ox), Y(a.y + a.oy - 28), 40 * s, '#ffd86a', 0.25);
+      } else if (m.kind === 'pcharge') { const g0 = Math.min(1, age / Math.max(1, m.orb)); glow(X(m.x), Y(m.y), (8 + 16 * g0 + (age > m.orb ? 3 * Math.sin(age / 60) : 0)) * s, '#7affd8', 0.35 + 0.35 * g0);
+      } else if (m.kind === 'parrow') { const P = this._pvAt(m, Math.min(1, age / m.life)); glow(X(P.x), Y(P.y), 15 * s, '#7affd8', 0.55 * m.a);
+      } else if (m.kind === 'pimpact') { if (k < 0.3) glow(X(m.x), Y(m.y - 12), 16 * s, '#a8ffe0', 0.5 * (1 - k / 0.3)); else glow(X(m.x), Y(m.y - 16), 18 * s, '#9a7aff', 0.25 * (1 - k));
       } else if (m.kind === 'scharge') { const tip = this._tipAt(m.follow); if (tip) glow(X(tip.x), Y(tip.y), (16 + 14 * Math.min(1, k * 1.5)) * s, '#9fd0ff', 0.7);
       } else if (m.kind === 'sarrow' || m.kind === 'sdrop') { const kk = Math.min(1, age / m.life); let x, y; if (m.kind === 'sarrow') { const u = 1 - kk; x = u * u * m.from.x + 2 * u * kk * m.ctrl.x + kk * kk * m.to.x; y = u * u * m.from.y + 2 * u * kk * m.ctrl.y + kk * kk * m.to.y; } else { x = lerp(m.from.x, m.to.x, kk * kk); y = lerp(m.from.y, m.to.y, kk * kk); } glow(X(x), Y(y), 18 * s, '#a8c8ff', 0.6);
       } else if (m.kind === 'daura') {   // Dragon's Wrath: the mage's fiery aura, embers rising off the floor, energy pulled into her hand
@@ -2285,7 +2431,8 @@ export class BattleScene {
     for (let i = this.ghosts.length - 1; i >= 0; i--) {   // after-images (the Minotaur's charge)
       const g = this.ghosts[i]; const k = (t - g.t0) / g.life;
       if (k >= 1) { this.ghosts.splice(i, 1); continue; }
-      n.globalAlpha = 0.38 * (1 - k); n.drawImage(g.img, g.x, g.y); n.globalAlpha = 1;
+      n.globalAlpha = (g.a || 0.38) * (1 - k); if (g.add) n.globalCompositeOperation = 'lighter';
+      n.drawImage(g.img, g.x, g.y); n.globalAlpha = 1; n.globalCompositeOperation = 'source-over';
     }
     if (this.pixelFx) this.drawBehindFx(n, t);   // Dragon's Wrath: the eyes and the dragon while it is still behind the mage
     // actors sorted by depth
