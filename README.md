@@ -125,7 +125,7 @@ To test multiplayer on one computer, open the student page in several **separate
 - A student who refreshes or drops out rejoins automatically as the same hero, with their open question restored. Rejoining with the same name also reclaims a disconnected hero. The teacher's page also resumes after a refresh.
 - A disconnected student never holds up their team: rounds and votes only wait for connected players.
 - The server marks every answer and resolves every action. Correct answers are never sent to the browser, each question can only be answered once, and duplicate or stale submissions are ignored.
-- Sound is generated in the browser (no audio files). iPads need one tap before sound can play.
+- Sound effects are 8-bit WAVs in `public/sfx/` (37 sounds, about 340 KB), made with **sfxr** (the classic retro game-sound tool, via its JavaScript port jsfxr) by `node tools/build_sfx.js`. Each sound is one sfxr patch or a few layered ones; the jingles (correct answer, chest, victory, defeat, battle start) are short tunes on NES-style square and triangle-like voices. `tools/build_sfx.js` also sets each sound's loudness (`LEVEL`) and writes `public/sfx/manifest.json`. Hits, slashes and arrows play at a slightly random pitch so repeats don't sound identical. `/dev/sounds.html` is a sound board for hearing every effect. The files download when the page opens and play after the first tap (iPads need one tap before sound can play); until then, or if they fail to load, a small built-in synth plays instead. To change a sound, edit its patch in `tools/build_sfx.js` and re-run it (or `node tools/build_sfx.js hit coin` for just those).
 - The battle scene drops to a lighter mode by itself if a device struggles. Try it on a typical school Chromebook before a lesson.
 
 ## Replacing the art
@@ -249,7 +249,7 @@ public/js/pixel.js   pixel drawing toolkit (shading, outlines)
 public/js/dungeon.js generated dungeon backdrops
 public/js/mapview.js tower map (vertical parchment scroll) and voting
 public/js/question.js question panel and on-screen maths keypad
-public/js/audio.js   generated sound effects
+public/js/audio.js   plays the 8-bit sound effects (public/sfx/, built by tools/build_sfx.js)
 public/css/          styles        public/fonts, public/vendor   fonts and KaTeX (self-hosted)
 test/                answer-marking tests and the multiplayer bot test
 render.yaml          one-click Render deployment

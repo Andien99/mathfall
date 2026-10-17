@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sounds</title>
+<link rel="stylesheet" href="/css/fonts.css">
+<style>body{background:#16142a;color:#eee;font:14px "Alegreya Sans",sans-serif;margin:12px} h2{font-size:15px;margin:14px 0 6px;color:#e8b85a}
+p{color:#b8b4d8;margin:4px 0 10px}.g{display:flex;flex-wrap:wrap;gap:6px}
+button{font:inherit;color:#eee;background:#221f3d;border:2px solid #4a4580;border-radius:6px;padding:8px 12px;cursor:pointer;min-width:92px}
+button:hover{border-color:#e8b85a}button.on{background:#e8b85a;color:#16142a}
+label{margin-left:8px;color:#b8b4d8}</style></head><body>
+<h2>Mathfall sound board</h2>
+<p>Every 8-bit sound effect, as the game plays it (built by <code>node tools/build_sfx.js</code> into <code>public/sfx/</code>). Tap a button to hear it.
+<label><input type="checkbox" id="synth"> play the old synth instead</label></p>
+<div id="out"></div>
+<script type="module">
+import { sfx, unlockAudio } from '/js/audio.js';
+const GROUPS = {
+  'Interface': ['click', 'vote', 'coin', 'correct', 'wrong', 'banner', 'open', 'victory', 'lose'],
+  'Hero attacks and skills': ['slash', 'heavy', 'whirl', 'whoosh', 'bow', 'cast', 'zap', 'burn', 'poison', 'ice', 'heal', 'shield', 'focus', 'twinkle', 'charge', 'rise'],
+  'Impacts': ['hit', 'hitBig', 'stomp', 'crush', 'hurt', 'block', 'boom', 'fall'],
+  'Enemies': ['enemyWind', 'roar', 'hex', 'defeat']
+};
+const out = document.getElementById('out'), synth = document.getElementById('synth');
+for (const [title, names] of Object.entries(GROUPS)) {
+  const h = document.createElement('h2'); h.textContent = title;
+  const g = document.createElement('div'); g.className = 'g';
+  for (const n of names) {
+    const b = document.createElement('button'); b.textContent = n;
+    b.onclick = () => { unlockAudio(); window.__mfSynthOnly = synth.checked; sfx(n); b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 150); };
+    g.append(b);
+  }
+  out.append(h, g);
+}
+</script></body></html>

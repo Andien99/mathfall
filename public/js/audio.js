@@ -1,8 +1,46 @@
-// Synthesised sound effects (no audio files). Unlocks on the first tap, as iPads require.
+// 8-bit sound effects. The sounds are WAV files in public/sfx/, made with sfxr (jsfxr) by
+// tools/build_sfx.js. They download when the page opens and are decoded on the first tap, as
+// iPads require. Until a sound has loaded (or if loading fails) the small synth below plays.
 let ctx = null, master = null, enabled = true, noiseBuf = null;
 let lastPlay = {};
+const buffers = {}, gains = {};
+let raw = null;          // name -> Promise<ArrayBuffer>, started at page load
+const VARY = new Set(['hit', 'hitBig', 'slash', 'heavy', 'bow', 'stomp', 'block', 'hurt', 'crush', 'whoosh', 'coin']);
+
+try {
+  raw = fetch('/sfx/manifest.json').then(r => r.json()).then(man => {
+    const out = {};
+    for (const [name, gain] of Object.entries(man)) {
+      gains[name] = gain;
+      out[name] = fetch(`/sfx/${name}.wav`).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null);
+    }
+    return out;
+  }).catch(() => null);
+} catch (e) { raw = null; }
+
+function decodeAll() {
+  if (!raw || !ctx) return;
+  const c = ctx, src = raw; raw = null;   // decode once
+  src.then(files => {
+    if (!files) return;
+    for (const [name, p] of Object.entries(files)) p.then(ab => {
+      if (!ab) return;
+      const ok = b => { buffers[name] = b; }, bad = () => {};
+      try { const r = c.decodeAudioData(ab, ok, bad); if (r && r.catch) r.catch(bad); } catch (e) {}
+    });
+  });
+}
+function playBuffer(name) {
+  const b = buffers[name]; if (!b) return false;
+  const s = ctx.createBufferSource(); s.buffer = b;
+  if (VARY.has(name)) s.playbackRate.value = 0.93 + Math.random() * 0.14;   // so repeated hits don't sound identical
+  const g = ctx.createGain(); g.gain.value = gains[name] == null ? 0.5 : gains[name];
+  s.connect(g); g.connect(master); s.start();
+  return true;
+}
 
 export function setSound(on) { enabled = !!on; try { localStorage.setItem('mf_sound', on ? '1' : '0'); } catch (e) {} if (master) master.gain.value = on ? 0.5 : 0; }
+export function sfxLoaded() { return Object.keys(buffers).length; }
 export function soundOn() { return enabled; }
 try { const v = localStorage.getItem('mf_sound'); if (v === '0') enabled = false; } catch (e) {}
 
@@ -15,6 +53,7 @@ export function unlockAudio() {
     master.connect(comp); comp.connect(ctx.destination);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.6, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    decodeAll();
   } catch (e) { ctx = null; }
 }
 ['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, unlockAudio, { passive: true }));
@@ -36,6 +75,7 @@ function noise(dur, { freq = 1200, q = 1, vol = 0.3, type = 'bandpass', slide = 
   s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.05);
 }
 
+// Fallback synth, used only while the 8-bit files load.
 const SFX = {
   slash: () => { noise(0.16, { freq: 2600, q: 0.8, vol: 0.35, slide: 0.4 }); tone(320, 0.08, { type: 'triangle', vol: 0.08, slide: 0.6 }); },
   heavy: () => { noise(0.25, { freq: 1600, q: 0.7, vol: 0.45, slide: 0.3 }); tone(140, 0.2, { type: 'sawtooth', vol: 0.12, slide: 0.5 }); },
@@ -81,5 +121,5 @@ export function sfx(name) {
   const t = performance.now();
   if (lastPlay[name] && t - lastPlay[name] < 45) return;
   lastPlay[name] = t;
-  try { (SFX[name] || SFX.click)(); } catch (e) { /* ignore */ }
+  try { if (window.__mfSynthOnly || !playBuffer(name)) (SFX[name] || SFX.click)(); } catch (e) { /* ignore */ }
 }
