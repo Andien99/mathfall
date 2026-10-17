@@ -48,10 +48,10 @@ const PFX = {
   // Wrath of Heaven (cleric): halo above the head, holy aura round the body, the mark on the ground, the pillar of light, the impact, the sigil left behind
   wHalo: FX_SHEET('wrath_halo.png', 48, 24, 3, 8, 12, 24, 12, true),
   wAura: FX_SHEET('wrath_aura.png', 64, 96, 3, 8, 12, 32, 88, true),
-  wMark: FX_SHEET('wrath_mark.png', 80, 28, 3, 8, 12, 40, 16, true),
-  wPillar: FX_SHEET('wrath_pillar.png', 64, 256, 4, 14, 14, 32, 240, false),   // drawn at 2x
+  wMark: FX_SHEET('wrath_mark_wide.png', 192, 96, 3, 8, 8, 96, 51, true),   // ring ~180 x 70: stretched a little to the enemy field
+  wPillar: FX_SHEET('wrath_pillar_wide.png', 192, 256, 4, 14, 14, 96, 239, false),   // beam ~150 wide; drawn as additive light over the enemy field
   wImpact: FX_SHEET('wrath_impact.png', 128, 80, 4, 12, 15, 64, 67, false),
-  wAfter: FX_SHEET('wrath_after.png', 80, 48, 4, 12, 12, 40, 37, false)
+  wAfter: FX_SHEET('wrath_after_wide.png', 192, 96, 4, 12, 12, 96, 48, false)
 };
 const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') !== 'code'; } catch (e) { return true; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
@@ -1092,6 +1092,11 @@ export class BattleScene {
       n.drawImage(S.img, sx, sy, S.w, S.h, Math.round(x - S.ax * scale), Math.round(y - S.ay * scale), S.w * scale, S.h * scale);
       return true;
     };
+    const frameXY = (S, age, sx, sy, x, y) => {   // a frame stretched to sx by sy (the Wrath of Heaven circle, pillar and sigil cover the whole enemy side)
+      if (!S.img.complete || !S.img.naturalWidth) return;
+      let f = Math.floor(age / 1000 * S.fps); if (S.loop) f %= S.n; else if (f >= S.n) return;
+      n.drawImage(S.img, (f % S.cols) * S.w, Math.floor(f / S.cols) * S.h, S.w, S.h, Math.round(x - S.ax * sx), Math.round(y - S.ay * sy), Math.round(S.w * sx), Math.round(S.h * sy));
+    };
     for (const m of this.mets) {
       const age = t - m.t0; if (age < 0 || age > m.life) continue;
       if (m.kind === 'rock') { const e = Math.pow(age / m.life, 1.6); frame(PFX.rock, age, 2, lerp(m.from.x, m.to.x, e), lerp(m.from.y, m.to.y, e)); }
@@ -1105,10 +1110,10 @@ export class BattleScene {
       }
       else if (m.kind === 'whalo') frame(PFX.wHalo, age, 1, m.follow.x + m.follow.ox - 2, m.follow.y + m.follow.oy - 66);
       else if (m.kind === 'waura') frame(PFX.wAura, age, 1, m.follow.x + m.follow.ox, m.follow.y + m.follow.oy);
-      else if (m.kind === 'wmark') { n.globalAlpha = Math.min(1, 0.35 + age / m.life); frame(PFX.wMark, age * (1 + age / m.life), 1, m.x, m.y); n.globalAlpha = 1; }   // pulses faster and brighter
-      else if (m.kind === 'wpillar') frame(PFX.wPillar, age, 2, m.x, m.y);
+      else if (m.kind === 'wmark') { n.globalAlpha = Math.min(1, 0.35 + age / m.life); frameXY(PFX.wMark, age * (1 + age / m.life), m.sx, m.sy, m.x, m.y); n.globalAlpha = 1; }   // pulses faster and brighter
+      else if (m.kind === 'wpillar') { n.save(); n.globalCompositeOperation = 'lighter'; n.globalAlpha = 0.6; frameXY(PFX.wPillar, age, m.sx, 1, m.x, m.y); n.restore(); }   // as wide as the enemy field; the enemies show through it
       else if (m.kind === 'wimpact') frame(PFX.wImpact, age, 1, m.x, m.y);
-      else if (m.kind === 'wafter') frame(PFX.wAfter, age, 1, m.x, m.y);
+      else if (m.kind === 'wafter') frameXY(PFX.wAfter, age, m.sx, m.sy, m.x, m.y);
       else if (m.kind === 'scharge') { const tip = this._tipAt(m.follow); if (tip) frame(PFX.sCharge, age, 1, tip.x, tip.y); }
       else if (m.kind === 'sburst') frame(PFX.sBurst, age, 1, m.x, m.y);
       else if (m.kind === 'simpact') frame(PFX.sImpact, age, 1, m.x, m.y);
@@ -1212,6 +1217,9 @@ export class BattleScene {
     if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
     if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
     const t0 = now(), hitAt = at[anim.hit], PILLAR = 1170, LAND = 170;
+    // the whole enemy side: one circle, one pillar and one sigil sized to cover every enemy
+    const xs = ens.map(e => e.x), ys = ens.map(e => e.y), big = ens.some(e => e.size === 'xl') ? 80 : ens.some(e => e.size === 'l') ? 40 : 0;
+    const field = ens.length ? { cx: (Math.min(...xs) + Math.max(...xs)) / 2, cy: (Math.min(...ys) + Math.max(...ys)) / 2 + 1, w: Math.max(...xs) - Math.min(...xs) + 64 + big, h: Math.max(...ys) - Math.min(...ys) + 26, bottom: Math.max(...ys) + 2 } : null;
     const total = Math.max(acc, hitAt + PILLAR) + 300;
     A.anim = { d: anim, t0, speed: T(1000) / 1000, at, total: acc };
     setTimeout(() => { A.anim = null; }, T(acc + 60));
@@ -1226,23 +1234,23 @@ export class BattleScene {
     });
     // 2. heaven's mark under the target, pulsing brighter until the strike
     when(at[3], () => {
-      for (const e of ens) this.mets.push({ kind: 'wmark', x: e.x, y: e.y + 1, t0: now(), life: T(hitAt + LAND + 120 - at[3]) });
+      if (field) this.mets.push({ kind: 'wmark', x: field.cx, y: field.cy, sx: field.w / 180, sy: field.h / 70, t0: now(), life: T(hitAt + LAND + 120 - at[3]) });
       sfx('charge');
     });
     // 3. divine judgment: the pillar crashes down as the staff sweeps forward
     when(hitAt, () => {
-      for (const e of ens) this.mets.push({ kind: 'wpillar', x: e.x, y: e.y + 2, t0: now(), life: T(PILLAR) });
+      if (field) this.mets.push({ kind: 'wpillar', x: field.cx, y: field.bottom, sx: field.w / 150, w: field.w, t0: now(), life: T(PILLAR) });
       sfx('zap');
     });
     // 4. impact: the beam reaches the ground
     when(hitAt + LAND, () => {
       for (const e of ens) this.mets.push({ kind: 'wimpact', x: e.x, y: e.y + 2, t0: now(), life: T(860) });
-      this.flash = Math.max(this.flash || 0, 0.3); this.shake = Math.max(this.shake, 7); this.shakeT = now(); this.freezeUntil = now() + 120;
+      this.flash = Math.max(this.flash || 0, 0.16); this.shake = Math.max(this.shake, 7); this.shakeT = now(); this.freezeUntil = now() + 120;
       this.impact(ev, tgt, 'pillar', rc, ev.targets, true);
       sfx('hitBig');
     });
     // 5. afterglow: as the pillar retracts, a holy sigil is left on the ground and dissolves into golden sparkles
-    when(hitAt + PILLAR - 420, () => { for (const e of ens) this.mets.push({ kind: 'wafter', x: e.x, y: e.y + 2, t0: now(), life: T(1000) }); sfx('twinkle'); });
+    when(hitAt + PILLAR - 420, () => { if (field) this.mets.push({ kind: 'wafter', x: field.cx, y: field.cy, sx: field.w / 180, sy: field.h / 70, t0: now(), life: T(1000) }); sfx('twinkle'); });
     when(hitAt + LAND + 200, () => this._applyAfter(ev));
     return T(total);
   }
@@ -1400,8 +1408,8 @@ export class BattleScene {
         col(0.38, `rgba(255,245,200,${a})`, 'rgba(255,190,80,0)');
         ctx.fillStyle = hexA('#fff2c8', 0.8 * a); ctx.beginPath(); ctx.ellipse(x, y, W * 1.3, W * 0.35, 0, 0, TAU); ctx.fill();
         if (Math.random() < 0.6 * a) this.particles.push({ x: m.x + (Math.random() - 0.5) * m.w, y: m.y - Math.random() * m.h * up, vx: (Math.random() - 0.5) * 20, vy: -40 - Math.random() * 60, g: 0, life: 0.4, t: 0, c: Math.random() < 0.5 ? '#ffb347' : '#ff6a2a', fade: true });
-      } else if (m.kind === 'wpillar') { const a = k < 0.15 ? k / 0.15 : k > 0.7 ? Math.max(0, (1 - k) / 0.3) : 1; ctx.save(); ctx.translate(X(m.x), Y(m.y - 60)); ctx.scale(0.45, 2.6); glow(0, 0, 50 * s, '#fff2c0', 0.75 * a); ctx.restore(); glow(X(m.x), Y(m.y), 60 * s, '#ffe08a', 0.6 * a);
-      } else if (m.kind === 'wmark') { glow(X(m.x), Y(m.y), (26 + 18 * k) * s, '#ffd86a', 0.25 + 0.45 * k);
+      } else if (m.kind === 'wpillar') { const a = k < 0.15 ? k / 0.15 : k > 0.7 ? Math.max(0, (1 - k) / 0.3) : 1, r = Math.max(50, m.w * 0.75); ctx.save(); ctx.translate(X(m.x), Y(m.y - 60)); ctx.scale(0.75, 2.4); glow(0, 0, r * s, '#fff2c0', 0.7 * a); ctx.restore(); glow(X(m.x), Y(m.y), r * 1.2 * s, '#ffe08a', 0.6 * a);
+      } else if (m.kind === 'wmark') { glow(X(m.x), Y(m.y), (26 + 18 * k) * s * (m.sx || 1) * 0.8, '#ffd86a', 0.25 + 0.45 * k);
       } else if (m.kind === 'whalo') { const a = m.follow; glow(X(a.x + a.ox - 2), Y(a.y + a.oy - 66), 22 * s, '#ffe9a0', 0.55); glow(X(a.x + a.ox), Y(a.y + a.oy - 28), 40 * s, '#ffd86a', 0.25);
       } else if (m.kind === 'scharge') { const tip = this._tipAt(m.follow); if (tip) glow(X(tip.x), Y(tip.y), (16 + 14 * Math.min(1, k * 1.5)) * s, '#9fd0ff', 0.7);
       } else if (m.kind === 'sarrow' || m.kind === 'sdrop') { const kk = Math.min(1, age / m.life); let x, y; if (m.kind === 'sarrow') { const u = 1 - kk; x = u * u * m.from.x + 2 * u * kk * m.ctrl.x + kk * kk * m.to.x; y = u * u * m.from.y + 2 * u * kk * m.ctrl.y + kk * kk * m.to.y; } else { x = lerp(m.from.x, m.to.x, kk * kk); y = lerp(m.from.y, m.to.y, kk * kk); } glow(X(x), Y(y), 18 * s, '#a8c8ff', 0.6);

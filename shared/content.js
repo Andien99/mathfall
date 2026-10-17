@@ -190,8 +190,8 @@
       p: { heal: 10 }, desc: p => `Revive every fallen hero at half HP, and heal everyone ${p.heal}.`, allowDowned: true },
     divine_shield: { cls: 'cleric', name: 'Divine Shield', rarity: 'legendary', cost: 8, target: 'party', icon: 'divine_shield', fx: 'divine', color: '#fff6c8',
       p: {}, desc: () => 'A holy barrier: no hero takes damage from enemies this round.' },
-    wrath_of_heaven: { cls: 'cleric', name: 'Wrath of Heaven', rarity: 'legendary', cost: 8, target: 'enemy', icon: 'wrath', fx: 'pillar', color: '#fff0a8',
-      p: { dmg: 30, heal: 8 }, desc: p => `A pillar of light: ${p.dmg} damage to one enemy, and every hero heals ${p.heal}.` }
+    wrath_of_heaven: { cls: 'cleric', name: 'Wrath of Heaven', rarity: 'legendary', cost: 8, target: 'allEnemies', icon: 'wrath', fx: 'pillar', color: '#fff0a8',
+      p: { dmg: 16, heal: 8 }, desc: p => `A pillar of light over the whole battlefield: ${p.dmg} damage to every enemy, and every hero heals ${p.heal}.` }
   };
   const UNDEAD = ['skeleton', 'thrall', 'hollowking'];
 
