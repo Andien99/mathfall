@@ -412,11 +412,11 @@
       ],
       [
        13,
-       300
+       450
       ],
       [
        14,
-       400
+       560
       ],
       [
        15,
@@ -912,11 +912,11 @@
       ],
       [
        13,
-       300
+       450
       ],
       [
        14,
-       400
+       560
       ],
       [
        15,
@@ -3644,6 +3644,142 @@
      ],
      "arcAt": 34,
      "blade": 28
+    },
+    "quake": {
+     "sheet": "knight_quake.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 11,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       140
+      ],
+      [
+       1,
+       90
+      ],
+      [
+       2,
+       90
+      ],
+      [
+       3,
+       140
+      ],
+      [
+       4,
+       150
+      ],
+      [
+       5,
+       150
+      ],
+      [
+       6,
+       150
+      ],
+      [
+       7,
+       150
+      ],
+      [
+       8,
+       380
+      ],
+      [
+       9,
+       90
+      ],
+      [
+       10,
+       560
+      ]
+     ],
+     "hit": 9,
+     "loop": null,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": false,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": [
+      [
+       -8,
+       -55
+      ],
+      [
+       -56,
+       -94
+      ],
+      [
+       -33,
+       -100
+      ],
+      [
+       -33,
+       -99
+      ],
+      [
+       -33,
+       -99
+      ],
+      [
+       -33,
+       -100
+      ],
+      [
+       -33,
+       -99
+      ],
+      [
+       -33,
+       -100
+      ],
+      [
+       -19,
+       -95
+      ],
+      [
+       1,
+       -75
+      ],
+      [
+       7,
+       -79
+      ]
+     ],
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null,
+     "slashAt": null,
+     "holdAt": null,
+     "arcAt": null,
+     "blade": null,
+     "meteor": null,
+     "quake": {
+      "jumpAt": 1,
+      "holdAt": [
+       4,
+       7
+      ],
+      "spinAt": 8,
+      "blade": 28
+     }
     }
    }
   },
@@ -4445,6 +4581,142 @@
      ],
      "arcAt": 34,
      "blade": 28
+    },
+    "quake": {
+     "sheet": "knight_f_quake.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 11,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       140
+      ],
+      [
+       1,
+       90
+      ],
+      [
+       2,
+       90
+      ],
+      [
+       3,
+       140
+      ],
+      [
+       4,
+       150
+      ],
+      [
+       5,
+       150
+      ],
+      [
+       6,
+       150
+      ],
+      [
+       7,
+       150
+      ],
+      [
+       8,
+       380
+      ],
+      [
+       9,
+       90
+      ],
+      [
+       10,
+       560
+      ]
+     ],
+     "hit": 9,
+     "loop": null,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": false,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": [
+      [
+       3,
+       -59
+      ],
+      [
+       -56,
+       -93
+      ],
+      [
+       -31,
+       -99
+      ],
+      [
+       -28,
+       -99
+      ],
+      [
+       -28,
+       -99
+      ],
+      [
+       -28,
+       -100
+      ],
+      [
+       -28,
+       -99
+      ],
+      [
+       -28,
+       -100
+      ],
+      [
+       -19,
+       -96
+      ],
+      [
+       -13,
+       -78
+      ],
+      [
+       -11,
+       -78
+      ]
+     ],
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null,
+     "slashAt": null,
+     "holdAt": null,
+     "arcAt": null,
+     "blade": null,
+     "meteor": null,
+     "quake": {
+      "jumpAt": 1,
+      "holdAt": [
+       4,
+       7
+      ],
+      "spinAt": 8,
+      "blade": 28
+     }
     }
    }
   }

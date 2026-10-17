@@ -93,10 +93,18 @@ EXTRA = {
     # away from the enemy, staff pointed at the ground ('turnAt'); the meteor falls behind her and lands on 'hit', then she
     # turns back and floats down ('downAt'). 'hands' ([from frame, [x, y]]): where the
     # flame hand is, px from the feet (sprite facing as drawn); 'lift': how high she floats (px); 'flame': the hand flame's colour.
-    'mage:f/meteor': dict(base='mage:f', ms=[120, 140, 160, 120, 90, 220, 200, 120, 280, 280, 250, 420, 140, 300, 400, 300, 260, 160, 300],
+    'mage:f/meteor': dict(base='mage:f', ms=[120, 140, 160, 120, 90, 220, 200, 120, 280, 280, 250, 420, 140, 450, 560, 300, 260, 160, 300],
                           hit=15, meteor=dict(pointAt=4, crushAt=7, openAt=10, sparkAt=11, turnAt=12, downAt=17, hands=[[0, [25, -41]], [4, [-13, -43]], [7, [-12, -40]], [10, [-13, -41]]], lift=30, flame='#ff8a3c')),
-    'mage:m/meteor': dict(base='mage:m', ms=[120, 140, 160, 120, 90, 220, 200, 120, 280, 280, 250, 420, 140, 300, 400, 300, 260, 160, 300],
+    'mage:m/meteor': dict(base='mage:m', ms=[120, 140, 160, 120, 90, 220, 200, 120, 280, 280, 250, 420, 140, 450, 560, 300, 260, 160, 300],
                           hit=15, meteor=dict(pointAt=4, crushAt=7, openAt=10, sparkAt=11, turnAt=12, downAt=17, hands=[[0, [21, -36]], [4, [-15, -43]], [7, [-14, -40]], [10, [-16, -41]]], lift=30, flame='#5ab8ff')),
+    # Earthshatter (tools/assemble_quake.py, frames from the combo): crouch, leap up and forward at 70 degrees ('jumpAt'),
+    # hold the sword up in the air while a flame aura makes the blade look twice as long ('holdAt'), spin down into the
+    # floor at the enemy ('spinAt', the frame is rotated in code) and land in the downward-strike pose ('hit'): fire
+    # erupts from the ground under every enemy.
+    'knight:m/quake': dict(base='knight:m', ms=[140, 90, 90, 140, 150, 150, 150, 150, 380, 90, 560], hit=9, track='top', cast=False,
+                           quake=dict(jumpAt=1, holdAt=[4, 7], spinAt=8, blade=28)),
+    'knight:f/quake': dict(base='knight:f', ms=[140, 90, 90, 140, 150, 150, 150, 150, 380, 90, 560], hit=9, track='top', cast=False,
+                           quake=dict(jumpAt=1, holdAt=[4, 7], spinAt=8, blade=28)),
     'knight:m/power': dict(base='knight:m', ms=[60, 70, 90, 110, 120, 130, 140, 110, 90, 380], hit=9, aura=[1, 7], dashAt=7, dashFrames=8, upswing=9, dash=10, cast=False),
     'knight:f/power': dict(base='knight:f', ms=[60, 70, 110, 120, 130, 140, 110, 90, 380], hit=8, aura=[1, 6], dashAt=6, dashFrames=7, upswing=8, dash=10, cast=False),
 }
@@ -130,7 +138,7 @@ def build(skin):
         'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m.get('hit'), 'loop': m.get('loop'), 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
         'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom'),
         'tips': tips, 'chargeTo': m.get('chargeTo'), 'swing': m.get('swing'), 'aura': m.get('aura'), 'ring': m.get('ring'), 'upswing': m.get('upswing'), 'dashAt': m.get('dashAt'),
-        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor')}
+        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor'), 'quake': m.get('quake')}
     json.dump(man, open(path, 'w'), indent=1)
     print('wrote', name, n, 'frames', sum(m['ms']), 'ms')
 

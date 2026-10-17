@@ -22,6 +22,9 @@ const SUPPORT = ['defend', 'shield_party', ...Object.keys(SUP_COL)];
 // Champion's Combo cross-slash impacts: the blades' directions (degrees) for the 1st, 2nd and 3rd slash
 const CROSS_ANGLES = [[38, -58], [-36, 62], [-4, 52, -72]];
 // which projectile a skill's effect fires
+// how dark the background goes while a legendary skill plays (it used to dim everything by 0.42; now only the
+// background, twice as strongly)
+const DARK_A = 0.84;
 const projKind = fx => ({ mark: 'proj_arrow', multishot: 'proj_arrow', ricochet: 'proj_arrow', missiles: 'proj_arcane' }[fx] || fx);
 // the Minotaur's Ground Slam: PixelLab earth spikes that burst out of the floor (public/art/fx)
 const SPIKES = [0, 1, 2].map(i => { const im = new Image(); im.src = '/art/fx/earth_spike_' + i + '.png'; return im; });
@@ -398,7 +401,11 @@ export class BattleScene {
       return 0;
     }
     if (ev.kind === 'hero' && ev.whiff) return this._whiffAnim(ev, T);
-    if (ev.kind === 'hero') return this._heroAnim(ev, T);
+    if (ev.kind === 'hero') {   // legendary skills: the background darkens for the whole move
+      const d = this._heroAnim(ev, T);
+      if (ev.rarity === 'legendary') this.darkFor(d);
+      return d;
+    }
     if (ev.kind === 'enemy') return this._enemyAnim(ev, T);
     this._applyAfter(ev);
     return 0;
@@ -420,6 +427,7 @@ export class BattleScene {
     const A = this.actors.get(ev.actor); if (!A) { this._applyAfter(ev); return 0; }
     const fx = ev.fx || 'slash';
     if (fx === 'meteor') { const own = SP.heroAnim(A.skin || A.cls, 'meteor'); if (own && own.meteor) return this._meteorAnim(A, ev, T, own); }
+    if (fx === 'quake') { const own = SP.heroAnim(A.skin || A.cls, 'quake'); if (own && own.quake) return this._quakeAnim(A, ev, T, own); }
     if (!ev._pre) {
       const nm = this._preAnimName(A, fx), pre = nm && SP.heroAnim(A.skin || A.cls, nm);
       if (pre) {   // play the move, then run the usual effects from its hit frame
@@ -942,7 +950,7 @@ export class BattleScene {
       this.mets.push({ kind: 'spark', follow: palm, color: flame, t0: now(), hold: T(at[M.sparkAt] - at[M.openAt]), fly: T(420), life: T(at[M.sparkAt] - at[M.openAt] + 420), pts: [] });
       sfx('twinkle');
     });
-    when(M.sparkAt, () => { this.darken = { t0: now(), dur: T(at[anim.hit] - at[M.sparkAt] + 700) }; sfx('rise'); });
+    when(M.sparkAt, () => sfx('rise'));
     // 5. she turns her back on the enemy, staff pointed at the ground: a swish of her cloak
     when(M.turnAt, () => {
       for (let i = 0; i < 10; i++) this.particles.push({ x: A.x + A.ox + (Math.random() - 0.5) * 20, y: A.y + A.oy - 10 - Math.random() * 30, vx: 40 + Math.random() * 40, vy: (Math.random() - 0.5) * 20, g: 0, life: 0.3 + Math.random() * 0.2, t: 0, c: Math.random() < 0.5 ? '#8a7aa8' : '#cfc4e0', fade: true });
@@ -952,7 +960,7 @@ export class BattleScene {
     const fallFrom = at[M.turnAt] + 120, fall = at[anim.hit] - fallFrom;
     setTimeout(() => {
       this.mets.push({ kind: 'mark', x: cx, y: cy, w: spread, t0: now(), life: T(fall + 120) });
-      this.mets.push({ kind: 'rock', from: { x: cx + 230, y: cy - 330 }, to: { x: cx, y: cy - 10 }, R: 36, t0: now(), life: T(fall), rot: Math.random() * 6,
+      this.mets.push({ kind: 'rock', from: { x: cx + 330, y: cy - 470 }, to: { x: cx, y: cy - 10 }, R: 72, t0: now(), life: T(fall), rot: Math.random() * 6,
         cracks: Array.from({ length: 6 }, () => { let a = Math.random() * Math.PI * 2, r = 0.1 + Math.random() * 0.3; const pts = []; for (let j = 0; j < 4; j++) { pts.push([Math.cos(a) * r, Math.sin(a) * r]); a += (Math.random() - 0.5) * 0.9; r += 0.18 + Math.random() * 0.15; } return pts; }) });
       sfx('fall');
     }, T(fallFrom));
@@ -974,6 +982,76 @@ export class BattleScene {
     setTimeout(() => { const p = palm(); this.glows.push({ x: p.x, y: p.y, r: 18, color: flame, t: 0, life: 0.35, a: 0.8 }); this.burst(p.x, p.y, flame, 8, 20); }, T(at[M.downAt] + 40));
     setTimeout(() => { A.anim = null; this.move(A, 0, 0, T(120)); }, T(acc + 60));
     return T(acc + 450);
+  }
+  // Earthshatter with its own animation (anims.quake, frames from the combo): the knight crouches and leaps up and
+  // forward at 70 degrees (jumpAt), holds the sword up in the air while a flame aura makes the blade look twice as long
+  // (holdAt), spins down into the floor at the nearest enemy inside a wheel of fire (spinAt) and lands in the
+  // downward-strike pose (hit): fire erupts from the ground in a wave across the whole enemy side, hitting every enemy.
+  _quakeAnim(A, ev, T, anim) {
+    const Q = anim.quake;
+    const at = []; let acc = 0; for (const [, ms] of anim.timeline) { at.push(acc); acc += ms; }
+    const isEnemy = id => { const a = this.actors.get(id); return !!a && a.type === 'enemy'; };
+    const tgt = ev.targets.filter(t => !t.shatter && isEnemy(t.id) && (t.dmg != null || t.status));
+    const ens = [...new Set(tgt.map(t => t.id))].map(id => this.actors.get(id)).filter(Boolean);
+    const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
+    if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
+    if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    const t0 = now();
+    A.anim = { d: anim, t0, speed: T(1000) / 1000, at, total: acc };
+    const when = (f, fn, extra = 0) => setTimeout(fn, T(at[f] + extra));
+    // where he lands: in front of the nearest enemy (the one furthest right)
+    const near = ens.length ? ens.reduce((a, e) => (e.x > a.x ? e : a)) : null;
+    const land = near ? { x: near.x + (near.size === 'xl' ? 46 : near.size === 'l' ? 26 : 20) + 14, y: near.y + 2 } : { x: A.x - 90, y: A.y };
+    // the raised sword and its doubled flame reach ~135px above his feet, so a hero standing high up the screen first
+    // steps forward and down to a launch spot low enough for the leap to fit on screen
+    const HEAD = 135, floor = this.stage.y + this.stage.h - 8;
+    const launch = { x: A.x - 16, y: Math.min(floor, Math.max(A.y, HEAD + 40)) };
+    const rise = Math.max(30, Math.min(74, launch.y - HEAD));
+    const apex = { x: launch.x - A.x - rise / Math.tan(70 * Math.PI / 180), y: launch.y - A.y - rise };   // 70 degrees up and towards the enemy
+    const left = ens.length ? Math.min(...ens.map(e => e.x)) : land.x - 60, gy = ens.length ? ens.reduce((a, e) => a + e.y, 0) / ens.length : land.y;
+    this.cam = { x: (A.x + left) / 2, y: launch.y - 60, t0, dur: T(acc + 380), z: 1.05 };
+    this.move(A, launch.x - A.x, launch.y - A.y, T(at[Q.jumpAt] - 10));   // crouched, he slides into the launch spot
+    sfx('whirl');
+    // 1. the leap
+    when(Q.jumpAt, () => { this.move(A, apex.x, apex.y, T(at[Q.holdAt[0]] - at[Q.jumpAt])); this.burst(A.x, A.y, '#d8c8b0', 14, 30, 30); sfx('whoosh'); });
+    // 2. the flaming blade, held up in the air (it floats a little)
+    when(Q.holdAt[0], () => {
+      const holdMs = at[Q.spinAt] - at[Q.holdAt[0]];
+      this.mets.push({ kind: 'fblade', follow: A, len: Q.blade || 28, t0: now(), life: T(holdMs + 200) });
+      this.move(A, apex.x, apex.y - 4, T(holdMs));
+      sfx('burn'); sfx('charge');
+    });
+    // 3. the spin dive: the sprite turns over twice inside a wheel of fire on the way down
+    when(Q.spinAt, () => {
+      const ms = T(at[anim.hit] - at[Q.spinAt]);
+      A.spin = { t0: now(), dur: ms, turns: 2 };
+      this.move(A, land.x - A.x, land.y - A.y, ms, true, true);
+      this.mets.push({ kind: 'wheel', follow: A, t0: now(), life: ms + T(60) });
+      sfx('whirl');
+    });
+    // 4. impact: a fire burst where he lands, then flames erupt from the ground in a wave across the enemies
+    when(anim.hit, () => {
+      A.spin = null;
+      this.shake = Math.max(this.shake, 11); this.shakeT = now(); this.flash = Math.max(this.flash || 0, 0.15); this.freezeUntil = now() + 130;
+      const ox = land.x - 18, oy = land.y;
+      this.glows.push({ x: ox, y: oy - 10, r: 70, color: '#ff7a2a', t: 0, life: 0.5, a: 1 });
+      for (let j = 0; j < 3; j++) this.mets.push({ kind: 'fring', x: ox, y: oy + 1, t0: now() + T(j * 120), life: T(700), r1: 80 + j * 35 });
+      for (let i = 0; i < 7; i++) { const a = Math.PI + (i / 6 - 0.5) * 2.4, L = 50 + Math.random() * 70; this._crack(Math.round(ox), Math.round(oy + 1), Math.round(ox + Math.cos(a) * L), Math.round(oy + 1 + Math.sin(a) * L * 0.22), T(220), T(1800)); }
+      for (let i = 0; i < 26; i++) { const a = -Math.PI * (0.1 + Math.random() * 0.8), v = 80 + Math.random() * 140; this.particles.push({ x: ox + (Math.random() - 0.5) * 16, y: oy - 2, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 360, life: 0.7 + Math.random() * 0.5, t: 0, c: ['#3a2418', '#5a3a24', '#7a4a2a', '#ff8a3c'][i % 4], cube: 2 + (i % 2), spin: Math.random() * 6, fade: true }); }
+      // the eruptions: one big column under every enemy, smaller ones in between, the wave rolling away from him
+      const spots = ens.map(e => ({ x: e.x, y: e.y + 1, big: true }));
+      const from = Math.min(left - 30, ox - 40), to = ox - 20;
+      for (let x = to; x >= from; x -= 18) spots.push({ x: x + (Math.random() - 0.5) * 8, y: gy + (Math.random() - 0.5) * 18, big: false });
+      for (const sp of spots) {
+        const d = Math.max(0, ox - sp.x);
+        this.mets.push({ kind: 'geyser', x: sp.x, y: sp.y, h: sp.big ? 78 + Math.random() * 18 : 34 + Math.random() * 22, w: sp.big ? 15 : 9, t0: now() + T(40 + d * 2.2), life: T(sp.big ? 700 : 520) });
+      }
+      this.mets.push({ kind: 'burn', x: (from + to) / 2, y: gy, w: (to - from) / 2 + 10, t0: now() + T(200), life: T(1500) });
+      setTimeout(() => this.impact(ev, tgt, 'quake', rc), T(140));
+      sfx('boom'); sfx('stomp');
+    });
+    setTimeout(() => { A.anim = null; this.move(A, 0, 0, T(320)); }, T(acc + 40));
+    return T(acc + 520);
   }
   drawMeteors(ctx, t, sx, sy) {
     if (!this.mets.length) return;
@@ -1080,6 +1158,50 @@ export class BattleScene {
           ctx.strokeStyle = hexA(col, 0.9 * (1 - q)); ctx.lineWidth = Math.max(1.5, s * wd * (1 - q));
           ctx.beginPath(); ctx.ellipse(x, y + s, r, r * 0.26, 0, 0, TAU); ctx.stroke();
         }
+      } else if (m.kind === 'fblade') {   // a flame aura round the raised sword that makes the blade look twice as long
+        const tip = this._tipAt(m.follow); if (!tip) continue;
+        const L = m.len, g0 = Math.min(1, age / (m.life * 0.5)), fl = 0.85 + 0.15 * Math.sin(t / 31) * Math.sin(t / 73);
+        const x = X(tip.x), yTop = Y(tip.y - L * g0 * fl), yBot = Y(tip.y + L), fade = k > 0.85 ? (1 - k) / 0.15 : 1;
+        glow(x, Y(tip.y), (26 + 22 * g0) * s, '#ff6a1a', 0.55 * fade);
+        const flame = (w, c0, c1) => {   // a tall tapering tongue of fire along the blade and beyond its tip
+          const ww = w * s * (0.6 + 0.4 * g0), wob = Math.sin(t / 45) * 2 * s;
+          const g = ctx.createLinearGradient(0, yBot, 0, yTop); g.addColorStop(0, c0); g.addColorStop(1, c1);
+          ctx.beginPath(); ctx.moveTo(x - ww, yBot); ctx.quadraticCurveTo(x - ww * 1.1, (yBot + yTop) / 2, x + wob, yTop);
+          ctx.quadraticCurveTo(x + ww * 1.1, (yBot + yTop) / 2, x + ww, yBot); ctx.closePath(); ctx.fillStyle = g; ctx.fill();
+        };
+        flame(9, `rgba(255,70,20,${0.55 * fade})`, 'rgba(255,40,10,0)');
+        flame(5.5, `rgba(255,160,50,${0.85 * fade})`, 'rgba(255,90,30,0)');
+        flame(2.4, `rgba(255,245,200,${0.95 * fade})`, 'rgba(255,200,90,0)');
+        if (Math.random() < 0.9) this.particles.push({ x: tip.x + (Math.random() - 0.5) * 8, y: tip.y + Math.random() * L - L * g0 * 0.5, vx: (Math.random() - 0.5) * 16, vy: -40 - Math.random() * 50, g: 0, life: 0.35 + Math.random() * 0.3, t: 0, c: Math.random() < 0.5 ? '#ffb347' : '#ff6a2a', blob: Math.random() < 0.3 ? 1 : 0, fade: true });
+      } else if (m.kind === 'wheel') {   // the spin: a ring of fire round the tumbling knight
+        const a = m.follow, cx = X(a.x + a.ox), cy = Y(a.y + a.oy - 24), rot = -age / 60, R = 30 * s;
+        ctx.lineCap = 'round';
+        for (const [w, col, al] of [[9, '#ff5a1a', 0.45], [5, '#ffb347', 0.8], [2, '#fff2c8', 0.95]]) {
+          ctx.strokeStyle = hexA(col, al); ctx.lineWidth = w * s;
+          ctx.beginPath(); ctx.arc(cx, cy, R, rot, rot + 2.6); ctx.stroke();
+          ctx.beginPath(); ctx.arc(cx, cy, R, rot + Math.PI, rot + Math.PI + 2.6); ctx.stroke();
+        }
+        glow(cx, cy, R * 1.8, '#ff6a1a', 0.5);
+        for (let j = 0; j < 3; j++) { const q = rot + Math.random() * 6.28; this.particles.push({ x: a.x + a.ox + Math.cos(q) * 30, y: a.y + a.oy - 24 + Math.sin(q) * 30, vx: (Math.random() - 0.5) * 40, vy: -20 - Math.random() * 30, g: 40, life: 0.35, t: 0, c: Math.random() < 0.5 ? '#ffd25a' : '#ff6a2a', streak: 2, drag: 0.9 }); }
+      } else if (m.kind === 'fring') {   // a ring of fire racing out over the floor
+        const e = eo(k), r = (8 + m.r1 * e) * s, a = 1 - k;
+        ctx.strokeStyle = hexA('#ff8a3c', 0.9 * a); ctx.lineWidth = Math.max(1.5, s * 5 * a);
+        ctx.beginPath(); ctx.ellipse(X(m.x), Y(m.y), r, r * 0.24, 0, 0, TAU); ctx.stroke();
+        ctx.strokeStyle = hexA('#fff2c8', 0.7 * a); ctx.lineWidth = Math.max(1, s * 1.6 * a);
+        ctx.beginPath(); ctx.ellipse(X(m.x), Y(m.y), r * 0.97, r * 0.23, 0, 0, TAU); ctx.stroke();
+      } else if (m.kind === 'geyser') {   // a column of fire bursting up out of the floor
+        if (!m.fired) { m.fired = true; for (let j = 0; j < (m.w > 10 ? 14 : 6); j++) { const a = -Math.PI * (0.25 + Math.random() * 0.5), v = 60 + Math.random() * 110; this.particles.push({ x: m.x + (Math.random() - 0.5) * m.w, y: m.y - 2, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 220, life: 0.5 + Math.random() * 0.4, t: 0, c: ['#ffd25a', '#ff8a3c', '#ff5a1a', '#fff6c8', '#5a3a24'][j % 5], streak: j % 5 === 4 ? 0 : 3, cube: j % 5 === 4 ? 2 : 0, spin: 1, drag: 0.92 }); } if (m.w > 10) sfx('burn'); }
+        const up = eo(Math.min(1, k / 0.22)), a = k < 0.45 ? 1 : Math.max(0, 1 - (k - 0.45) / 0.55);
+        const x = X(m.x), y = Y(m.y), H = m.h * s * up * (0.92 + 0.08 * Math.sin(t / 40 + m.x)), W = m.w * s;
+        glow(x, y - H * 0.4, W * 3.2, '#ff5a1a', 0.5 * a);
+        const col = (w, c0, c1) => { const g = ctx.createLinearGradient(0, y, 0, y - H); g.addColorStop(0, c0); g.addColorStop(1, c1);
+          ctx.beginPath(); ctx.moveTo(x - W * w, y); ctx.quadraticCurveTo(x - W * w * 0.9, y - H * 0.55, x + Math.sin(t / 50 + m.x) * W * 0.3, y - H);
+          ctx.quadraticCurveTo(x + W * w * 0.9, y - H * 0.55, x + W * w, y); ctx.closePath(); ctx.fillStyle = g; ctx.fill(); };
+        col(1.25, `rgba(255,60,20,${0.6 * a})`, 'rgba(200,30,10,0)');
+        col(0.8, `rgba(255,150,40,${0.9 * a})`, 'rgba(255,80,20,0)');
+        col(0.38, `rgba(255,245,200,${a})`, 'rgba(255,190,80,0)');
+        ctx.fillStyle = hexA('#fff2c8', 0.8 * a); ctx.beginPath(); ctx.ellipse(x, y, W * 1.3, W * 0.35, 0, 0, TAU); ctx.fill();
+        if (Math.random() < 0.6 * a) this.particles.push({ x: m.x + (Math.random() - 0.5) * m.w, y: m.y - Math.random() * m.h * up, vx: (Math.random() - 0.5) * 20, vy: -40 - Math.random() * 60, g: 0, life: 0.4, t: 0, c: Math.random() < 0.5 ? '#ffb347' : '#ff6a2a', fade: true });
       } else if (m.kind === 'burn') {   // fire left burning on the floor, dying down
         const left = 1 - k;
         glow(X(m.x), Y(m.y - 6), m.w * 1.3 * s, '#ff6a2a', 0.35 * left);
@@ -1128,7 +1250,7 @@ export class BattleScene {
     const holdMs = at[h1] + anim.timeline[h1][1] - at[h0];
     setTimeout(() => {
       this.zaps.push({ follow: A, t0: performance.now(), until: performance.now() + T(holdMs + 120), len: anim.blade || 26 });
-      this.darken = { t0: now(), dur: T(holdMs + 500) };
+      this.darkFor(T(holdMs + 500));
       sfx('charge');
       [0, 0.45, 0.8].forEach((f, j) => setTimeout(() => {
         const tip = this._tipAt(A); if (!tip) return;
@@ -1690,6 +1812,8 @@ export class BattleScene {
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#07050c'; ctx.fillRect(0, 0, this.cv.width, this.cv.height);
     ctx.drawImage(this.bgUp, sx, sy);
+    const dk = this._darkNow(t);   // legendary skills: the background (not the fighters or the effects) dims
+    if (dk) { ctx.fillStyle = `rgba(4,5,18,${dk})`; ctx.fillRect(0, 0, this.cv.width, this.cv.height); }
 
     // ---- native dynamic layer
     n.clearRect(0, 0, W, H);
@@ -1770,7 +1894,13 @@ export class BattleScene {
         for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) n.drawImage(tint, x + ox, y + oy);
         n.globalAlpha = alpha;
       }
+      const spun = a.spin && t < a.spin.t0 + a.spin.dur;
+      if (spun) {   // Earthshatter's dive: the sprite turns over round the middle of the body
+        const k = Math.max(0, (t - a.spin.t0) / a.spin.dur), cxp = Math.round(a.x + a.ox + kx), cyp = Math.round(a.y + a.oy - 24);
+        n.save(); n.translate(cxp, cyp); n.rotate(-k * a.spin.turns * Math.PI * 2); n.translate(-cxp, -cyp);
+      }
       n.drawImage(fr, x, y);
+      if (spun) n.restore();
       if (t < a.flashUntil) { n.globalAlpha = 0.85; n.drawImage(this.frameFor(a, true), x, y); }
       // frozen overlay
       if (a.st && a.st.freeze) { n.globalAlpha = 0.45; n.drawImage(this.tinted(this.frameFor(a, true), '#bff6ff'), x, y); }
@@ -1923,6 +2053,18 @@ export class BattleScene {
     }
     ctx.restore();
   }
+  // dim the background for ms (extends a dim already running). DARK_A: how dark at full strength.
+  darkFor(ms) {
+    const t = now();
+    if (this.darken && t < this.darken.until) this.darken.until = Math.max(this.darken.until, t + ms);
+    else this.darken = { t0: t, until: t + ms };
+  }
+  _darkNow(t) {
+    const d = this.darken; if (!d) return 0;
+    if (t > d.until) { this.darken = null; return 0; }
+    const el = t - d.t0, left = d.until - t;
+    return DARK_A * Math.max(0, Math.min(1, el / 220, left / 320));
+  }
   // camera punch-in on the hero doing a big move, with the screen edges darkened
   applyCam(ctx, t) {
     const c = this.cam; if (!c) return;
@@ -2024,11 +2166,6 @@ export class BattleScene {
     let g = ctx.createLinearGradient(0, 0, 0, Hd);
     g.addColorStop(0, 'rgba(6,4,16,0.62)'); g.addColorStop(0.42, 'rgba(10,8,24,0.18)'); g.addColorStop(0.7, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(4,2,10,0.45)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, Wd, Hd);
-    if (this.darken) {   // the battlefield dims while the Champion's Combo charges (the blade's glow draws on top)
-      const el = performance.now() - this.darken.t0, D = this.darken.dur;
-      if (el > D) this.darken = null;
-      else { const a = el < 200 ? el / 200 : el > D - 300 ? (D - el) / 300 : 1; ctx.fillStyle = `rgba(4,6,22,${0.42 * a})`; ctx.fillRect(0, 0, Wd, Hd); }
-    }
     // additive lights
     ctx.globalCompositeOperation = 'lighter';
     for (const L of this.lights) {

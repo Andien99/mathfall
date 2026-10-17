@@ -11,9 +11,9 @@
   // Loot rarity: the border colour of every skill and item card, the odds a chest or shop rolls it,
   // its shop price and the gold a chest offers instead.
   const RARITY = {
-    common:    { name: 'Common',    color: '#b4bac4', weight: 50, price: 40,  gold: 35 },
+    common:    { name: 'Common',    color: '#b4bac4', weight: 60, price: 40,  gold: 35 },
     rare:      { name: 'Rare',      color: '#b46bff', weight: 30, price: 70,  gold: 55 },
-    legendary: { name: 'Legendary', color: '#ff9a2e', weight: 20, price: 120, gold: 85 }
+    legendary: { name: 'Legendary', color: '#ff9a2e', weight: 10, price: 120, gold: 85 }
   };
   const RARITY_ORDER = ['common', 'rare', 'legendary'];
   const MAX_SKILLS = 3;   // heroes start with 2 skills and can carry 3

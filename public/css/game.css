@@ -589,6 +589,7 @@ body.portrait .qpanel.compact { align-items: flex-end; }
 .rs-v img.rs-chest { width: 40px; height: auto; }
 .rs-num { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; color: #fff; }
 .rs-num.rs-item { font-size: 18px; color: #ffe27a; }
+.rs-num.rs-item.rs-legend { color: #ff9a2e; text-shadow: 0 0 10px rgba(255,154,46,.55); }
 .rs-none { display: inline-block; width: 150px; height: 1px; background: rgba(220, 240, 255, 0.6); }
 .rs-more { padding: 16px 16px 0 40px; opacity: 0; animation: rsRow 0.35s ease forwards; animation-delay: 0.8s; }
 .result-screen.shown .rs-more { animation: none; opacity: 1; }

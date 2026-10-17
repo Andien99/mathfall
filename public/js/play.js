@@ -579,7 +579,7 @@ function renderRoom() {
   } else if (room.type === 'treasure') {
     const ch = you.chest;
     const rc = ch ? C.RARITY[ch.rarity].color : '#fff';
-    panel.append(h('h2', null, room.event === 'cache' ? 'An abandoned cache' : room.kind === 'elite' ? 'Elite treasure' : 'Treasure'));
+    panel.append(h('h2', null, room.event === 'cache' ? 'An abandoned cache' : room.kind === 'boss' ? 'The boss\'s hoard' : room.kind === 'elite' ? 'Elite treasure' : 'Treasure'));
     if (!ch) panel.append(h('p', { class: 'lead' }, 'No chest for you this time.'));
     else if (!ch.opened) {
       panel.append(h('p', { class: 'lead' }, `A ${C.RARITY[ch.rarity].name.toLowerCase()} chest. Open it to see what's inside.`));
@@ -656,7 +656,7 @@ function resultScreen(layer, room, hero) {
   const row = (label, value, icon, i) => h('div', { class: 'rs-row', style: { '--i': i } }, h('span', { class: 'rs-l' }, label),
     h('span', { class: 'rs-v' }, value, icon || null));
   const coin = h('img', { src: SP.iconURL('gold', 2), alt: '' }), heart = h('img', { src: SP.iconURL('heart', 2), alt: '' });
-  const chest = room.elite ? h('img', { class: 'rs-chest', src: SP.chestFrame('rare', false).toDataURL(), alt: '' }) : null;
+  const chest = room.elite || boss ? h('img', { class: 'rs-chest', src: SP.chestFrame(boss ? 'legendary' : 'rare', false).toDataURL(), alt: '' }) : null;
   const goldV = h('b', { class: 'rs-num' }, first || since < 1500 ? '0' : String(room.gold));
   const box = h('div', { class: 'result-screen' + (mobile ? ' mobile' : '') + (since > 1200 ? ' shown' : '') },
     h('div', { class: 'rs-title' }, h('i', { class: 'rs-star' }, '✦'), h('h2', null, boss ? 'Act Complete' : 'Battle Result')),
@@ -664,7 +664,7 @@ function resultScreen(layer, room, hero) {
     h('div', { class: 'rs-rows' },
       row('Gold obtained', h('span', null, '+', goldV), coin, 0),
       row('Health recovered', h('b', { class: 'rs-num' }, '+10%'), heart, 1),
-      row('Items obtained', room.elite ? h('b', { class: 'rs-num rs-item' }, 'Treasure chest') : h('i', { class: 'rs-none' }), chest, 2)),
+      row('Items obtained', boss ? h('b', { class: 'rs-num rs-item rs-legend' }, 'Legendary chest') : room.elite ? h('b', { class: 'rs-num rs-item' }, 'Treasure chest') : h('i', { class: 'rs-none' }), chest, 2)),
     h('div', { class: 'rs-more' }, statPicker(room, hero), readyLine(room)));
   layer.append(box);
   // count the gold up the first time the screen appears

@@ -358,7 +358,7 @@ class Session {
   advanceRoom(team, forced) {
     const run = team.run; const room = run.room; if (!room) return;
     if (room.type === 'victory' && room.elite) { this.openRoom(team, RUN.makeTreasureRoom(run, 'elite')); this.flush(team); return; }
-    if (room.type === 'complete') { this.startRun(team, run.asc + 1, true); return; }
+    if (room.type === 'complete') { this.openRoom(team, RUN.makeTreasureRoom(run, 'boss')); this.flush(team); return; }   // the boss's chest, then the next act
     if (room.type === 'raidEnd') return;
     if (room.type === 'event' && room.event === 'ambush' && this.resolveAmbush(team)) return;
     if (room.type === 'defeat') { this.startRun(team, run.asc); return; }
@@ -367,6 +367,7 @@ class Session {
       const h = run.heroes[pid];
       if (h && !ch.decided) { ch.opened = true; ch.decided = true; h.gold += ch.gold; ch.choice = { gold: ch.gold }; }
     }
+    if (room.type === 'treasure' && room.kind === 'boss') { this.startRun(team, run.asc + 1, true); return; }
     run.phase = 'map'; run.room = null;
     this.admitPending(team);
     this.event(team, { kind: 'system', text: 'Choose your path' });

@@ -78,7 +78,7 @@ function rollRarity(weights) {
   for (const k of Object.keys(weights)) { r -= weights[k]; if (r <= 0) return k; }
   return 'common';
 }
-// Every chest and shop slot rolls its rarity 50 / 30 / 20.
+// Every chest and shop slot rolls its rarity 60 / 30 / 10.
 const LOOT_WEIGHTS = Object.fromEntries(C.RARITY_ORDER.map(r => [r, C.RARITY[r].weight]));
 
 // A random skill of the hero's own class, of that rarity if one is left (else any rarity), that they don't
@@ -100,11 +100,12 @@ function itemOffer(hero, rarity, skip) {
 }
 
 // Each hero gets a chest of one rarity. Inside: a skill, an item and a pile of gold; they keep one.
+// kind 'boss' (after an act's boss): a legendary chest, so the skill in it is a legendary one of their class (if any is left).
 function makeTreasureRoom(run, kind) {
   const chests = {};
   for (const h of Object.values(run.heroes)) {
-    const rarity = rollRarity(LOOT_WEIGHTS);
-    const gold = C.RARITY[rarity].gold + ri(-5, 5) + (kind === 'elite' ? 15 : 0);
+    const rarity = kind === 'boss' ? 'legendary' : rollRarity(LOOT_WEIGHTS);
+    const gold = C.RARITY[rarity].gold + ri(-5, 5) + (kind === 'elite' ? 15 : kind === 'boss' ? 30 : 0);
     chests[h.id] = { rarity, opened: false, skill: skillOffer(h, rarity), item: itemOffer(h, rarity), gold, decided: false };
   }
   return { type: 'treasure', kind, chests, ready: {} };

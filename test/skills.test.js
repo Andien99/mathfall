@@ -44,7 +44,7 @@ check('legendaries cost at least 8, the combo 9', () => {
   for (const [id, s] of Object.entries(C.SKILLS)) if (s.rarity === 'legendary') assert.ok(s.cost >= 8, id);
   assert.strictEqual(C.SKILLS.champions_combo.cost, 9);
 });
-check('odds are 50 / 30 / 20', () => assert.deepStrictEqual(C.RARITY_ORDER.map(r => C.RARITY[r].weight), [50, 30, 20]));
+check('odds are 60 / 30 / 10', () => assert.deepStrictEqual(C.RARITY_ORDER.map(r => C.RARITY[r].weight), [60, 30, 10]));
 
 // ---------------------------------------------------------------- every skill runs
 for (const [id, s] of Object.entries(C.SKILLS)) {
@@ -167,11 +167,29 @@ check('chests and shops only offer the hero\'s own class', () => {
   const h = { cls: 'ranger', skills: [{ id: 'poison_arrow' }, { id: 'volley' }], items: [] };
   for (let i = 0; i < 200; i++) { const o = RUN.skillOffer(h, C.RARITY_ORDER[i % 3]); assert.strictEqual(C.SKILLS[o.id].cls, 'ranger'); assert.ok(!['poison_arrow', 'volley'].includes(o.id)); }
 });
-check('rarity odds roll close to 50 / 30 / 20', () => {
+check('rarity odds roll close to 60 / 30 / 10', () => {
   const n = { common: 0, rare: 0, legendary: 0 }; const run = { heroes: {} };
   for (let i = 0; i < 400; i++) run.heroes['p' + i] = { id: 'p' + i, cls: 'mage', skills: [], items: [] };
   const room = RUN.makeTreasureRoom(run, 'treasure'); for (const ch of Object.values(room.chests)) n[ch.rarity]++;
-  assert.ok(Math.abs(n.common / 400 - 0.5) < 0.08 && Math.abs(n.rare / 400 - 0.3) < 0.08 && Math.abs(n.legendary / 400 - 0.2) < 0.08, JSON.stringify(n));
+  assert.ok(Math.abs(n.common / 400 - 0.6) < 0.08 && Math.abs(n.rare / 400 - 0.3) < 0.08 && Math.abs(n.legendary / 400 - 0.1) < 0.06, JSON.stringify(n));
+});
+check('shop slots roll legendary about 10% of the time', () => {
+  let leg = 0, all = 0;
+  for (let i = 0; i < 300; i++) { const st = RUN.makeMerchantRoom({ heroes: { a: { id: 'a', cls: 'knight', skills: [], items: [] } } }).stock.a;
+    for (const x of st.skills) { all++; if (C.SKILLS[x.id].rarity === 'legendary') leg++; } for (const x of st.items) { all++; if (C.ITEMS[x.id].rarity === 'legendary') leg++; } }
+  assert.ok(Math.abs(leg / all - 0.1) < 0.04, leg + '/' + all);
+});
+check('after an act boss every hero gets a legendary chest with one legendary skill of their class', () => {
+  const run = { heroes: { a: { id: 'a', cls: 'mage', skills: [{ id: 'fireball' }, { id: 'meteor' }], items: [] }, b: { id: 'b', cls: 'knight', skills: [], items: [] } } };
+  for (let i = 0; i < 50; i++) {
+    const room = RUN.makeTreasureRoom(run, 'boss');
+    assert.strictEqual(room.kind, 'boss');
+    for (const [id, ch] of Object.entries(room.chests)) {
+      assert.strictEqual(ch.rarity, 'legendary');
+      const sk = C.SKILLS[ch.skill.id]; assert.strictEqual(sk.rarity, 'legendary'); assert.strictEqual(sk.cls, run.heroes[id].cls);
+      assert.notStrictEqual(ch.skill.id, 'meteor');
+    }
+  }
 });
 check('merchant stocks 2 skills and 2 items', () => { const room = RUN.makeMerchantRoom({ heroes: { a: { id: 'a', cls: 'cleric', skills: [], items: [] } } }); assert.strictEqual(room.stock.a.skills.length, 2); assert.strictEqual(room.stock.a.items.length, 2); });
 check('a third skill goes in the free slot; a fourth must replace one', () => {
