@@ -50,7 +50,7 @@ export class BattleScene {
     this.onAfter = opts.onAfter || (() => {});
     this.shake = 0; this.shakeT = 0;
     this.trails = []; this.cam = null; this.stars = []; this.rings = []; this.ribbons = []; this.auras = [];
-    this.zaps = []; this.ripples = []; this.residue = []; this.xhits = []; this.slivers = [];   // Champion's Combo: blade aura, ground ripples, leftover crackle
+    this.zaps = []; this.ripples = []; this.residue = []; this.xhits = []; this.slivers = []; this.bigArcs = [];   // Champion's Combo: blade aura, ground ripples, leftover crackle
     this.cracks = []; this.spikes = []; this.ghosts = [];
     this.slowmo = 1;   // <1 plays everything in slow motion (used by the /dev/lab.html animation lab)
     this.freezeUntil = 0;
@@ -812,6 +812,76 @@ export class BattleScene {
     ctx.restore();
   }
 
+  // Champion's Combo finisher: a giant electric slash arc, an oval about 226 px tall (four times the knight) that sweeps
+  // from above the screen, over the knight, down through the enemy and into the floor. Its colour bends along the
+  // curve (a conic gradient that follows the sweep): white-hot at the leading tip, through cyan and blue to nothing at
+  // the tail. Current crackles along it, bolts fork off its outer edge and sparks fly from the tip while it sweeps.
+  bigArc(tx, ty, T = ms => ms) {
+    const Rx = 132, Ry = 144;   // the sweep runs from -1.45 rad (top, just right of centre) to -3.75 rad (low left)
+    this.bigArcs.push({ cx: tx - 6 + Rx, cy: ty - 36, Rx, Ry, a0: -1.45, a1: -3.75, W: 32, t0: now(), life: T(950) });
+  }
+  drawBigArcs(ctx, t, sx, sy) {
+    if (!this.bigArcs.length) return;
+    const s = this.s, TAU = Math.PI * 2;
+    const eo = x => 1 - Math.pow(1 - x, 3), ei = x => x * x;
+    const thick = v => Math.pow(Math.max(0, Math.sin(Math.PI * Math.pow(v, 2.6))), 0.8);   // v: 1 at the tip, 0 at the tail
+    for (let i = this.bigArcs.length - 1; i >= 0; i--) {
+      const b = this.bigArcs[i], k = (t - b.t0) / b.life;
+      if (k >= 1) { this.bigArcs.splice(i, 1); continue; }
+      if (k < 0) continue;
+      const span = b.a1 - b.a0;                                                  // negative: the blade sweeps anticlockwise
+      const head = b.a0 + span * eo(Math.min(1, k / 0.18));                     // the tip races round fast...
+      const tail = b.a0 + span * ei(Math.min(1, Math.max(0, (k - 0.1) / 0.8))); // ...and the tail follows it in
+      const len = tail - head; if (len < 0.03) continue;
+      const fade = k < 0.45 ? 1 : Math.max(0, 1 - (k - 0.45) / 0.55);
+      const R = b.Rx * s, Wd = b.W * s, N = 56;
+      ctx.save();
+      ctx.translate(b.cx * s + sx, b.cy * s + sy); ctx.scale(1, b.Ry / b.Rx);   // draw the oval as a circle
+      ctx.globalCompositeOperation = 'lighter';
+      const at = u => head + len * u;                                            // u: 0 at the tip, 1 at the tail
+      const crescent = (wk, jit) => {
+        ctx.beginPath();
+        for (let j = 0; j <= N; j++) { const u = j / N, a = at(u), r = R + (Math.random() - 0.5) * jit * s; j ? ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r) : ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+        for (let j = N; j >= 0; j--) { const u = j / N, a = at(u), r = R - Wd * wk * thick(1 - u); ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+        ctx.closePath();
+      };
+      const bend = (stops) => {   // a gradient that bends round the arc: offsets are fractions of the arc's length
+        if (ctx.createConicGradient) { const g = ctx.createConicGradient(head, 0, 0); for (const [f, c] of stops) g.addColorStop(Math.min(0.999, f * len / TAU), c); g.addColorStop(1, 'rgba(0,0,0,0)'); return g; }
+        const g = ctx.createLinearGradient(Math.cos(head) * R, Math.sin(head) * R, Math.cos(tail) * R, Math.sin(tail) * R);   // older browsers
+        for (const [f, c] of stops) g.addColorStop(Math.min(1, f), c); return g;
+      };
+      const a = fade;
+      // 1. wide blue glow  2. the body  3. the white-hot cutting edge
+      ctx.shadowColor = '#3a7aff'; ctx.shadowBlur = 26 * s * a;
+      crescent(1.6, 0); ctx.fillStyle = bend([[0, `rgba(140,210,255,${0.32 * a})`], [0.3, `rgba(60,140,255,${0.24 * a})`], [0.8, `rgba(30,60,220,${0.1 * a})`], [1, 'rgba(20,30,160,0)']]); ctx.fill();
+      ctx.shadowBlur = 0;
+      crescent(1, 3); ctx.fillStyle = bend([[0, `rgba(255,255,255,${a})`], [0.07, `rgba(225,248,255,${a})`], [0.25, `rgba(120,210,255,${0.9 * a})`], [0.6, `rgba(50,120,255,${0.6 * a})`], [1, 'rgba(30,40,180,0)']]); ctx.fill();
+      crescent(0.24, 1.5); ctx.fillStyle = bend([[0, `rgba(255,255,255,${a})`], [0.4, `rgba(220,246,255,${0.85 * a})`], [0.85, 'rgba(160,220,255,0)']]); ctx.fill();
+      // current running along the blade
+      ctx.lineJoin = 'round'; ctx.shadowColor = '#6fc8ff'; ctx.shadowBlur = 10 * s * a;
+      for (let q = 0; q < 3; q++) {
+        const rf = 0.15 + Math.random() * 0.6, until = 0.55 + Math.random() * 0.35;
+        ctx.beginPath();
+        for (let j = 0; j <= 28; j++) { const u = until * j / 28, ang = at(u), r = R - Wd * thick(1 - u) * rf + (Math.random() - 0.5) * 7 * s; j ? ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r) : ctx.moveTo(Math.cos(ang) * r, Math.sin(ang) * r); }
+        ctx.strokeStyle = q ? `rgba(160,225,255,${0.8 * a})` : `rgba(255,255,255,${0.95 * a})`; ctx.lineWidth = (q ? 1.1 : 1.7) * s; ctx.stroke();
+      }
+      // bolts forking off the outer edge
+      for (let q = 0; q < 7; q++) {
+        const u = Math.random() * 0.75, ang = at(u), r0 = R + 1 * s, reach = (10 + Math.random() * 26) * s;
+        let x = Math.cos(ang) * r0, y = Math.sin(ang) * r0; ctx.beginPath(); ctx.moveTo(x, y);
+        const dir = ang + (Math.random() - 0.5) * 0.9;
+        for (let n = 1; n <= 4; n++) { x += Math.cos(dir) * reach / 4 + (Math.random() - 0.5) * 6 * s; y += Math.sin(dir) * reach / 4 + (Math.random() - 0.5) * 6 * s; ctx.lineTo(x, y); }
+        ctx.strokeStyle = `rgba(190,235,255,${0.75 * a * (1 - u)})`; ctx.lineWidth = 1 * s; ctx.stroke();
+      }
+      ctx.restore();
+      // sparks thrown from the tip while it sweeps
+      if (k < 0.22) for (let q = 0; q < 5; q++) {
+        const hx = b.cx + Math.cos(head) * b.Rx, hy = b.cy + Math.sin(head) * b.Ry, tang = head - Math.PI / 2, v = 60 + Math.random() * 120;
+        this.particles.push({ x: hx, y: hy, vx: Math.cos(tang) * v * 0.6 + (Math.random() - 0.5) * 60, vy: Math.sin(tang) * v * 0.6 + (Math.random() - 0.5) * 60, g: 60, life: 0.35 + Math.random() * 0.35, t: 0, c: Math.random() < 0.5 ? '#ffffff' : '#9fe8ff', streak: 3, drag: 0.92 });
+      }
+    }
+  }
+
   // a jagged line from a to b (for bolts)
   _zig(a, b, n, j) { const pts = [a]; for (let i = 1; i < n; i++) pts.push({ x: lerp(a.x, b.x, i / n) + (Math.random() - 0.5) * j, y: lerp(a.y, b.y, i / n) + (Math.random() - 0.5) * j }); pts.push(b); return pts; }
 
@@ -862,24 +932,22 @@ export class BattleScene {
         this.flash = Math.max(this.flash || 0, 0.12 + j * 0.06); sfx('zap');
       }, T(holdMs * f)));
     }, T(st + at[h0]));
-    // the giant arc: twice the hero's height, sweeping down through the enemy
+    // the giant arc: an electric oval about four times the knight's height, from above the screen down through the
+    // enemy into the floor. The close-up eases out just before it so more of it fits on screen.
     const target = fin ? this.actors.get(fin.id) || firstE : firstE;
-    const R = 78;   // the arc spans about 1.45 R from its top to its tip: twice the knight's ~55 px height
+    const arcIdx = anim.arcAt != null ? anim.arcAt : anim.hit;
+    setTimeout(() => { if (this.cam) this.cam.dur = Math.min(this.cam.dur, now() - this.cam.t0 + T(300)); }, T(st + at[arcIdx] - 220));
     setTimeout(() => {
       const tx = (target && !target.gone ? target : firstE);
-      const cx = tx.x + R * 0.72, cy = tx.y - R * 0.44;
-      this.trails.push({ x: cx, y: cy, r: R, t0: now(), life: T(700), color: 'electric' });
-      // a bolt tracing the edge of the arc
-      const pts = []; for (let a = -1.45; a > -3.62; a -= 0.12) pts.push({ x: cx + Math.cos(a) * R * 0.9 + (Math.random() - 0.5) * 3, y: cy + Math.sin(a) * R * 0.9 + (Math.random() - 0.5) * 3 });
-      this.arcs.push({ bolt: pts, color: '#bff6ff', w: 3, t: 0, life: 0.32 });
+      this.bigArc(tx.x, tx.y, T);
       sfx('heavy'); sfx('zap');
-    }, T(st + at[anim.arcAt != null ? anim.arcAt : anim.hit]));
+    }, T(st + at[arcIdx]));
     // the finisher lands: number, flash, ripples and leftover crackle on the ground
     setTimeout(() => {
       const tx = (target && !target.gone ? target : firstE);
       if (fin) this.impact(ev, tgt, 'lightning', rc, [fin], true);
-      this.shake = Math.max(this.shake, 8); this.shakeT = now(); this.flash = 0.3; this.freezeUntil = now() + 170;
-      this.glows.push({ x: tx.x, y: tx.y - 30, r: 90, color: '#7fd8ff', t: 0, life: 0.5, a: 1, tall: true });
+      this.shake = Math.max(this.shake, 8); this.shakeT = now(); this.flash = 0.1; this.freezeUntil = now() + 170;
+      this.glows.push({ x: tx.x, y: tx.y - 30, r: 70, color: '#7fd8ff', t: 0, life: 0.45, a: 0.7, tall: true });
       this.burst(tx.x, tx.y - 18, '#bff6ff', 40, 70);
       for (let j = 0; j < 3; j++) this.ripples.push({ x: tx.x, y: tx.y + 1, t0: performance.now() + T(j * 170), life: T(800), r0: 6, r1: 44 + j * 10 });
       this.residue.push({ x: tx.x, y: tx.y, w: 46, t0: performance.now(), until: performance.now() + T(1500) });
@@ -1619,6 +1687,7 @@ export class BattleScene {
     this.post(ctx, time, sx, sy);
     this.drawTrails(ctx, t, sx, sy);
     this.drawXHits(ctx, t, sx, sy);
+    this.drawBigArcs(ctx, t, sx, sy);
     this.drawOverlays(ctx, t, sx, sy);
     this.applyCam(ctx, t);
   }
