@@ -1083,12 +1083,13 @@ export class BattleScene {
       else if (m.kind === 'wheel' && PFX.vortex.img.complete && PFX.vortex.img.naturalWidth) {   // he dives inside a spinning ball of fire
         const a = m.follow, cx = Math.round(a.x + a.ox), cy = Math.round(a.y + a.oy - 24), k = age / m.life;
         const sc = Math.min(1, age / 90) * (k > 0.85 ? 1 - (k - 0.85) / 0.3 : 1);
-        n.save(); n.translate(cx, cy); n.rotate(-age / 1000 * Math.PI * 2 * 3.2); n.scale(sc, sc);
+        n.save(); n.translate(cx, cy); n.rotate(-age / 1000 * Math.PI * 2 * 3.2); n.scale(sc * 2, sc * 2);   // 170px across
         n.drawImage(PFX.vortex.img, -42.5, -42.5); n.restore();
       }
       else if (m.kind === 'fblade' && age < m.hold) {   // the blade on fire while he holds it up (not once he starts to spin)
         const tip = this._tipAt(m.follow); if (!tip) continue;
-        n.globalAlpha = Math.min(1, age / 160); frame(PFX.blade, age, 1, tip.x, tip.y); n.globalAlpha = 1;
+        // the fire's base (30px below its anchor) sits on the crossguard, m.len px below the tip
+        n.globalAlpha = Math.min(1, age / 160); frame(PFX.blade, age, 1, tip.x, tip.y + (m.len - 30)); n.globalAlpha = 1;
       }
     }
   }

@@ -100,11 +100,11 @@ EXTRA = {
     # Earthshatter (tools/assemble_quake.py, frames from the combo): run up and leap at 70 degrees ('jumpAt'), the sword
     # held up and burning as he rises ('holdAt': the flaming blade), then dive at 45 degrees onto the nearest enemy inside a
     # spinning ball of fire ('spinAt', the frame is rotated in code) and land in the downward-strike pose ('hit'): fire
-    # erupts from the ground under every enemy.
+    # erupts from the ground under every enemy. 'blade': px from the sword tip down to the crossguard (where the fire starts).
     'knight:m/quake': dict(base='knight:m', ms=[140, 90, 90, 140, 150, 150, 150, 150, 380, 90, 560], hit=9, track='top', cast=False,
-                           quake=dict(jumpAt=1, holdAt=[2, 7], spinAt=8, blade=28)),
+                           quake=dict(jumpAt=1, holdAt=[2, 7], spinAt=8, blade=39)),
     'knight:f/quake': dict(base='knight:f', ms=[140, 90, 90, 140, 150, 150, 150, 150, 380, 90, 560], hit=9, track='top', cast=False,
-                           quake=dict(jumpAt=1, holdAt=[2, 7], spinAt=8, blade=28)),
+                           quake=dict(jumpAt=1, holdAt=[2, 7], spinAt=8, blade=37)),
     'knight:m/power': dict(base='knight:m', ms=[60, 70, 90, 110, 120, 130, 140, 110, 90, 380], hit=9, aura=[1, 7], dashAt=7, dashFrames=8, upswing=9, dash=10, cast=False),
     'knight:f/power': dict(base='knight:f', ms=[60, 70, 110, 120, 130, 140, 110, 90, 380], hit=8, aura=[1, 6], dashAt=6, dashFrames=7, upswing=8, dash=10, cast=False),
 }
