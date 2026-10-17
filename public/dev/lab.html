@@ -118,8 +118,9 @@ function play(ev) {
   clearTimeout(timer);
   reset();
   lastEv = ev || eventFor(S.move);
+  for (const t of lastEv.targets || []) if (t.revived) { const a = scene.actors.get(t.id); if (a) { a.downed = true; a.hp = 0; } }   // Phoenix Feather / Resurrection: the ally starts knocked out
   setTimeout(() => scene.play([JSON.parse(JSON.stringify(lastEv))]), 250);
-  if (S.loop) timer = setTimeout(() => play(lastEv), (3200 / S.speed));
+  if (S.loop) timer = setTimeout(() => play(lastEv), 30000);   // a fallback; normally the next loop starts when the move has finished
 }
 
 function btns(el, items, key, onPick) {
@@ -163,6 +164,7 @@ $('#loop').onchange = e => { S.loop = e.target.checked; save(); if (S.loop) play
 $('#play').onclick = () => play();
 $('#enemyHit').onclick = () => { reset(); play(enemyEvent()); };
 scene.slowmo = S.speed;
+scene.onAnimDone = () => { if (!S.loop) return; clearTimeout(timer); timer = setTimeout(() => play(lastEv), 900 / S.speed); };   // loop long moves (Resurrection, Meteor) without cutting them off
 fit(); addEventListener('resize', fit);
 render(); reset();
 // ?emove=breath (or tailstorm, &dodge=1) plays that enemy move instead of a hero move

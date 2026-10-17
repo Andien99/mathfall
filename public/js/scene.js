@@ -65,7 +65,14 @@ const PFX = {
   dEyes: FX_SHEET('dragon_eyes.png', 160, 64, 4, 15, 12, 80, 32, false),
   dClaws: FX_SHEET('dragon_claws.png', 200, 160, 4, 10, 12, 100, 85, false),
   dBlast: FX_SHEET('dragon_blast.png', 103, 116, 4, 12, 12, 51, 76, false),
-  dSpike: FX_SHEET('dragon_spike.png', 48, 96, 3, 8, 13, 24, 92, false)
+  dSpike: FX_SHEET('dragon_spike.png', 48, 96, 3, 8, 13, 24, 92, false),
+  // Resurrection (cleric): the angel's wings (15 frames: 0-9 unfolding, 10-13 a slow beat, 14 the fullest spread) and
+  // body on the same 192x160 canvas, anchored on the middle of the body; the portal (anchored on the ring's centre);
+  // three loose feathers (tools/build_resurrection.py)
+  rWings: FX_SHEET('res_wings.png', 192, 160, 5, 15, 1, 96, 86, true),
+  rBody: FX_SHEET('res_body.png', 192, 160, 1, 1, 1, 96, 86, true),
+  rPortal: FX_SHEET('res_portal.png', 180, 144, 4, 16, 12, 90, 38, true),
+  rFeather: FX_SHEET('res_feathers.png', 16, 16, 3, 3, 1, 8, 8, true)
 };
 const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') !== 'code'; } catch (e) { return true; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
@@ -469,6 +476,7 @@ export class BattleScene {
     const fx = ev.fx || 'slash';
     if (fx === 'meteor') { const own = SP.heroAnim(A.skin || A.cls, 'meteor'); if (own && own.meteor) return this._meteorAnim(A, ev, T, own); }
     if (fx === 'quake') { const own = SP.heroAnim(A.skin || A.cls, 'quake'); if (own && own.quake) return this._quakeAnim(A, ev, T, own); }
+    if (ev.skill === 'resurrection' && this.pixelFx) return this._resurrectAnim(A, ev, T);
     if (ev.skill === 'wrath_of_heaven' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'chant'); if (own) return this._wrathAnim(A, ev, T, own); }
     if (fx === 'phantom' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'shoot'); if (own && own.release != null && own.charge != null) return this._phantomAnim(A, ev, T, own); }
     if (fx === 'starfall' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'volley'); if (own && own.charge != null) return this._starfallAnim(A, ev, T, own); }
@@ -1136,7 +1144,7 @@ export class BattleScene {
         const k = age / m.life, appear = Math.min(1, age / 260), e = 1 - Math.pow(1 - appear, 3);
         const spin = m.dir * (age / 1000) * (0.7 + 0.5 * k) * (m.ring === 1 ? 1 : 1.3);
         n.save(); n.translate(Math.round(m.x), Math.round(m.y)); n.scale(1, m.q); n.rotate(spin);
-        n.globalAlpha = e * Math.min(1, 0.55 + 0.6 * k);
+        n.globalAlpha = e * Math.min(1, 0.55 + 0.6 * k) * (m.fade ? clamp((m.life - age) / m.fade, 0, 1) : 1);   // fade: fade out over the last ms instead of vanishing
         const D = m.w * (0.7 + 0.3 * e);
         if (m.ring === 1) {   // the middle circle is the perspective ellipse: undo its squash so it spins round
           const f = Math.floor(age / 1000 * S.fps * (1 + k)) % S.n; n.scale(D / 180, D / 180 * 180 / 70);
@@ -1145,6 +1153,55 @@ export class BattleScene {
         n.restore();
       }   // as wide as the enemy field; the enemies show through it
       else if (m.kind === 'wimpact') frame(PFX.wImpact, age, 1, m.x, m.y);
+      // ---- Resurrection
+      else if (m.kind === 'rhalo') frame(PFX.wHalo, age, 1, m.follow.x + m.follow.ox - 2, m.follow.y + m.follow.oy - m.dy);   // over the kneeling cleric's head
+      else if (m.kind === 'rmotes') {   // golden motes floating up off the floor and gathering round the fallen hero
+        const env = Math.min(1, age / 250, (m.life - age) / 300);
+        if (Math.random() < 0.9 * env * (this.lowPower ? 0.5 : 1)) {
+          const q = Math.random() * Math.PI * 2, r = 12 + Math.random() * 14, dx = Math.cos(q) * r;
+          this.particles.push({ x: m.x + dx, y: m.y + Math.sin(q) * r * 0.3, vx: -dx * 0.9, vy: -22 - Math.random() * 22, g: 0, life: 0.7 + Math.random() * 0.5, t: 0,
+            c: ['#ffe27a', '#fff2c0', '#ffc24a'][Math.floor(Math.random() * 3)], plus: Math.random() < 0.25, fade: true });
+        }
+      }
+      else if (m.kind === 'rportal') {   // opens out of a sliver of light, swirls, then closes back to nothing
+        const S = PFX.rPortal, op = ease(clamp(age / m.open, 0, 1)), cl = clamp((m.life - age) / m.close, 0, 1), k = op * ease(cl);
+        if (k > 0.01) { n.save(); n.globalCompositeOperation = 'lighter'; n.globalAlpha = Math.min(1, 0.4 + k);
+          frameXY(S, age, 0.15 + 0.85 * k, 0.05 + 0.95 * k, m.x, m.y); n.restore(); }
+      }
+      else if (m.kind === 'rangel') this._drawAngel(n, m, t);
+      else if (m.kind === 'rspirit') {   // a golden copy of the hero, standing, rising out of the body and sinking back in
+        const F = m.follow, wf = SP.heroWhite(F.skin || F.cls, F.variant, 'idle0'); if (!wf) continue;
+        const rise = age < m.up ? ease(age / m.up) : age < m.hold ? 1 : 1 - easeIn(clamp((age - m.hold) / (m.life - m.hold), 0, 1));
+        const x = Math.round(F.x + F.ox - SP.ANCHOR_X), y = Math.round(F.y + F.oy - SP.ANCHOR_Y - 22 * rise);
+        const al = Math.min(1, age / 180) * (0.75 + 0.2 * Math.sin(t / 70));
+        n.save(); n.globalCompositeOperation = 'lighter';
+        n.globalAlpha = al * 0.3; const rim = this.tinted(wf, '#fff6c8');
+        for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) n.drawImage(rim, x + ox, y + oy);
+        n.globalAlpha = al * 0.42; n.drawImage(this.tinted(wf, '#e8a83a'), x, y);
+        n.restore();
+        if (Math.random() < 0.6) this.particles.push({ x: x + SP.ANCHOR_X + (Math.random() - 0.5) * 16, y: y + SP.ANCHOR_Y - Math.random() * 46, vx: 0, vy: -10 - Math.random() * 14, g: 0, life: 0.5, t: 0, c: Math.random() < 0.5 ? '#fff2c0' : '#ffd86a', fade: true });
+      }
+      else if (m.kind === 'rorbit') {   // sacred symbols circling the fallen hero's chest
+        const F = m.follow, cx = F.x + F.ox, cy = F.y + F.oy - 22, env = Math.min(1, age / 300, (m.life - age) / 250);
+        for (let i = 0; i < 6; i++) {
+          const q = age / 520 + i * Math.PI / 3, x = Math.round(cx + Math.cos(q) * 17), y = Math.round(cy + Math.sin(q) * 6 + Math.sin(age / 200 + i) * 2);
+          n.globalAlpha = env * (Math.sin(q) > 0 ? 1 : 0.45);
+          n.fillStyle = i % 2 ? '#ffe27a' : '#fff6c8';
+          if (i % 3 === 0) { n.fillRect(x, y - 2, 1, 5); n.fillRect(x - 1, y - 1, 3, 1); }           // a small cross
+          else if (i % 3 === 1) { n.fillRect(x, y - 1, 1, 3); n.fillRect(x - 1, y, 3, 1); }          // a twinkle
+          else { n.fillRect(x, y - 1, 1, 1); n.fillRect(x - 1, y, 1, 1); n.fillRect(x + 1, y, 1, 1); n.fillRect(x, y + 1, 1, 1); }   // a diamond
+        }
+        n.globalAlpha = 1;
+      }
+      else if (m.kind === 'rfeather') {   // drifts down, swaying and turning over as it goes
+        const S = PFX.rFeather; if (!S.img.complete || !S.img.naturalWidth) continue;
+        const s = age / 1000, sw = Math.sin(s * 3 + m.ph);
+        const x = m.x + m.vx * s * Math.exp(-s * 2) + sw * m.sway, y = m.y + m.vy * s * Math.exp(-s * 2) + m.fall * s * s * 0.6 + m.fall * s;
+        n.save(); n.globalAlpha = Math.min(1, age / 150, (m.life - age) / 400);
+        n.translate(Math.round(x), Math.round(y)); n.rotate(sw * 0.6); if (Math.cos(s * 3 + m.ph) < 0) n.scale(-1, 1);
+        n.drawImage(S.img, m.idx * 16, 0, 16, 16, -8, -8, 16, 16);
+        n.globalCompositeOperation = 'lighter'; n.globalAlpha *= 0.45; n.drawImage(this.tinted(S.img, '#fff2c0'), m.idx * 16, 0, 16, 16, -8, -8, 16, 16); n.restore();   // luminous
+      }
       else if (m.kind === 'wafter') frameXY(PFX.wAfter, age, m.sx, m.sy, m.x, m.y);
       else if (m.kind === 'pcharge') {   // Phantom Volley: spirit motes spiral in round the arrow; the charge orb once the bow is drawn
         if (age >= m.orb) frame(PFX.pCharge, age - m.orb, 1, m.x, m.y);
@@ -1432,6 +1489,207 @@ export class BattleScene {
     when(hitAt + hold - 150, () => { if (field) this.mets.push({ kind: 'wafter', x: field.cx, y: field.cy, sx: field.w / 180, sy: field.h / 70, t0: now(), life: T(1000) }); sfx('twinkle'); });
     when(hitAt + LAND + (waves - 1) * GAP + 200, () => this._applyAfter(ev));
     return T(total);
+  }
+  // Resurrection with PixelLab art (public/art/fx/res_*), in six beats:
+  // 1. Sacred invocation: the cleric kneels beside the fallen ally, a golden halo above her head, rune circles light
+  //    up under her and under the fallen, and golden motes float up round the body.
+  // 2. Heavenly descent: a portal opens in the sky above the fallen and the angel (face hidden by light) slowly sinks
+  //    out of it, wings folded, then unfolds them symmetrically.
+  // 3. Angelic blessing: she hovers, wings beating slowly, a beam of warm light from her hand to the fallen hero's
+  //    chest, feathers drifting down and sacred symbols circling the body. The rest of the party is healed.
+  // 4. Soul restoration: the body turns translucent, a golden spirit rises out of it and sinks back in; three pulses
+  //    race out over the floor, the body brighter with each, and a halo forms on the ground beneath it.
+  // 5. Resurrection: the hero rises to their feet in a golden aura, flashes white and throws off golden sparks; the
+  //    angel spreads her wings to their fullest and starts to rise towards the portal.
+  // 6. Heavenly departure: she dissolves into golden sparks and feathers, the wings last, leaving a glow round the
+  //    revived hero; the portal closes, the runes fade and the cleric walks back to her place.
+  // With nobody down the angel still descends over the party, blesses everyone and leaves (beats 4-5 are skipped).
+  _resurrectAnim(A, ev, T) {
+    if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
+    if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    const isHero = id => { const a = this.actors.get(id); return !!a && a.type === 'hero'; };
+    const fallenT = ev.targets.filter(t => t.revived && isHero(t.id));
+    const fallen = fallenT.map(t => this.actors.get(t.id));
+    const fallenIds = fallen.map(a => a.id);
+    const others = ev.targets.filter(t => !t.revived && isHero(t.id));
+    const party = [...this.actors.values()].filter(a => a.type === 'hero' && !a.gone);
+    const focus = fallen.length ? fallen : party;
+    const fx = focus.reduce((s, a) => s + a.x, 0) / focus.length, fy = focus.reduce((s, a) => s + a.y, 0) / focus.length;
+    const lp = this.lowPower ? 0.5 : 1;
+    // where everything sits: the angel's hover point (her waist), the portal above her, the cleric's kneeling spot
+    const hx = clamp(Math.round(fx - 52), 78, this.W - 78), hy = Math.round(Math.max(72, fy - 78));   // hovering just in front of the fallen, over the open floor
+    const py = Math.round(Math.max(10, hy - 82));
+    const first = fallen[0];
+    const kneel = first && first !== A ? { x: first.x + 24, y: first.y + 1 } : { x: A.x, y: A.y };
+    // the timeline (ms at 1x)
+    const KNEEL = 280, PORTAL = 900, APPEAR = 1100, HOVER = 2100, UNFOLD = 2050, SPREAD = 2450,
+      BEAM = 2600, PARTY = 3000, SOUL = 3650, PULSE = 4600, RISE = 4850, FULL = 4850, ASCEND = 5200,
+      BODY_GO = 5650, WINGS_GO = 5900, CLOSE = 6300, HOME = 6000, END = 6900;
+    const t0 = now(), at = ms => t0 + T(ms), when = (ms, fn) => setTimeout(fn, T(ms));
+    this.cam = { x: hx, y: Math.round((py + fy) / 2) + 10, t0, dur: T(END - 200), z: 1.04 };
+    // 1. sacred invocation
+    if (kneel.x !== A.x || kneel.y !== A.y) this.move(A, kneel.x - A.x, kneel.y - A.y, T(KNEEL), true);
+    when(KNEEL, () => {
+      this.pose(A, 'sit', T(HOME - KNEEL));
+      A.holy = { t0: now(), until: at(SOUL) };
+      this.mets.push({ kind: 'rhalo', follow: A, dy: 54, t0: now(), life: T(SOUL + 300 - KNEEL) });
+      this.mets.push({ kind: 'wring', ring: 0, x: kneel.x, y: kneel.y, w: 34, q: 0.32, dir: 1, fade: T(300), t0: now(), life: T(CLOSE + 100 - KNEEL) });
+      sfx('heal'); sfx('cast');
+    });
+    when(KNEEL + 170, () => {
+      for (const F of focus) {
+        if (fallen.length) this.mets.push({ kind: 'wring', ring: 2, x: F.x, y: F.y + 1, w: 54, q: 0.3, dir: -1, fade: T(300), t0: now(), life: T(CLOSE + 100 - KNEEL - 170) });
+        this.mets.push({ kind: 'rmotes', x: F.x, y: F.y, t0: now(), life: T(SOUL - KNEEL - 170) });
+      }
+      sfx('twinkle');
+    });
+    // 2. heavenly descent
+    when(PORTAL, () => {
+      this.mets.push({ kind: 'rportal', x: hx, y: py, open: T(380), close: T(400), t0: now(), life: T(CLOSE + 400 - PORTAL) });
+      this.mets.push({ kind: 'rshaft', x: hx, y0: py + 4, y1: Math.max(...focus.map(a => a.y)) + 4, w0: 52, w1: 66, t0: now(), life: T(BODY_GO + 200 - PORTAL) });
+      sfx('charge'); sfx('twinkle');
+    });
+    const angel = { kind: 'rangel', hx, hy, py, sy0: py + 24, t0: at(APPEAR), life: T(WINGS_GO + 700 - APPEAR),
+      tA: at(APPEAR), tH: at(HOVER), tU: at(UNFOLD), tUe: at(SPREAD), tFull: at(FULL), tAsc: at(ASCEND), tAe: at(ASCEND + 1400),
+      tBd: at(BODY_GO), tWd: at(WINGS_GO), bd: T(350), wd: T(650), bodyGone: false, wingsGone: false, T };
+    when(APPEAR, () => { this.mets.push(angel); sfx('heal'); });
+    when(UNFOLD, () => sfx('whoosh'));
+    // 3. angelic blessing
+    const hand = F => () => { const P = this._angelAt(angel, now()), side = F.x < P.x ? -1 : 1; return { x: P.x + side * 22, y: P.y - 15 }; };
+    when(SPREAD, () => { for (let i = 0; i < 8 * lp + 2; i++) this._resFeather(hx + (Math.random() - 0.5) * 120, hy - 30 + (Math.random() - 0.5) * 40, T); });
+    when(BEAM, () => {
+      for (const F of (fallen.length ? fallen : [])) {
+        this.mets.push({ kind: 'rbeam', from: hand(F), to: F, t0: now(), life: T(PULSE + 150 - BEAM) });
+        this.mets.push({ kind: 'rorbit', follow: F, t0: now(), life: T(PULSE + 200 - BEAM) });
+      }
+      sfx('heal'); sfx('charge');
+    });
+    for (let i = 1; i <= 4; i++) when(SPREAD + i * 280, () => { for (let j = 0; j < 3 * lp + 1; j++) this._resFeather(hx + (Math.random() - 0.5) * 130, hy - 20 + (Math.random() - 0.5) * 30, T); });
+    when(PARTY, () => {   // the rest of the party: a softer light and their heals
+      for (const t of others) {
+        const p = this.pos(t.id); if (!p) continue;
+        if (t.heal > 0) { this.column(p.x, p.y, '#ffe9a0'); this.number(p.x, p.y - 44, '+' + t.heal, '#8dff9e', 1.1); }
+        this.glows.push({ x: p.x, y: p.y - 22, r: 30, color: '#ffe9a0', t: 0, life: 0.9, a: 0.5 });
+      }
+      this._applyAfter(ev, Object.keys(ev.after || {}).filter(id => !fallenIds.includes(id)));
+      if (others.some(t => t.heal > 0)) sfx('heal');
+    });
+    // 4. soul restoration
+    if (fallen.length) {
+      when(SOUL, () => {
+        for (const F of fallen) {
+          F.ghost = { t0: now(), until: at(RISE), a: 0.42 };
+          F.radiant = { t0: now(), until: at(RISE + 1000), pulses: [] };
+          this.mets.push({ kind: 'rspirit', follow: F, t0: now(), life: T(PULSE - SOUL + 40), up: T(500), hold: T(650) });
+        }
+        sfx('rise');
+      });
+      for (let j = 0; j < 3; j++) when(PULSE + j * 120, () => {
+        for (const F of fallen) {
+          F.radiant && F.radiant.pulses.push(now());
+          this.mets.push({ kind: 'rpulse', x: F.x, y: F.y + 1, r1: 60 + j * 18, t0: now(), life: T(650) });
+          if (j === 0) this.mets.push({ kind: 'wring', ring: 0, x: F.x, y: F.y + 1, w: 26, q: 0.3, dir: 1, fade: T(400), t0: now(), life: T(CLOSE + 150 - PULSE) });
+        }
+        this.flash = Math.max(this.flash || 0, j ? 0.05 : 0.12);
+        sfx(j ? 'twinkle' : 'heal');
+      });
+      // 5. resurrection
+      when(RISE, () => {
+        this._applyAfter(ev, fallenIds);
+        for (const t of fallenT) {
+          const F = this.actors.get(t.id); if (!F) continue;
+          F.ghost = null;
+          this.pose(F, 'sit', T(460));
+          F.flashUntil = now() + T(190);
+          F.radiant = { t0: F.radiant ? F.radiant.t0 : now(), until: at(RISE + 1100), pulses: [now()] };
+          this.number(F.x, F.y - 48, '+' + (t.heal || 0), '#8dff9e', 1.25, true);
+          this.number(F.x, F.y - 64, 'Revived!', '#ffe27a', 0.9);
+          for (let i = 0; i < 40 * lp; i++) { const q = Math.random() * Math.PI * 2, v = 30 + Math.random() * 70; this.particles.push({ x: F.x + Math.cos(q) * 4, y: F.y - 22 + Math.sin(q) * 10, vx: Math.cos(q) * v, vy: Math.sin(q) * v * 0.7 - 30, g: 40, life: 0.6 + Math.random() * 0.6, t: 0, c: ['#ffffff', '#fff2c0', '#ffe27a', '#ffc24a'][i % 4], plus: i % 5 === 0, drag: 0.92, fade: true }); }
+          this.glows.push({ x: F.x, y: F.y - 24, r: 46, color: '#fff2c0', t: 0, life: 0.5, a: 0.9 });
+        }
+        sfx('correct'); sfx('heal');
+      });
+    }
+    when(FULL, () => sfx('whoosh'));
+    // 6. heavenly departure (the dissolve itself runs in drawPixelFx as the angel's clock passes tBd / tWd)
+    when(BODY_GO, () => sfx('rise'));
+    when(WINGS_GO, () => {
+      for (const F of focus) this.glows.push({ x: F.x, y: F.y - 24, r: 40, color: '#ffe9a0', t: 0, life: 1.3, a: 0.45 });
+      sfx('twinkle');
+    });
+    when(HOME, () => { A.pose = null; this.move(A, 0, 0, T(320)); });
+    when(CLOSE, () => sfx('twinkle'));
+    when(RISE + 150, () => this._applyAfter(ev));
+    return T(END);
+  }
+  // where the angel is at time t: her waist on screen, the wing frame, and how solid her body and wings are
+  _angelAt(m, t) {
+    let y, f;
+    if (t < m.tH) y = lerp(m.sy0, m.hy, ease(clamp((t - m.tA) / (m.tH - m.tA), 0, 1)));
+    else y = m.hy + Math.sin((t - m.tH) / 380) * 1.5;
+    if (t > m.tAsc) y -= (m.hy - m.py) * 0.9 * easeIn(clamp((t - m.tAsc) / (m.tAe - m.tAsc), 0, 1));   // rising back towards the portal
+    if (t < m.tU) f = 0;
+    else if (t < m.tUe) f = Math.min(9, Math.floor((t - m.tU) / (m.tUe - m.tU) * 10));
+    else if (t < m.tFull) f = 10 + Math.floor((t - m.tUe) / 190) % 4;
+    else f = 14;
+    const a = clamp((t - m.tA) / 320, 0, 1);
+    const ba = a * clamp(1 - (t - m.tBd) / m.bd, 0, 1), wa = a * clamp(1 - (t - m.tWd) / m.wd, 0, 1);
+    return { x: m.hx, y: Math.round(y), f, a, ba, wa };
+  }
+  _drawAngel(n, m, t) {
+    const W = PFX.rWings, B = PFX.rBody;
+    if (!W.img.complete || !W.img.naturalWidth || !B.img.complete || !B.img.naturalWidth) return;
+    const P = this._angelAt(m, t), lp = this.lowPower ? 0.5 : 1;
+    const wx = Math.round(P.x - W.ax), wy = P.y - W.ay;
+    const sx = (P.f % W.cols) * W.w, sy = Math.floor(P.f / W.cols) * W.h;
+    const glowA = 0.05 + 0.03 * Math.sin(t / 110);
+    if (P.wa > 0) {   // the wings, behind her
+      n.globalAlpha = P.wa; n.drawImage(W.img, sx, sy, W.w, W.h, wx, wy, W.w, W.h);
+      n.save(); n.globalCompositeOperation = 'lighter'; n.globalAlpha = P.wa * glowA;
+      n.drawImage(this.tinted(W.img, '#ffe9a0'), sx, sy, W.w, W.h, wx, wy, W.w, W.h); n.restore();
+    }
+    if (P.ba > 0) {
+      n.globalAlpha = P.ba; n.drawImage(B.img, wx, wy);
+      n.save(); n.globalCompositeOperation = 'lighter'; n.globalAlpha = P.ba * (glowA + (t > m.tBd ? 0.5 * (1 - P.ba) : 0));
+      n.drawImage(this.tinted(B.img, '#fff2c0'), wx, wy); n.restore();
+    }
+    n.globalAlpha = 1;
+    // the dissolve: her body bursts into golden sparks first, then the wings into feathers and light
+    const spark = (pts, count, cols, up) => {
+      for (let i = 0; i < count && pts.length; i++) {
+        const p = pts[Math.floor(Math.random() * pts.length)];
+        const bright = p[2] + p[3] + p[4] > 560;
+        this.particles.push({ x: P.x + p[0], y: P.y + p[1], vx: (Math.random() - 0.5) * 24 + p[0] * 0.3, vy: -up * (0.5 + Math.random()) + p[1] * 0.1, g: -8, life: 0.6 + Math.random() * 0.8, t: 0,
+          c: bright ? cols[Math.floor(Math.random() * cols.length)] : `rgb(${p[2]},${p[3]},${p[4]})`, plus: i % 9 === 0, drag: 0.94, fade: true });
+      }
+    };
+    if (!m.bodyGone && t >= m.tBd) {
+      m.bodyGone = true;
+      spark(this._resPts(B, 0), Math.round(170 * lp), ['#ffffff', '#fff6c8', '#ffe27a', '#ffc24a'], 34);
+      this.glows.push({ x: P.x, y: P.y - 20, r: 50, color: '#fff2c0', t: 0, life: 0.5, a: 0.7 });
+    }
+    if (!m.wingsGone && t >= m.tWd) {
+      m.wingsGone = true;
+      const pts = this._resPts(W, P.f);
+      spark(pts, Math.round(150 * lp), ['#ffffff', '#fff6c8', '#ffe9a0'], 18);
+      for (let i = 0; i < 22 * lp && pts.length; i++) { const p = pts[Math.floor(Math.random() * pts.length)]; this._resFeather(P.x + p[0], P.y + p[1], m.T, true); }
+    }
+  }
+  _resPts(S, f) {   // opaque pixels of one frame of a sheet, relative to its anchor (for the dissolve)
+    this._rp = this._rp || {};
+    const key = S.img.src + f; if (this._rp[key]) return this._rp[key];
+    if (!S.img.complete || !S.img.naturalWidth) return [];
+    const c = document.createElement('canvas'); c.width = S.w; c.height = S.h;
+    const x = c.getContext('2d'); x.drawImage(S.img, (f % S.cols) * S.w, Math.floor(f / S.cols) * S.h, S.w, S.h, 0, 0, S.w, S.h);
+    const d = x.getImageData(0, 0, S.w, S.h).data, pts = [];
+    for (let i = 0; i < S.w * S.h; i++) if (d[i * 4 + 3] > 100) pts.push([i % S.w - S.ax, Math.floor(i / S.w) - S.ay, d[i * 4], d[i * 4 + 1], d[i * 4 + 2]]);
+    return (this._rp[key] = pts);
+  }
+  // one luminous feather drifting down, swaying side to side
+  _resFeather(x, y, T, burst) {
+    const q = Math.random() * Math.PI * 2, v = burst ? 20 + Math.random() * 40 : 0;
+    this.mets.push({ kind: 'rfeather', x, y, vx: Math.cos(q) * v, vy: Math.sin(q) * v * 0.6 - (burst ? 18 : 0), fall: 9 + Math.random() * 8, sway: 5 + Math.random() * 6,
+      ph: Math.random() * 6.3, idx: Math.floor(Math.random() * 3), t0: now(), life: T(1400 + Math.random() * 900) });
   }
   // Dragon's Wrath with PixelLab art (public/art/fx/dragon_*), on the mage's Cast animation re-timed into five beats:
   // 1. Awakening: she braces (the wide-stance frame, held) while red-orange energy gathers in her hand, embers rise off
@@ -1747,7 +2005,7 @@ export class BattleScene {
         if (Math.random() < 0.6 * a) this.particles.push({ x: m.x + (Math.random() - 0.5) * m.w, y: m.y - Math.random() * m.h * up, vx: (Math.random() - 0.5) * 20, vy: -40 - Math.random() * 60, g: 0, life: 0.4, t: 0, c: Math.random() < 0.5 ? '#ffb347' : '#ff6a2a', fade: true });
       } else if (m.kind === 'wpillar') { const a = k < 0.15 ? k / 0.15 : k > 0.7 ? Math.max(0, (1 - k) / 0.3) : 1, r = Math.max(50, m.w * 0.75); ctx.save(); ctx.translate(X(m.x), Y(m.y - 60)); ctx.scale(0.75, 2.4); glow(0, 0, r * s, '#fff2c0', 0.4 * a); ctx.restore(); glow(X(m.x), Y(m.y), r * 1.2 * s, '#ffe08a', 0.35 * a);
       } else if (m.kind === 'wmark') { glow(X(m.x), Y(m.y), (26 + 18 * k) * s * (m.sx || 1) * 0.8, '#ffd86a', 0.25 + 0.45 * k);
-      } else if (m.kind === 'wring') { ctx.save(); ctx.translate(X(m.x), Y(m.y)); ctx.scale(1, m.q); glow(0, 0, m.w * 0.55 * s, '#ffd86a', (0.12 + 0.2 * k) * Math.min(1, age / 260)); ctx.restore();
+      } else if (m.kind === 'wring') { ctx.save(); ctx.translate(X(m.x), Y(m.y)); ctx.scale(1, m.q); glow(0, 0, m.w * 0.55 * s, '#ffd86a', (0.12 + 0.2 * k) * Math.min(1, age / 260) * (m.fade ? clamp((m.life - age) / m.fade, 0, 1) : 1)); ctx.restore();
       } else if (m.kind === 'whalo') { const a = m.follow; glow(X(a.x + a.ox - 2), Y(a.y + a.oy - 66), 22 * s, '#ffe9a0', 0.55); glow(X(a.x + a.ox), Y(a.y + a.oy - 28), 40 * s, '#ffd86a', 0.25);
       } else if (m.kind === 'pcharge') { const g0 = Math.min(1, age / Math.max(1, m.orb)); glow(X(m.x), Y(m.y), (8 + 16 * g0 + (age > m.orb ? 3 * Math.sin(age / 60) : 0)) * s, '#7affd8', 0.35 + 0.35 * g0);
       } else if (m.kind === 'parrow') { const P = this._pvAt(m, Math.min(1, age / m.life)); glow(X(P.x), Y(P.y), 15 * s, '#7affd8', 0.55 * m.a);
@@ -1775,6 +2033,36 @@ export class BattleScene {
       } else if (m.kind === 'dclaws') { glow(X(m.x), Y(m.y), 70 * s * m.sc, '#ff3a1a', 0.5 * (1 - k));
       } else if (m.kind === 'dblast') { glow(X(m.x), Y(m.y - 30), 110 * s, '#ff5a1a', 0.75 * Math.max(0, 1 - k * 1.3)); glow(X(m.x), Y(m.y - 20), 46 * s, '#fff2c0', 0.8 * Math.max(0, 1 - k * 3));
       } else if (m.kind === 'dspike') { glow(X(m.x), Y(m.y - 30 * m.sc), 22 * s * m.sc, '#ff5a1a', 0.45 * (1 - k));
+      // ---- Resurrection: the light around the pixel art
+      } else if (m.kind === 'rhalo') { const a = m.follow; glow(X(a.x + a.ox - 2), Y(a.y + a.oy - m.dy), 20 * s, '#ffe9a0', 0.55 * Math.min(1, age / 200, (m.life - age) / 300));
+      } else if (m.kind === 'rportal') {
+        const op = eo(age / m.open), cl = Math.max(0, Math.min(1, (m.life - age) / m.close)), kk = op * eo(cl);
+        ctx.save(); ctx.translate(X(m.x), Y(m.y)); ctx.scale(1, 0.32); glow(0, 0, 90 * s * kk, '#fff2c0', 0.35 * kk); ctx.restore();
+        glow(X(m.x), Y(m.y), 22 * s * kk, '#ffffff', 0.35 * kk);
+      } else if (m.kind === 'rshaft') {   // a soft cone of light from the portal down to the floor
+        const a = Math.min(1, age / 400, (m.life - age) / 500) * (0.85 + 0.15 * Math.sin(t / 160));
+        const y0 = Y(m.y0), y1 = Y(m.y1), x = X(m.x);
+        const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, hexA('#fff2c0', 0.2 * a)); g.addColorStop(0.6, hexA('#ffe08a', 0.08 * a)); g.addColorStop(1, hexA('#ffe08a', 0));
+        ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - m.w0 * s, y0); ctx.lineTo(x + m.w0 * s, y0); ctx.lineTo(x + m.w1 * s, y1); ctx.lineTo(x - m.w1 * s, y1); ctx.closePath(); ctx.fill();
+        const g2 = ctx.createLinearGradient(0, y0, 0, y1); g2.addColorStop(0, hexA('#ffffff', 0.1 * a)); g2.addColorStop(1, hexA('#fff2c0', 0));
+        ctx.fillStyle = g2; ctx.beginPath(); ctx.moveTo(x - m.w0 * 0.35 * s, y0); ctx.lineTo(x + m.w0 * 0.35 * s, y0); ctx.lineTo(x + m.w1 * 0.4 * s, y1); ctx.lineTo(x - m.w1 * 0.4 * s, y1); ctx.closePath(); ctx.fill();
+      } else if (m.kind === 'rangel') {   // the light she gives off, and the burst of light round her head
+        const P = this._angelAt(m, t), a = Math.max(P.ba, P.wa * 0.7);
+        if (a > 0) { glow(X(P.x), Y(P.y - 18), 80 * s, '#ffe9a0', 0.12 * a); glow(X(P.x), Y(P.y - 48), 20 * s * (0.9 + 0.1 * Math.sin(t / 90)), '#ffffff', 0.35 * P.ba); }
+      } else if (m.kind === 'rbeam') {   // warm golden-white light from her hand to the fallen hero's chest
+        const fr = m.from(), F = m.to, to = { x: F.x + F.ox, y: F.y + F.oy - 22 };
+        const a = Math.min(1, age / 220, (m.life - age) / 260), fl = 0.85 + 0.15 * Math.sin(t / 37) * Math.sin(t / 83);
+        const line = (w, col, al) => { ctx.strokeStyle = hexA(col, al * a * fl); ctx.lineWidth = w * s; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(X(fr.x), Y(fr.y)); ctx.lineTo(X(to.x), Y(to.y)); ctx.stroke(); };
+        line(9, '#ffd86a', 0.18); line(4.5, '#ffe9a0', 0.4); line(1.6, '#ffffff', 0.9);
+        glow(X(fr.x), Y(fr.y), 12 * s, '#ffffff', 0.7 * a); glow(X(to.x), Y(to.y), 18 * s * fl, '#fff2c0', 0.45 * a);
+        if (Math.random() < 0.7 * a) { const u = Math.random(); this.particles.push({ x: lerp(fr.x, to.x, u), y: lerp(fr.y, to.y, u), vx: (to.x - fr.x) * 0.8, vy: (to.y - fr.y) * 0.8, g: 0, life: 0.25, t: 0, c: Math.random() < 0.5 ? '#ffffff' : '#ffe27a', plus: Math.random() < 0.3, fade: true }); }
+      } else if (m.kind === 'rpulse') {   // a ring of light racing out over the floor
+        const e = eo(k), r = (6 + m.r1 * e) * s, a = 1 - k;
+        ctx.strokeStyle = hexA('#ffd86a', 0.8 * a); ctx.lineWidth = Math.max(1.5, s * 4 * a);
+        ctx.beginPath(); ctx.ellipse(X(m.x), Y(m.y), r, r * 0.26, 0, 0, TAU); ctx.stroke();
+        ctx.strokeStyle = hexA('#ffffff', 0.75 * a); ctx.lineWidth = Math.max(1, s * 1.4 * a);
+        ctx.beginPath(); ctx.ellipse(X(m.x), Y(m.y), r * 0.96, r * 0.25, 0, 0, TAU); ctx.stroke();
+        if (k < 0.3) glow(X(m.x), Y(m.y - 10), 30 * s, '#fff2c0', 0.6 * (1 - k / 0.3));
       } else if (m.kind === 'burn') {   // fire left burning on the floor, dying down
         const left = 1 - k;
         glow(X(m.x), Y(m.y - 6), m.w * 1.3 * s, '#ff6a2a', 0.35 * left);
@@ -2459,6 +2747,7 @@ export class BattleScene {
       let alpha = a.alpha == null ? 1 : a.alpha;
       if (a.spawnAt) { alpha = clamp((t - a.spawnAt) / 500, 0, 1); a.alpha = alpha; if (alpha >= 1) a.spawnAt = 0; }
       if (a.dying) alpha = Math.max(0, 1 - (t - a.dying) / 300);
+      if (a.ghost && t < a.ghost.until) alpha *= lerp(1, a.ghost.a, Math.min(1, (t - a.ghost.t0) / 300));   // Resurrection: the fallen body turns translucent
       if (a.type === 'hero' && !a.connected && !this.victory) alpha *= 0.55;   // everyone celebrates at full colour
       n.globalAlpha = alpha;
       const spun = a.spin && t < a.spin.t0 + a.spin.dur;
@@ -2477,6 +2766,12 @@ export class BattleScene {
       n.drawImage(fr, x, y);
       if (t < a.flashUntil) { n.globalAlpha = 0.85; n.drawImage(this.frameFor(a, true), x, y); }
       if (a.holy && t < a.holy.until) { const k = (t - a.holy.t0) / (a.holy.until - a.holy.t0); n.globalAlpha = alpha * (0.18 + 0.14 * Math.sin(t / 90)) * Math.min(1, k * 4, (1 - k) * 4); n.drawImage(this.tinted(this.frameFor(a, true), '#ffe9a0'), x, y); n.globalAlpha = alpha; }   // Wrath of Heaven: the robes glow
+      if (a.radiant && t < a.radiant.until) {   // Resurrection: a golden glow over the body, brighter with every pulse
+        const r = a.radiant, env = Math.min(1, (t - r.t0) / 300, (r.until - t) / 400);
+        let g = 0.12; for (const p of r.pulses) if (t > p) g += 0.35 * Math.exp(-(t - p) / 180);
+        n.save(); n.globalCompositeOperation = 'lighter'; n.globalAlpha = env * Math.min(0.9, g);   // full strength even while the body is see-through
+        n.drawImage(this.tinted(this.frameFor(a, true), '#ffd86a'), x, y); n.restore(); n.globalAlpha = alpha;
+      }
       if (a.fiery && t < a.fiery.until) {   // Dragon's Wrath: the mage's silhouette burns with red-orange light
         const k = (t - a.fiery.t0) / (a.fiery.until - a.fiery.t0), env = Math.min(1, k * 5, (1 - k) * 6), wf = this.frameFor(a, true);
         n.globalAlpha = alpha * env * (0.75 + 0.25 * Math.sin(t / 60)); const rim = this.tinted(wf, '#ff4a1a');
