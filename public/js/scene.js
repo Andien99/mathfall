@@ -72,8 +72,21 @@ const PFX = {
   rWings: FX_SHEET('res_wings.png', 192, 160, 5, 15, 1, 96, 86, true),
   rBody: FX_SHEET('res_body.png', 192, 160, 1, 1, 1, 96, 86, true),
   rPortal: FX_SHEET('res_portal.png', 180, 144, 4, 16, 12, 90, 38, true),
-  rFeather: FX_SHEET('res_feathers.png', 16, 16, 3, 3, 1, 8, 8, true)
+  rFeather: FX_SHEET('res_feathers.png', 16, 16, 3, 3, 1, 8, 8, true),
+  // Time Stop (mage): the clock rune over the staff (0-3 forming, 5-13 loop), the clock face and the toothed ring round it
+  // (top-down, spun and squashed onto the floor in code; the hands are drawn in code), the freeze shockwave, the ice
+  // crystals round each frozen enemy (the full set behind it, the lower part again in front) and the shatter
+  // (tools/build_time_stop.py)
+  tsRune: FX_SHEET('ts_rune.png', 64, 64, 4, 14, 12, 32, 32, false),
+  tsClock: FX_SHEET('ts_clock.png', 128, 128, 1, 1, 1, 64, 64, true),
+  tsGear: FX_SHEET('ts_gear.png', 128, 128, 1, 1, 1, 64, 64, true),
+  tsWave: FX_SHEET('ts_wave.png', 192, 64, 4, 10, 11, 96, 32, false),
+  tsCrys: FX_SHEET('ts_crystals.png', 80, 56, 4, 10, 12, 40, 49, false),
+  tsCrysF: FX_SHEET('ts_crystals_front.png', 80, 56, 4, 10, 12, 40, 49, false),
+  tsShatter: FX_SHEET('ts_shatter.png', 96, 96, 4, 12, 16, 48, 48, false)
 };
+// Time Stop: the top of the staff in the held Channel frames, from the feet (px), by hero skin
+const TS_TIP = { 'mage:f': [-4, -82], 'mage:m': [-11, -92] };
 const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') !== 'code'; } catch (e) { return true; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
   mark: 'Marked', stun: 'Stunned', regen: 'Mending', steady: 'Iron Skin', thorns: 'Riposte', frost: 'Frost Armour', unbreak: 'Unbreakable', divine: 'Shielded', surge: 'Mana Surge' };
@@ -490,6 +503,7 @@ export class BattleScene {
     if (fx === 'phantom' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'shoot'); if (own && own.release != null && own.charge != null) return this._phantomAnim(A, ev, T, own); }
     if (fx === 'starfall' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'volley'); if (own && own.charge != null) return this._starfallAnim(A, ev, T, own); }
     if (ev.skill === 'dragons_wrath' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'cast'); if (own && own.muzzle) return this._dragonAnim(A, ev, T, own); }
+    if (fx === 'timestop' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'channel'); if (own) return this._timeStopAnim(A, ev, T, own); }
     if (!ev._pre) {
       const nm = this._preAnimName(A, fx), pre = nm && SP.heroAnim(A.skin || A.cls, nm);
       if (pre) {   // play the move, then run the usual effects from its hit frame
@@ -1162,6 +1176,39 @@ export class BattleScene {
         n.restore();
       }   // as wide as the enemy field; the enemies show through it
       else if (m.kind === 'wimpact') frame(PFX.wImpact, age, 1, m.x, m.y);
+      // ---- Time Stop
+      else if (m.kind === 'tsrune') {   // forms (0-3), then hovers on its loop (5-13) over the staff
+        const S = PFX.tsRune; if (!S.img.complete || !S.img.naturalWidth) continue;
+        let f = Math.floor(age / 1000 * S.fps); if (f > 4) f = 5 + (f - 5) % 9;
+        const p = m.at(), fade = clamp((m.life - age) / 160, 0, 1);
+        n.save(); n.globalAlpha = fade; n.drawImage(S.img, (f % S.cols) * S.w, Math.floor(f / S.cols) * S.h, S.w, S.h, Math.round(p.x - S.ax), Math.round(p.y - S.ay), S.w, S.h);
+        n.globalCompositeOperation = 'lighter'; n.globalAlpha = fade * (0.18 + 0.12 * Math.sin(t / 90));
+        n.drawImage(S.img, (f % S.cols) * S.w, Math.floor(f / S.cols) * S.h, S.w, S.h, Math.round(p.x - S.ax), Math.round(p.y - S.ay), S.w, S.h); n.restore();
+      }
+      else if (m.kind === 'tsgather') {   // blue energy spiralling in to the rune
+        const p = m.at(), env = Math.min(1, age / 200);
+        for (let j = 0; j < (this.lowPower ? 1 : 2); j++) {
+          if (Math.random() > 0.8 * env) continue;
+          const qd = Math.random() * Math.PI * 2, r = 26 + Math.random() * 22, v = 2.4;
+          this.particles.push({ x: p.x + Math.cos(qd) * r, y: p.y + Math.sin(qd) * r * 0.8, vx: -Math.sin(qd) * r * 1.4 - Math.cos(qd) * r * v, vy: Math.cos(qd) * r * 1.1 - Math.sin(qd) * r * 0.8 * v, g: 0, life: 0.36, t: 0, c: ['#ffffff', '#bfe6ff', '#6fc8ff', '#b8a6ff'][Math.floor(Math.random() * 4)], streak: 2, drag: 0.94 });
+        }
+      }
+      else if (m.kind === 'tscrys') this._drawTsCrystals(n, m, t, PFX.tsCrysF);   // the lower part again, in front: the enemy stands encased
+      else if (m.kind === 'tsmotes') {   // drift in, then hang perfectly still and twinkle until time resumes
+        const k = ease(clamp(age / (m.tS - m.t0), 0, 1));
+        if (!m.blown) for (const p of m.pts) {
+          const x = Math.round(p.x + p.dx * k), y = Math.round(p.y + p.dy * k);
+          n.globalAlpha = Math.min(1, age / 200) * (0.55 + 0.45 * Math.sin(t / 160 + p.ph));
+          n.fillStyle = p.c;
+          if (p.plus) { n.fillRect(x - 1, y, 3, 1); n.fillRect(x, y - 1, 1, 3); } else n.fillRect(x, y, 1, 1);
+        }
+        n.globalAlpha = 1;
+        if (t >= m.tR && !m.blown) {   // time resumes: they fly off
+          m.blown = true;
+          for (const p of m.pts) { const x = p.x + p.dx, y = p.y + p.dy, dx = x - m.cx, dy = y - m.cy, r = Math.hypot(dx, dy) || 1; this.particles.push({ x, y, vx: dx / r * (80 + Math.random() * 70), vy: dy / r * 60 - 20, g: 30, life: 0.4 + Math.random() * 0.3, t: 0, c: p.c, streak: 3, drag: 0.9 }); }
+        }
+      }
+      else if (m.kind === 'tsshatter') { n.save(); n.globalCompositeOperation = 'lighter'; frame(PFX.tsShatter, age, m.sc, m.x, m.y); n.restore(); n.globalAlpha = 1; }
       // ---- Resurrection
       else if (m.kind === 'rhalo') frame(PFX.wHalo, age, 1, m.follow.x + m.follow.ox - 2, m.follow.y + m.follow.oy - m.dy);   // over the kneeling cleric's head
       else if (m.kind === 'rmotes') {   // golden motes floating up off the floor and gathering round the fallen hero
@@ -1846,6 +1893,154 @@ export class BattleScene {
     n.drawImage(S.img, sx, 0, 160, 128, -32, -66, 160, 128);
     n.restore();
   }
+  // Time Stop (mage legendary), after Andy's concept sheet, on the Channel animation re-timed into four beats.
+  // 1. Channel: the staff goes up and is held; a clock rune with an hourglass forms over its tip while blue energy spirals
+  //    into it and the mage's outline glows. 2. Time freeze: the rune flares and sends a streak of light down into the
+  //    middle of the enemies, a great clock face opens on the floor under them with its hands racing round, a shockwave of
+  //    time magic runs out over the floor, and as it passes each enemy, ice crystals burst up round it and it stops dead,
+  //    turned to blue crystal, while the room drains of colour and its torches stop flickering. 3. Frozen state: the hands
+  //    have slowed to a stop and only tremble, motes of light hang still in the air. 4. Release: the hands spin, time
+  //    resumes and the frozen enemies shatter one after another (the damage lands, and Frozen), the clock breaks into
+  //    shards of light, the rune dissolves and the colour comes back.
+  _timeStopAnim(A, ev, T, ch) {
+    const isEnemy = id => { const a = this.actors.get(id); return !!a && a.type === 'enemy'; };
+    const tgt = ev.targets.filter(t => isEnemy(t.id));
+    const foes = [...new Set(tgt.map(t => t.id))].map(id => this.actors.get(id)).filter(Boolean);
+    const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
+    if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
+    if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    // the Channel frames re-timed: raise (0-3) → staff up and held (4, 5) → lower (6, 7)
+    const tl = [[0, 70], [1, 80], [2, 80], [3, 90], [4, 260], [5, 2900], [6, 110], [7, 260]];
+    const d = Object.assign({}, ch, { timeline: tl, loop: null });
+    const at = []; let acc = 0; for (const [, ms] of tl) { at.push(acc); acc += ms; }
+    const t0 = now(), sp = T(1000) / 1000;
+    A.anim = { d, t0, speed: sp, at, total: acc };
+    const when = (ms, fn) => setTimeout(fn, T(ms));
+    const lp = this.lowPower ? 0.5 : 1;
+    const tipD = TS_TIP[SP.skinKey(A.skin || A.cls)] || [-6, -86];
+    const tip = () => ({ x: A.x + A.ox + tipD[0], y: A.y + A.oy + tipD[1] });
+    const runeAt = () => { const p = tip(); return { x: p.x, y: Math.max(26, p.y - 20) }; };
+    // the enemy side: where the clock opens and how big it is
+    const xs = foes.map(e => e.x), ys = foes.map(e => e.y), big = foes.some(e => e.size === 'xl') ? 70 : foes.some(e => e.size === 'l') ? 30 : 0;
+    const field = foes.length ? { cx: (Math.min(...xs) + Math.max(...xs)) / 2, cy: (Math.min(...ys) + Math.max(...ys)) / 2 + 2, w: Math.min(this.W * 0.62, Math.max(...xs) - Math.min(...xs) + 76 + big) }
+      : { cx: A.x - 120, cy: A.y, w: 110 };
+    field.w = Math.max(96, field.w);
+    const q = 0.44;   // the floor clock's squash: flatter than this and its numerals smear
+    const RAISE = at[4], FREEZE = 1250, SETTLE = FREEZE + 950, RELEASE = 3000, BREAK = RELEASE + 230, END = Math.max(acc, BREAK + 900);
+    this.cam = { x: A.x - 10, y: A.y - 54, t0, dur: T(FREEZE + 60), z: 1.08 };
+    // 1. channel: the rune forms over the staff, energy spirals into it, her outline glows blue
+    when(RAISE - 20, () => {
+      this.mets.push({ kind: 'tsrune', at: runeAt, t0: now(), life: T(BREAK - RAISE + 20) });
+      this.mets.push({ kind: 'tsgather', at: runeAt, t0: now(), life: T(FREEZE - RAISE - 40) });
+      A.chronoRim = { t0: now(), until: now() + T(BREAK - RAISE + 200) };
+      this.rune(A.x, A.y, '#6fc8ff'); sfx('charge'); sfx('twinkle');
+    });
+    when(RAISE + 520, () => sfx('charge'));
+    // 2. time freeze
+    when(FREEZE - 140, () => {   // the rune flares and a streak of light drops into the middle of the enemies
+      const r = runeAt();
+      this.glows.push({ x: r.x, y: r.y, r: 40, color: '#bfe6ff', t: 0, life: 0.35, a: 1 });
+      for (let i = 0; i < 3; i++) this.arcs.push({ bolt: this._zig(r, { x: field.cx + (Math.random() - 0.5) * 10, y: field.cy - 6 }, 9, 10), color: i ? '#6fc8ff' : '#ffffff', w: i ? 1 : 2, t: 0, life: 0.2 });
+      sfx('zap');
+    });
+    const clock = { kind: 'tsclock', x: field.cx, y: field.cy, w: field.w * 1.08, q, t0: t0 + T(FREEZE), tS: t0 + T(SETTLE), tR: t0 + T(RELEASE), tB: t0 + T(BREAK), life: T(BREAK - FREEZE + 520) };
+    when(FREEZE, () => {
+      this.mets.push(clock);
+      this.mets.push({ kind: 'tswave', x: field.cx, y: field.cy, sx: field.w * 2.2 / 176, t0: now(), life: T(1000) });
+      this.glows.push({ x: field.cx, y: field.cy - 8, r: field.w * 0.6, color: '#6fc8ff', t: 0, life: 0.5, a: 0.7 });
+      this.chrono = { t0: now(), stopAt: now() + T(320), until: now() + T(BREAK - FREEZE + 120) };
+      this.flash = 0.28; this.flashC = '200,232,255';
+      this.shake = Math.max(this.shake, 5); this.shakeT = now();
+      this.cam = { x: (field.cx + A.x) / 2 - 10, y: Math.min(field.cy, A.y) - 34, t0: now(), dur: T(BREAK - FREEZE + 500), z: 1.05 };
+      // motes of light that drift in, then hang perfectly still until time resumes
+      const pts = [];
+      for (let i = 0; i < 34 * lp; i++) pts.push({ x: field.cx + (Math.random() - 0.5) * field.w * 1.3, y: field.cy - 6 - Math.random() * 70, dx: (Math.random() - 0.5) * 16, dy: (Math.random() - 0.5) * 10, c: ['#ffffff', '#bfe6ff', '#6fc8ff', '#b8a6ff'][i % 4], ph: Math.random() * 6, plus: i % 5 === 0 });
+      this.mets.push({ kind: 'tsmotes', pts, cx: field.cx, cy: field.cy - 20, t0: now(), tS: now() + T(380), tR: t0 + T(BREAK), life: T(BREAK - FREEZE + 150) });
+      sfx('ice'); sfx('whoosh');
+    });
+    // each enemy freezes as the shockwave reaches it
+    const reach = 88 * field.w * 2.2 / 176;   // the wave's half-width at its widest (px)
+    const order = foes.slice().sort((a, b) => Math.abs(a.x - field.cx) - Math.abs(b.x - field.cx));   // they shatter from the middle out
+    const breakAt = E => BREAK + order.indexOf(E) * 90;
+    foes.forEach(E => {
+      const dt = 60 + Math.min(1, Math.abs(E.x - field.cx) / reach) * 560;
+      when(FREEZE + dt, () => {
+        const sc = E.size === 'xl' ? 2 : 1;
+        E.tstop = { t0: now(), until: t0 + T(breakAt(E) + 40) };
+        this.mets.push({ kind: 'tscrys', follow: E, sc, t0: now(), life: T(breakAt(E) - FREEZE - dt) });
+        const hy = E.y - ({ xl: 40, l: 24 }[E.size] || 14);
+        this.glows.push({ x: E.x, y: hy, r: 30 * sc, color: '#bfe6ff', t: 0, life: 0.3, a: 0.9 });
+        for (let i = 0; i < 16 * lp; i++) { const qd = Math.random() * Math.PI * 2, v = 30 + Math.random() * 60; this.particles.push({ x: E.x + Math.cos(qd) * 8 * sc, y: E.y - 2, vx: Math.cos(qd) * v, vy: -20 - Math.random() * 50, g: 120, life: 0.35 + Math.random() * 0.3, t: 0, c: ['#ffffff', '#bfe6ff', '#6fc8ff'][i % 3], streak: 2, drag: 0.88 }); }
+        this.freezeUntil = now() + 50;
+        sfx('ice');
+      });
+    });
+    // 3. frozen state: everything still; the clock ticks
+    when(SETTLE + 150, () => sfx('click'));
+    when(SETTLE + 650, () => sfx('click'));
+    // 4. release: the hands spin, the rune and the clock flare, then everything frozen shatters
+    when(RELEASE, () => {
+      const r = runeAt();
+      this.glows.push({ x: r.x, y: r.y, r: 46, color: '#ffffff', t: 0, life: 0.3, a: 1 });
+      this.glows.push({ x: field.cx, y: field.cy - 4, r: field.w * 0.55, color: '#bfe6ff', t: 0, life: 0.35, a: 0.8 });
+      sfx('whirl'); sfx('charge');
+    });
+    order.forEach(E => when(breakAt(E), () => {
+      const sc = E.size === 'xl' ? 2 : E.size === 'l' ? 1.5 : 1, hy = E.y - ({ xl: 40, l: 24 }[E.size] || 14);
+      E.tstop = null;
+      this.mets.push({ kind: 'tsshatter', x: E.x, y: hy, sc: E.size === 'xl' ? 2 : 1, t0: now(), life: T(800) });
+      for (let j = 0; j < 22 * lp * sc; j++) {   // the crystal coat breaks off in tumbling chunks
+        const qd = Math.random() * Math.PI * 2, v = 50 + Math.random() * 110;
+        this.particles.push({ x: E.x + (Math.random() - 0.5) * 16 * sc, y: hy + (Math.random() - 0.5) * 20 * sc, vx: Math.cos(qd) * v, vy: Math.sin(qd) * v * 0.7 - 60, g: 260, life: 0.5 + Math.random() * 0.5, t: 0, c: ['#dff4ff', '#8fd0ff', '#4a8cff', '#2a4aa8'][j % 4], cube: 1 + (j % 3), spin: Math.random() * 4, drag: 0.92 });
+      }
+      this.impact(ev, tgt, 'timestop', rc, tgt.filter(t => t.id === E.id), true);
+      this.shake = Math.max(this.shake, 7); this.shakeT = now();
+      sfx('crush');
+    }));
+    when(BREAK, () => {   // the clock breaks into shards of light, the motes fly off, the colour comes back
+      this.flash = 0.3; this.flashC = '210,236,255';
+      for (let i = 0; i < 70 * lp; i++) {
+        const qd = Math.random() * Math.PI * 2, R = field.w * 0.46, x = field.cx + Math.cos(qd) * R, y = field.cy + Math.sin(qd) * R * q;
+        this.particles.push({ x, y, vx: Math.cos(qd) * (60 + Math.random() * 80), vy: Math.sin(qd) * 30 - 40 - Math.random() * 50, g: 90, life: 0.45 + Math.random() * 0.5, t: 0, c: ['#ffffff', '#bfe6ff', '#6fc8ff', '#b8a6ff'][i % 4], streak: 3, drag: 0.9 });
+      }
+      const r = runeAt();
+      this.mets.push({ kind: 'tsshatter', x: r.x, y: r.y, sc: 1, t0: now(), life: T(700) });
+      sfx('boom'); sfx('ice');
+    });
+    when(BREAK + order.length * 90 + 60, () => { const rest = ev.targets.filter(t => !isEnemy(t.id)); if (rest.length) this.impact(ev, [], 'timestop', rc, rest, true); this._applyAfter(ev); });
+    setTimeout(() => { A.anim = null; A.chronoRim = null; }, T(acc + 40));
+    return T(END + 300);
+  }
+  // the clock's hands: minute-hand angle at time t (they race round, slow to a stop, tremble, then spin on release)
+  _tsHands(m, t) {
+    const s = t - m.t0, SET = m.tS - m.t0, v0 = 0.04;   // radians per ms at the start
+    let a;
+    if (t < m.tS) { const k = s / SET; a = v0 * SET * (1 - Math.pow(1 - k, 3)) / 3; }
+    else a = v0 * SET / 3;
+    if (t >= m.tS && t < m.tR) a += Math.sin(t / 23) * 0.012;   // stopped, trembling
+    if (t >= m.tR) { const r = t - m.tR; a += 0.00004 * r * r; }   // time resumes with a lurch
+    return a - Math.PI / 2 - 0.4;
+  }
+  _drawTsClock(n, m, t) {
+    const F = PFX.tsClock, G = PFX.tsGear; if (!F.img.complete || !F.img.naturalWidth) return;
+    const age = t - m.t0, open = ease(clamp(age / 320, 0, 1));
+    const brk = t > m.tB ? clamp((t - m.tB) / 380, 0, 1) : 0;
+    const a = this._tsHands(m, t), D = m.w * (0.62 + 0.38 * open) * (1 + 0.12 * brk);
+    const glow = t >= m.tR && t < m.tB ? 0.35 : 0;
+    n.save(); n.globalCompositeOperation = 'lighter';
+    n.imageSmoothingEnabled = true;   // its 1px lines break up if squashed into perspective by nearest-neighbour sampling
+    n.translate(Math.round(m.x), Math.round(m.y)); n.scale(1, m.q);
+    n.globalAlpha = open * (1 - brk) * (0.42 + glow);   // the toothed ring turns the other way round the face
+    n.save(); n.rotate(-a * 0.12); n.scale(D * 1.24 / 128, D * 1.24 / 128); n.drawImage(G.img, -64, -64); n.restore();
+    n.globalAlpha = Math.min(1, open * (1 - brk) * (0.95 + glow + 0.1 * Math.sin(t / 140)));
+    n.save(); n.rotate(a * 0.02); n.scale(D / 128, D / 128); n.drawImage(F.img, -64, -64); n.restore();
+    // the hands, drawn flat on the face (the squash puts them into the floor's perspective)
+    const hand = (ang, len, w, col) => { n.save(); n.rotate(ang); n.fillStyle = col; n.fillRect(-2, -w / 2, len + 2, w); n.restore(); };
+    n.globalAlpha = open * (1 - brk);
+    hand(a / 12 + 1.1, D * 0.24, 3, '#6fc8ff'); hand(a, D * 0.36, 2, '#dff4ff');
+    hand(a / 12 + 1.1, D * 0.24, 1, '#ffffff'); n.fillStyle = '#ffffff'; n.fillRect(-2, -2, 4, 4);
+    n.restore();
+  }
   // effects drawn behind the fighters (pixel layer)
   drawBehindFx(n, t) {
     for (const m of this.mets) {
@@ -1856,7 +2051,22 @@ export class BattleScene {
         n.globalAlpha = 0.9; n.drawImage(S.img, (f % S.cols) * S.w, Math.floor(f / S.cols) * S.h, S.w, S.h, Math.round(m.x - S.ax * m.sc), Math.round(m.y - S.ay * m.sc), S.w * m.sc, S.h * m.sc); n.globalAlpha = 1;
       }
       else if (m.kind === 'dhead' && !this._dheadPose(m, t).front) this._drawDragonHead(n, m, t);
+      // ---- Time Stop: the clock on the floor, the shockwave over it, the crystals behind each frozen enemy
+      else if (m.kind === 'tsclock') this._drawTsClock(n, m, t);
+      else if (m.kind === 'tswave') {
+        const S = PFX.tsWave; if (!S.img.complete || !S.img.naturalWidth) continue;
+        const f = Math.floor(age / 1000 * S.fps); if (f >= S.n) continue;
+        n.save(); n.globalCompositeOperation = 'lighter'; n.globalAlpha = 0.8;
+        n.drawImage(S.img, (f % S.cols) * S.w, Math.floor(f / S.cols) * S.h, S.w, S.h, Math.round(m.x - S.ax * m.sx), Math.round(m.y - S.ay * m.sx * 0.8), Math.round(S.w * m.sx), Math.round(S.h * m.sx * 0.8));
+        n.restore();
+      }
+      else if (m.kind === 'tscrys') this._drawTsCrystals(n, m, t, PFX.tsCrys);
     }
+  }
+  _drawTsCrystals(n, m, t, S) {
+    if (!S.img.complete || !S.img.naturalWidth) return;
+    const age = t - m.t0, f = Math.min(S.n - 1, Math.floor(age / 1000 * S.fps)), E = m.follow;
+    n.drawImage(S.img, (f % S.cols) * S.w, Math.floor(f / S.cols) * S.h, S.w, S.h, Math.round(E.x - S.ax * m.sc), Math.round(E.y + 3 - S.ay * m.sc), S.w * m.sc, S.h * m.sc);
   }
   drawMeteors(ctx, t, sx, sy) {
     if (!this.mets.length) return;
@@ -2735,7 +2945,8 @@ export class BattleScene {
 
   // ------------------------------------------------------------ drawing
   frameFor(a, white) {
-    const t = now();
+    let t = now();
+    if (a.tstop && t >= a.tstop.t0 && t < a.tstop.until) t = a.tstop.t0;   // Time Stop: held on the frame it was frozen in
     let p = a.pose && t < a.poseUntil ? a.pose : null;
     if (a.type === 'hero') {
       const an = this._animAt(a, t); if (an) return white ? an.wh : an.fr;
@@ -2783,13 +2994,22 @@ export class BattleScene {
     ctx.drawImage(this.bgUp, sx, sy);
     const dk = this._darkNow(t); this._dk = dk;   // legendary skills: the background (not the fighters or the effects) dims
     if (dk) { ctx.fillStyle = `rgba(4,5,18,${dk})`; ctx.fillRect(0, 0, this.cv.width, this.cv.height); }
+    const chr = this._chronoNow(t);   // Time Stop: the room drains of colour and turns cold blue (the fighters keep theirs)
+    if (chr) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = `rgba(128,128,128,${0.85 * chr})`; ctx.fillRect(0, 0, this.cv.width, this.cv.height);
+      ctx.globalCompositeOperation = 'color'; ctx.fillStyle = `rgba(60,110,230,${0.45 * chr})`; ctx.fillRect(0, 0, this.cv.width, this.cv.height);
+      ctx.restore();
+    }
 
     // ---- native dynamic layer
     n.clearRect(0, 0, W, H);
     n.imageSmoothingEnabled = false;
+    // Time Stop: the room's torches and props stop dead too
+    const rt = this.chrono && t >= this.chrono.stopAt ? (this.chrono.stopAt - this.t0) / 1000 : time;
     // torches
     for (const tc of this.torches) {
-      const f = Math.floor(time * 10 + tc.x) % 4;
+      const f = Math.floor(rt * 10 + tc.x) % 4;
       const hgt = [5, 6, 5, 7][f], wob = [0, 1, 0, -1][f];
       n.fillStyle = '#ff7a2a'; n.fillRect(tc.x - 2, tc.y - hgt + 3, 4, hgt - 1);
       n.fillStyle = '#ffc24a'; n.fillRect(tc.x - 1 + (wob > 0 ? 1 : 0), tc.y - hgt + 2, 2, hgt - 2);
@@ -2802,7 +3022,7 @@ export class BattleScene {
       if (g > 0.92) { n.fillStyle = '#ffffff'; n.fillRect(Math.round(c.x - 1), Math.round(c.y - c.size * 0.4), 1, 1); }
     }
     // room props
-    for (const p of this.props) this.drawProp(n, p, time);
+    for (const p of this.props) this.drawProp(n, p, rt);
     // raid: the other teams fight in the background
     if (this.raid && this.raid.allies && this.raid.allies.length) {
       const al = this.raid.allies;
@@ -2888,6 +3108,30 @@ export class BattleScene {
         for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) n.drawImage(rim, x + ox, y + oy);
         n.globalAlpha = alpha; n.drawImage(fr, x, y);   // the sprite back on top: only a burning outline shows
         n.globalAlpha = alpha * env * (0.1 + 0.06 * Math.sin(t / 45)); n.drawImage(this.tinted(wf, '#ff9a4a'), x, y); n.globalAlpha = alpha;
+      }
+      if (a.chronoRim && t < a.chronoRim.until) {   // Time Stop: the mage's outline glows blue while she channels
+        const k = (t - a.chronoRim.t0) / (a.chronoRim.until - a.chronoRim.t0), env = Math.min(1, k * 6, (1 - k) * 6), wf = this.frameFor(a, true);
+        n.globalAlpha = alpha * env * (0.7 + 0.3 * Math.sin(t / 70)); const rim = this.tinted(wf, '#4aa8ff');
+        for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) n.drawImage(rim, x + ox, y + oy);
+        n.globalAlpha = alpha; n.drawImage(fr, x, y);
+        n.globalAlpha = alpha * env * 0.12; n.drawImage(this.tinted(wf, '#bfe6ff'), x, y); n.globalAlpha = alpha;
+      }
+      if (a.tstop && t >= a.tstop.t0 && t < a.tstop.until) {   // Time Stop: frozen mid-move and turned to blue crystal
+        const wf = this.frameFor(a, true), el = t - a.tstop.t0, k = Math.min(1, el / 160);
+        n.globalAlpha = alpha * k * 0.62; n.drawImage(this.tinted(wf, '#2f6fe0'), x, y);
+        n.save(); n.globalCompositeOperation = 'lighter';
+        n.globalAlpha = alpha * k * (0.2 + 0.06 * Math.sin(t / 200)); n.drawImage(this.tinted(wf, '#9fdcff'), x, y);
+        const g = ((el + a.phase) % 1500) / 1500;   // a glint of light sliding down the crystal now and then
+        if (g < 0.4) {
+          const by = Math.round(y + (g / 0.4) * (wf.height + 8) - 8);
+          n.save(); n.beginPath(); n.rect(x, by, wf.width, 2); n.clip();
+          n.globalAlpha = alpha * 0.32 * Math.sin(g / 0.4 * Math.PI); n.drawImage(this.tinted(wf, '#ffffff'), x, y); n.restore();
+        }
+        n.restore();
+        n.globalAlpha = alpha * k * 0.9; const rim = this.tinted(wf, '#dff4ff');
+        n.save(); n.globalCompositeOperation = 'destination-over';   // a pale rim round the outside only
+        for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) n.drawImage(rim, x + ox, y + oy);
+        n.restore(); n.globalAlpha = alpha;
       }
       if (a.redUntil && t < a.redUntil) { n.globalAlpha = 0.8 * Math.min(1, (a.redUntil - t) / 120); n.drawImage(this.tinted(this.frameFor(a, true), '#ff3a20'), x, y); n.globalAlpha = alpha; }
       // frozen overlay
@@ -3049,6 +3293,11 @@ export class BattleScene {
     const t = now();
     if (this.darken && t < this.darken.until) this.darken.until = Math.max(this.darken.until, t + ms);
     else this.darken = { t0: t, until: t + ms };
+  }
+  _chronoNow(t) {
+    const c = this.chrono; if (!c) return 0;
+    if (t > c.until) { this.chrono = null; return 0; }
+    return Math.max(0, Math.min(1, (t - c.t0) / 300, (c.until - t) / 350));
   }
   _darkNow(t) {
     const d = this.darken; if (!d) return 0;
@@ -3332,7 +3581,7 @@ export class BattleScene {
     const vg = ctx.createRadialGradient(Wd / 2, Hd * 0.55, Math.min(Wd, Hd) * 0.35, Wd / 2, Hd * 0.55, Math.max(Wd, Hd) * 0.75);
     vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(3,1,8,0.72)');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, Wd, Hd);
-    if (this.flash > 0) { ctx.fillStyle = `rgba(255,250,235,${this.flash})`; ctx.fillRect(0, 0, Wd, Hd); this.flash = Math.max(0, this.flash - 0.04); }
+    if (this.flash > 0) { ctx.fillStyle = `rgba(${this.flashC || '255,250,235'},${this.flash})`; ctx.fillRect(0, 0, Wd, Hd); this.flash = Math.max(0, this.flash - 0.04); if (!this.flash) this.flashC = null; }
     if (this.dim) { ctx.fillStyle = `rgba(4,2,10,${this.dim})`; ctx.fillRect(0, 0, Wd, Hd); }
   }
   tintedFog(rgb) {
