@@ -387,7 +387,7 @@ const SKILL_FX = {
   },
   starfall(X, p) { for (let i = 0; i < p.hits; i++) for (const e of X.enemies()) X.hit(e, p.dmg).wave = i; },
   phantom_volley(X, p) { for (let i = 0; i < p.arrowsN; i++) { const list = X.enemies(); if (!list.length) break; const e = pick(list); X.status(e, 'poison', { v: X.n(p.poison) }, X.hit(e, p.dmg)); } },
-  deadeye(X, p) { const e = X.enemy(), dbl = e.st.poison || e.st.burn || e.st.mark, r = X.hit(e, p.dmg * (dbl ? 2 : 1)); if (dbl) r.crit = true; },
+  deadeye(X, p) { for (const e of X.enemies()) X.hit(e, p.dmg * 2).crit = true; },   // a guaranteed critical hit on every enemy
   // ---- cleric
   healing_light(X, p) { X.heal(X.ally(false), p.heal); },
   blessing(X, p) { for (const h of X.heroes()) { X.heal(h, p.heal); X.block(h, p.block); } },
@@ -412,7 +412,12 @@ const SKILL_FX = {
       else X.heal(h, p.heal);
     }
   },
-  divine_shield(X) { for (const h of X.heroes()) X.status(h, 'divine', { t: 1 }); },
+  divine_shield(X) {   // the barrier, and it purifies: Weak and Vulnerable are cleared from every hero
+    for (const h of X.heroes()) {
+      const bad = ['weak', 'vuln', 'poison', 'burn'].filter(k => h.st[k]); bad.forEach(k => delete h.st[k]);
+      const r = X.status(h, 'divine', { t: 1 }); if (bad.length) r.cleansed = bad;
+    }
+  },
   wrath_of_heaven(X, p) { for (let i = 0; i < p.hitsN; i++) for (const e of X.enemies()) X.hit(e, p.dmg).wave = i; for (const h of X.heroes()) X.heal(h, p.heal); }
 };
 

@@ -116,7 +116,7 @@ check('Pinning Shot stuns: the enemy skips its turn', () => {
 check('Ricochet: 10, 7, 5 on different enemies', () => { const { ev } = cast(fight('ranger'), 'ricochet', 'e1'); assert.deepStrictEqual(ev.targets.map(t => t.dmg), [10, 7, 5]); assert.notStrictEqual(ev.targets[0].id, ev.targets[1].id); });
 check('Arrow Rain: two waves', () => { const { ev } = cast(fight('ranger'), 'arrow_rain', null); assert.strictEqual(ev.targets.length, 6); });
 check('Phantom Volley: 6 arrows with poison', () => { const { ev, e } = cast(fight('ranger'), 'phantom_volley', null); assert.strictEqual(ev.targets.filter(t => t.dmg != null).length, 6); assert.strictEqual(e.reduce((a, x) => a + (x.st.poison ? x.st.poison.v : 0), 0), 12); });
-check('Deadeye doubles on a poisoned target', () => { const { ev } = cast(fight('ranger'), 'deadeye', 'e1', r => { r.combat.enemies[0].st.poison = { v: 1 }; }); assert.strictEqual(dmgTo(ev, 'e1'), 44 + 0); });
+check('Deadeye: a 20-damage crit on every enemy', () => { const { ev } = cast(fight('ranger'), 'deadeye', null); for (const id of ['e1', 'e2', 'e3']) assert.strictEqual(dmgTo(ev, id), 20); assert.ok(ev.targets.filter(t => t.dmg != null).every(t => t.crit)); });
 check('Judgement doubles on undead', () => { const { ev } = cast(fight('cleric'), 'judgement', 'e3'); assert.strictEqual(dmgTo(ev, 'e3'), 24); });
 check('Prayer of Mending heals again after the enemy turn', () => {
   const run = fight('cleric'); cast(run, 'prayer_of_mending', 'h2');
@@ -131,6 +131,7 @@ check('Divine Shield: no damage this round', () => {
   run.combat.enemies.forEach(e => { e.intent = { move: 'stab', type: 'attackAll', dmg: 30 }; });
   CB.enemyTurn(run); assert.strictEqual(run.heroes.h2.hp, 20); assert.strictEqual(run.heroes.h1.hp, C.HEROES.cleric.hp);
 });
+check('Divine Shield clears Weak and Vulnerable from every hero', () => { const run = fight('cleric'); cast(run, 'divine_shield', null, r => { r.heroes.h2.st = { weak: { t: 2 }, vuln: { t: 2 } }; r.heroes.h1.st = { weak: { t: 1 } }; }); assert.deepStrictEqual(Object.keys(run.heroes.h2.st), ['divine']); assert.deepStrictEqual(Object.keys(run.heroes.h1.st), ['divine']); });
 
 // ---------------------------------------------------------------- items
 const withItems = (cls, items) => { const run = fight(cls); for (const id of items) RUN.giveItem(run.heroes.h1, id); return run; };

@@ -10,7 +10,6 @@ const CB = require('../server/combat');
 const SETUP = {
   combust: r => { r.combat.enemies[0].st.burn = { v: 3, t: 2 }; },
   kindle: r => { r.combat.enemies[0].st.burn = { v: 3, t: 2 }; },
-  deadeye: r => { r.combat.enemies[0].st.poison = { v: 3 }; },
   shadow_strike: r => { r.combat.enemies[0].st.poison = { v: 3 }; },
   frostbite: r => { r.combat.enemies[0].st.chill = { t: 1 }; },
   resurrection: r => { Object.assign(r.heroes.h2, { downed: true, hp: 0 }); },
@@ -18,6 +17,7 @@ const SETUP = {
   shield_slam: r => { r.heroes.h1.block = 8; },
   sunder: r => { r.combat.enemies[0].block = 6; },
   purify: r => { r.heroes.h2.st.weak = { t: 2 }; },
+  divine_shield: r => { r.heroes.h2.st.weak = { t: 2 }; r.heroes.h3.st.vuln = { t: 2 }; },
   aimed_shot: r => { r.heroes.h1.focus = 1; }
 };
 const out = {};

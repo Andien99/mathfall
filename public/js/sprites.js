@@ -821,7 +821,7 @@ Object.assign(ICONS, {
   arrow_rain: (S, m) => { for (const [x, y] of [[3, 2], [8, 6], [13, 1], [5, 10], [11, 11], [16, 8]]) { S.vline(x, y, y + 4, '#c99a62'); S.dots([[x, y + 5], [x - 1, y + 4], [x + 1, y + 4]], '#d7e3ef'); } },
   ricochet: (S, m) => { S.line(1, 4, 6, 15, '#fff2c0'); S.line(6, 15, 11, 4, '#fff2c0'); arrowIcon(S, m, 11, 4, 16, 14, blade, '#fff2c0'); S.dots([[6, 16], [11, 3]], '#ffe27a'); },
   phantom: (S, m) => { arrowIcon(S, m, 1, 12, 14, 2, teal, '#7affd8'); arrowIcon(S, m, 3, 17, 17, 8, teal, '#7affd8'); S.dots([[4, 5], [9, 16], [16, 15]], '#c8fff0'); },
-  deadeye: (S, m) => { S.stamp(m().ellipse(9, 9, 8, 4.6), P.white, { r: 2 }); S.stamp(m().circle(9, 9, 3.4), R('#e0414f'), { r: 1, sel: false }); S.stamp(m().circle(9, 9, 1.5), ['#1a1020', '#1a1020', '#1a1020', '#1a1020'], { r: 1, sel: false }); S.dot(8, 8, '#ffffff'); S.vline(9, 0, 3, '#e0414f'); S.vline(9, 15, 17, '#e0414f'); },
+  deadeye: (S, m) => { S.stamp(m().ellipse(9, 9, 8, 4.6), P.white, { r: 2 }); S.stamp(m().circle(9, 9, 3.4), R('#2ea87a'), { r: 1, sel: false }); S.stamp(m().circle(9, 9, 1.5), ['#1a1020', '#1a1020', '#1a1020', '#1a1020'], { r: 1, sel: false }); S.dot(8, 8, '#ffffff'); S.vline(9, 0, 3, '#2ea87a'); S.vline(9, 15, 17, '#2ea87a'); },
   // cleric
   holy_smite: (S, m) => { S.stamp(m().capsule(3, 16, 9, 9, 1), P.wood, { r: 1 }); S.stamp(m().circle(11, 7, 4.5), holy, { r: 2 }); S.dots([[11, 1], [17, 7], [15, 2], [16, 12]], '#fff2a8'); },
   purify: (S, m) => { S.stamp(m().circle(9, 11, 5.5).poly([[3.8, 10], [9, 1], [14.2, 10]]), ['#ffffff', '#d8fff0', '#7ad8c8', '#2a7a8a'], { r: 2 }); S.dots([[7, 9], [7, 10], [8, 8]], '#ffffff'); S.dots([[15, 2], [16, 3], [15, 4], [14, 3]], '#ffffff'); },

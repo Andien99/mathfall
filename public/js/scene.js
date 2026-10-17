@@ -83,7 +83,19 @@ const PFX = {
   tsWave: FX_SHEET('ts_wave.png', 192, 64, 4, 10, 11, 96, 32, false),
   tsCrys: FX_SHEET('ts_crystals.png', 80, 56, 4, 10, 12, 40, 49, false),
   tsCrysF: FX_SHEET('ts_crystals_front.png', 80, 56, 4, 10, 12, 40, 49, false),
-  tsShatter: FX_SHEET('ts_shatter.png', 96, 96, 4, 12, 16, 48, 48, false)
+  tsShatter: FX_SHEET('ts_shatter.png', 96, 96, 4, 12, 16, 48, 48, false),
+  // Deadeye (ranger): the lock-on reticle (0-5 spin in and lock, 6-11 pulsing loop), the charge on the arrowhead, the
+  // emerald arrow (points right, anchored on its head; rotated in code) and the critical hit starburst (tools/build_deadeye_divine.py)
+  deMark: FX_SHEET('de_mark.png', 48, 48, 4, 12, 16, 24, 24, false),
+  deCharge: FX_SHEET('de_charge.png', 48, 48, 3, 8, 12, 24, 24, true),
+  deArrow: FX_SHEET('de_arrow.png', 64, 24, 3, 6, 12, 58, 12, true),
+  deCrit: FX_SHEET('de_crit.png', 96, 96, 4, 12, 16, 48, 48, false),
+  // Divine Shield (cleric): the golden dome round a hero (0-5 forming, 6-13 shimmer loop; anchored on the feet), the
+  // purifying beam, the holy star on the staff tip and the cleanse symbols that rise off a purified hero
+  dsDome: FX_SHEET('ds_dome.png', 132, 100, 4, 14, 12, 66, 83, false),
+  dsPurify: FX_SHEET('ds_purify.png', 64, 112, 4, 12, 14, 32, 104, false),
+  dsStar: FX_SHEET('ds_star.png', 48, 48, 3, 8, 10, 24, 24, true),
+  dsCleanse: FX_SHEET('ds_cleanse.png', 48, 64, 4, 10, 12, 24, 58, false)
 };
 // Time Stop: the top of the staff in the held Channel frames, from the feet (px), by hero skin
 const TS_TIP = { 'mage:f': [-4, -82], 'mage:m': [-11, -92] };
@@ -495,7 +507,13 @@ export class BattleScene {
   }
   _heroAnim(ev, T) {
     const A = this.actors.get(ev.actor); if (!A) { this._applyAfter(ev); return 0; }
-    const fx = ev.fx || 'slash';
+    let fx = ev.fx || 'slash';
+    if (fx === 'deadeye') {   // its own move on the Shoot animation; with ?vfx=code (or no animation) one plain arrow per enemy
+      const own = this.pixelFx && SP.heroAnim(A.skin || A.cls, 'shoot');
+      if (own && own.release != null && own.charge != null) return this._deadeyeAnim(A, ev, T, own);
+      fx = 'multishot';
+    }
+    if (ev.skill === 'divine_shield' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'chant'); if (own && own.tips) return this._divineAnim(A, ev, T, own); }
     if (fx === 'meteor') { const own = SP.heroAnim(A.skin || A.cls, 'meteor'); if (own && own.meteor) return this._meteorAnim(A, ev, T, own); }
     if (fx === 'quake') { const own = SP.heroAnim(A.skin || A.cls, 'quake'); if (own && own.quake) return this._quakeAnim(A, ev, T, own); }
     if (ev.skill === 'resurrection' && this.pixelFx) return this._resurrectAnim(A, ev, T);
@@ -770,7 +788,7 @@ export class BattleScene {
       const p = this.pos(t.id); if (!p) continue;
       const k = seen[t.id] = (seen[t.id] || 0) + 1, dy = (k - 1) * 11;   // repeat hits on one target stack upwards
       if (t.dmg != null && !t.shatter) {
-        const colr = { slash_heavy: '#ff9a3c', slash_wide: '#ffd0a0', proj_fire: '#ff8a3c', proj_firearrow: '#ff8a3c', flamewave: '#ff8a3c', proj_arcane: '#b8a6ff', missiles: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', timestop: '#cfe8ff', proj_poison: '#9cff6b', venom: '#9cff6b', phantom: '#a8ffe0', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8', radiance: '#fff0a8', pillar: '#fff2a8', quake: '#e0a060', combo: '#ffb347', xslash: '#9fd8ff', ricochet: '#fff2c0' }[fx] || '#ffffff';
+        const colr = { slash_heavy: '#ff9a3c', slash_wide: '#ffd0a0', proj_fire: '#ff8a3c', proj_firearrow: '#ff8a3c', flamewave: '#ff8a3c', proj_arcane: '#b8a6ff', missiles: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', timestop: '#cfe8ff', proj_poison: '#9cff6b', venom: '#9cff6b', phantom: '#a8ffe0', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8', radiance: '#fff0a8', pillar: '#fff2a8', quake: '#e0a060', combo: '#ffb347', xslash: '#9fd8ff', ricochet: '#fff2c0', deadeye: '#8fffd8' }[fx] || '#ffffff';
         this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy');
         this.elementHit(p.x, p.y - 16, { proj_firearrow: 'proj_fire', flamewave: 'proj_fire', missiles: 'proj_arcane', timestop: 'proj_ice' }[fx] || fx);
         if (fx !== 'phantom' || !this.pixelFx) this.glows.push({ x: p.x, y: p.y - 16, r: 34 + Math.min(40, t.dmg * 1.5), color: colr, t: 0, life: 0.35, a: 0.8 });   // Phantom Volley: its own small flashes
@@ -1303,6 +1321,52 @@ export class BattleScene {
         const cols = ['#bfe8ff', '#8fb8ff', '#b48cff', '#ffe08a', '#ffffff'];
         for (let j = 0; j < (m.kind === 'sarrow' ? 3 : 2); j++) this.particles.push({ x: x + (Math.random() - 0.5) * 4, y: y + (Math.random() - 0.5) * 4, vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 14 + 6, g: 0, life: 0.45 + Math.random() * 0.4, t: 0, c: cols[Math.floor(Math.random() * cols.length)], plus: Math.random() < 0.3, fade: true });
       }
+      // ---- Deadeye
+      else if (m.kind === 'demark') {   // spins in and locks (0-5), then pulses (6-11) on the enemy until its arrow lands
+        const S = PFX.deMark; if (!S.img.complete || !S.img.naturalWidth) continue;
+        const f0 = Math.floor(age / 1000 * S.fps), f = f0 < 6 ? f0 : 6 + (f0 - 6) % 6, p = this._hitPoint(m.follow);
+        const sx = (f % S.cols) * S.w, sy = Math.floor(f / S.cols) * S.h, dx = Math.round(p.x - S.ax), dy = Math.round(p.y - S.ay);
+        n.drawImage(S.img, sx, sy, S.w, S.h, dx, dy, S.w, S.h);
+        n.save(); n.globalCompositeOperation = 'lighter'; n.globalAlpha = 0.6; n.drawImage(S.img, sx, sy, S.w, S.h, dx, dy, S.w, S.h); n.restore();   // brighter, so the thin lines read over any enemy
+      }
+      else if (m.kind === 'desight') {   // a flickering dashed sight line from the bow to the reticle
+        const p = this._hitPoint(m.follow), L = Math.hypot(p.x - m.from.x, p.y - m.from.y), N = Math.max(2, Math.floor(L / 6)), sh = Math.floor(age / 50) % 2;
+        n.globalAlpha = (0.35 + 0.25 * Math.sin(age / 40)) * Math.min(1, age / 120);
+        for (let j = sh; j < N - 1; j += 2) { const a = j / N, b = (j + 1) / N; this.pxLine(n, { x: lerp(m.from.x, p.x, a), y: lerp(m.from.y, p.y, a) }, { x: lerp(m.from.x, p.x, b), y: lerp(m.from.y, p.y, b) }, j % 4 ? '#3fbf8f' : '#8fffd8'); }
+        n.globalAlpha = 1;
+      }
+      else if (m.kind === 'decharge') {   // energy gathering on the arrowhead, streaks spiralling in
+        frame(PFX.deCharge, age, 1, m.x, m.y);
+        if (age < m.life - 40 && Math.random() < 0.8 * (this.lowPower ? 0.5 : 1)) {
+          const q = Math.random() * Math.PI * 2, r = 12 + Math.random() * 14, cq = Math.cos(q), sq = Math.sin(q);
+          this.particles.push({ x: m.x + cq * r, y: m.y + sq * r, vx: (-cq * 2.2 - sq * 1.6) * r, vy: (-sq * 2.2 + cq * 1.6) * r, g: 0, life: 0.3, t: 0, c: ['#8fffd8', '#3fbf8f', '#ffffff'][Math.floor(Math.random() * 3)], streak: 2 });
+        }
+      }
+      else if (m.kind === 'dearrow') {   // the emerald arrow: a mint trail, then the arrow turned along its path
+        const k = Math.min(1, age / m.life), P = this._pvAt(m, k);
+        m.pts.push({ x: P.x, y: P.y, t }); while (m.pts.length > 2 && t - m.pts[0].t > 110) m.pts.shift();
+        for (let j = 1; j < m.pts.length; j++) { const q = j / m.pts.length; n.globalAlpha = 0.3 + 0.7 * q; this.pxLine(n, m.pts[j - 1], m.pts[j], q > 0.6 ? '#8fffd8' : '#2ea87a'); }
+        n.globalAlpha = 1;
+        const S = PFX.deArrow;
+        if (S.img.complete && S.img.naturalWidth) {
+          const f = Math.floor(age / 1000 * S.fps) % S.n;
+          n.save(); n.translate(Math.round(P.x), Math.round(P.y)); n.rotate(Math.atan2(P.dy, P.dx));
+          n.drawImage(S.img, (f % S.cols) * S.w, Math.floor(f / S.cols) * S.h, S.w, S.h, -S.ax, -S.ay, S.w, S.h); n.restore();
+        }
+      }
+      else if (m.kind === 'decrit') frame(PFX.deCrit, age, 1, m.x, m.y);
+      // ---- Divine Shield
+      else if (m.kind === 'dsstar') { const tp = this._tipAt(m.follow); if (tp) { m.last = tp; frame(PFX.dsStar, age, 1, tp.x, tp.y); } else if (m.last) frame(PFX.dsStar, age, 1, m.last.x, m.last.y); }
+      else if (m.kind === 'dsbolt') {   // a mote of holy light flying from the staff to a hero, sparkles trailing
+        const k = Math.min(1, age / m.life), P = this._pvAt(m, ease(k));
+        m.pts.push({ x: P.x, y: P.y, t }); while (m.pts.length > 2 && t - m.pts[0].t > 160) m.pts.shift();
+        for (let j = 1; j < m.pts.length; j++) { const q = j / m.pts.length; n.globalAlpha = 0.25 + 0.75 * q; this.pxLine(n, m.pts[j - 1], m.pts[j], q > 0.6 ? '#fff6c8' : '#f6c453'); }
+        n.globalAlpha = 1; n.fillStyle = '#ffffff'; n.fillRect(Math.round(P.x) - 1, Math.round(P.y) - 1, 3, 3);
+        n.fillStyle = '#ffe27a'; n.fillRect(Math.round(P.x) - 2, Math.round(P.y), 5, 1); n.fillRect(Math.round(P.x), Math.round(P.y) - 2, 1, 5);
+        if (Math.random() < 0.7) this.particles.push({ x: P.x, y: P.y, vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 14 + 8, g: 10, life: 0.4 + Math.random() * 0.3, t: 0, c: Math.random() < 0.5 ? '#fff6c8' : '#ffd86a', plus: Math.random() < 0.3, fade: true });
+      }
+      else if (m.kind === 'dspurify') { n.save(); n.globalCompositeOperation = 'lighter'; n.globalAlpha = 0.38; frame(PFX.dsPurify, age, 1, m.x, m.y + 1); n.restore(); }
+      else if (m.kind === 'dscleanse') frame(PFX.dsCleanse, age, 1, m.x, m.y + 28);
       else if (m.kind === 'dhead' && this._dheadPose(m, t).front) this._drawDragonHead(n, m, t);
       else if (m.kind === 'dclaws') { n.save(); n.globalCompositeOperation = 'lighter'; n.globalAlpha = 0.9; frame(PFX.dClaws, age, m.sc, m.x, m.y); n.restore(); }
       else if (m.kind === 'dblast') frame(PFX.dBlast, age, m.sc, m.x, m.y);
@@ -1487,6 +1551,152 @@ export class BattleScene {
     });
     setTimeout(() => { const rest = ev.targets.filter(t => !tgt.includes(t) && t.heal); if (rest.length) this.impact(ev, [], 'phantom', rc, rest, true); this._applyAfter(ev); }, T(end + 80));
     return T(Math.max(acc, end + 650));
+  }
+  // Deadeye with PixelLab effects (public/art/fx/de_*), on the ranger's Shoot animation, in four beats:
+  // 1. Focus: the ranger draws slowly while an emerald reticle spins in and locks on to every enemy, one after another,
+  //    each joined to the bow by a flickering sight line.
+  // 2. Charge: the full draw is held while emerald energy gathers on the arrowhead and her outline glows green.
+  // 3. Release: one arrow per enemy, release - recoil - redraw, each a fast emerald bolt with a mint trail.
+  // 4. Impact: each arrow lands dead centre on its reticle: a critical starburst, a "CRIT" tag and its damage number,
+  //    with a short hit-stop; the motes drift off and the ranger recoils back to idle.
+  _deadeyeAnim(A, ev, T, shoot) {
+    const isEnemy = id => { const a = this.actors.get(id); return !!a && a.type === 'enemy'; };
+    const tgt = ev.targets.filter(t => !t.shatter && isEnemy(t.id) && t.dmg != null);
+    const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
+    if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
+    if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    const shots = tgt.map(r => ({ rec: r, e: this.actors.get(r.id) })).filter(c => c.e);
+    if (!shots.length) { this._applyAfter(ev); return T(600); }
+    const LOCK0 = 260, LOCK = 170;   // when the first reticle appears, the gap between locks
+    const CHARGE = 620 + Math.max(0, 3 - shots.length) * 220;   // the held charge: longer against one or two enemies, so the move keeps its weight
+    const frs = shoot.timeline.map(x => x[0]), C0 = shoot.charge, R0 = shoot.release, R1 = frs.includes(R0 + 1) ? R0 + 1 : R0;
+    const tl = [];
+    for (const f of frs) if (f < C0) tl.push([f, 75]);   // a slow, steady draw
+    const drawn = tl.reduce((a, x) => a + x[1], 0);
+    const lockEnd = LOCK0 + (shots.length - 1) * LOCK + 380;   // the last reticle has locked
+    const holdIdx = tl.length; tl.push([C0, Math.max(300, lockEnd - drawn) + CHARGE]);
+    const relIdx = [];
+    shots.forEach((c, i) => { relIdx.push(tl.length); tl.push([R0, 45], [R1, 60]); if (i < shots.length - 1) tl.push([C0, 70]); });
+    const tail = shoot.timeline.filter(x => x[0] > R1);
+    if (tail.length) for (const x of tail) tl.push([x[0], x[1]]); else tl.push([R1, 220]);
+    const anim = Object.assign({}, shoot, { timeline: tl });
+    const at = []; let acc = 0; for (const [, ms] of tl) { at.push(acc); acc += ms; }
+    const t0 = now();
+    A.anim = { d: anim, t0, speed: T(1000) / 1000, at, total: acc };
+    setTimeout(() => { if (A.anim && A.anim.d === anim) A.anim = null; }, T(acc + 60));
+    this.cam = { x: A.x - 50, y: A.y - 36, t0, dur: T(at[relIdx[0]] + 120), z: 1.07 };
+    const [mx, my] = shoot.muzzle || [-30, -40];
+    const tip = { x: A.x + A.ox + mx, y: A.y + A.oy + my };
+    const when = (ms, fn) => setTimeout(fn, T(ms));
+    sfx('charge');
+    // 1. focus: a reticle locks on to each enemy in turn (spin in, snap, then pulse until its arrow lands)
+    const lands = [];
+    shots.forEach((c, i) => {
+      const rel = at[relIdx[i]], to = this._hitPoint(c.e);
+      const fly = clamp(Math.hypot(to.x - tip.x, to.y - tip.y) * 0.85, 150, 260);
+      lands.push(rel + fly);
+      const lk = LOCK0 + i * LOCK;
+      when(lk, () => {
+        this.mets.push({ kind: 'demark', follow: c.e, t0: now(), life: T(rel + fly - lk) });
+        this.mets.push({ kind: 'desight', from: tip, follow: c.e, t0: now() + T(330), life: T(rel - lk - 330) });
+        sfx('whoosh');
+      });
+      when(lk + 330, () => { const p = this._hitPoint(c.e); this.glows.push({ x: p.x, y: p.y, r: 22, color: '#8fffd8', t: 0, life: 0.25, a: 0.8 }); sfx('twinkle'); });   // the lock-on snap
+    });
+    // 2. charge: energy gathers on the arrowhead and her outline burns emerald while the draw is held
+    when(at[holdIdx], () => {
+      this.mets.push({ kind: 'decharge', x: tip.x, y: tip.y, t0: now(), life: T(at[relIdx[shots.length - 1]] - at[holdIdx] + 40) });
+      A.chronoRim = { t0: now(), until: now() + T(at[relIdx[shots.length - 1]] - at[holdIdx] + 120), color: '#3fdc9a' };
+      sfx('charge');
+    });
+    // 3. release: one arrow per enemy; 4. impact: a critical hit on each
+    const last = {}; tgt.forEach((t, i) => { last[t.id] = i; });
+    shots.forEach((c, i) => {
+      const rel = at[relIdx[i]], fly = lands[i] - rel;
+      when(rel, () => {
+        const to = this._hitPoint(c.e);
+        this.glows.push({ x: tip.x, y: tip.y, r: 26, color: '#c8fff0', t: 0, life: 0.18, a: 1 });
+        this.burst(tip.x, tip.y, '#8fffd8', 8, 46, 0);
+        this.mets.push({ kind: 'dearrow', from: tip, ctrl: { x: lerp(tip.x, to.x, 0.5), y: Math.min(tip.y, to.y) - 8 }, to, t0: now(), life: T(fly), pts: [] });
+        sfx('bow'); if (i === 0) sfx('whoosh');
+      });
+      when(rel + fly, () => {
+        const p = this._hitPoint(c.e);
+        this.mets.push({ kind: 'decrit', x: p.x, y: p.y, t0: now(), life: T(800) });
+        this.number(p.x, p.y - 34, 'CRIT', '#8fffd8', 0.95, true);
+        this.flash = Math.max(this.flash || 0, i ? 0.05 : 0.1); this.shake = Math.max(this.shake, 5); this.shakeT = now(); this.freezeUntil = now() + 80;
+        const lp = this.lowPower ? 0.5 : 1;
+        for (let q = 0; q < 12 * lp; q++) this.particles.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 120, vy: (Math.random() - 0.5) * 90 - 20, g: 90, life: 0.4 + Math.random() * 0.4, t: 0, c: ['#8fffd8', '#3fbf8f', '#ffffff', '#ffd25a'][q % 4], streak: q % 3 ? 2 : 0, plus: q % 3 === 0, drag: 0.92 });
+        this.impact(ev, tgt, 'deadeye', rc, [c.rec], true);
+        sfx('hitBig');
+        if (last[c.rec.id] === tgt.indexOf(c.rec)) this._applyAfter(ev, [c.rec.id]);
+      });
+    });
+    const end = Math.max(...lands);
+    when(end + 80, () => this._applyAfter(ev));
+    return T(Math.max(acc, end + 700));
+  }
+  // Divine Shield with PixelLab effects (public/art/fx/ds_*), on the cleric's Chant animation, in five beats:
+  // 1. Cast: the cleric raises the staff and chants; a holy star burns on its tip, golden motes rise and the robes glow.
+  // 2. Shield forms: as the staff sweeps round, a mote of light flies from it to every hero and a golden dome rises out of
+  //    a ring of light on the floor and closes over each of them.
+  // 3. Protection: the domes close with a flare and shimmer.
+  // 4. Purify: a beam of light rises through every hero; on a hero who loses Weak or Vulnerable the dark motes burn off and
+  //    golden crosses and a shield emblem float up ("Cleansed").
+  // 5. Shield remains: the domes dim to a gentle shimmer and stay up for the rest of the round (drawn with the hero while
+  //    the Divine Shield status lasts; a blocked hit makes the dome flare).
+  _divineAnim(A, ev, T, anim) {
+    const at = []; let acc = 0; for (const [, ms] of anim.timeline) { at.push(acc); acc += ms; }
+    if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
+    if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    const heroes = ev.targets.map(t => ({ rec: t, h: this.actors.get(t.id) })).filter(c => c.h && c.h.type === 'hero' && !c.h.downed);
+    const t0 = now(), C0 = anim.charge != null ? anim.charge : 2, hitAt = at[anim.hit];
+    A.anim = { d: anim, t0, speed: T(1000) / 1000, at, total: acc };
+    setTimeout(() => { if (A.anim && A.anim.d === anim) A.anim = null; }, T(acc + 60));
+    this.cam = { x: A.x - 10, y: A.y - 40, t0, dur: T(hitAt + 200), z: 1.06 };
+    const when = (ms, fn) => setTimeout(fn, T(ms));
+    // 1. cast
+    when(at[C0], () => {
+      this.mets.push({ kind: 'dsstar', follow: A, t0: now(), life: T(hitAt - at[C0] + 160) });
+      A.holy = { t0: now(), until: now() + T(hitAt - at[C0] + 400) };
+      sfx('cast'); sfx('twinkle');
+    });
+    when(at[C0] + 60, () => { const lp = this.lowPower ? 0.5 : 1; for (let q = 0; q < 22 * lp; q++) this.particles.push({ x: A.x + (Math.random() - 0.5) * 40, y: A.y - Math.random() * 10, vx: (Math.random() - 0.5) * 8, vy: -16 - Math.random() * 30, g: -6, life: 0.9 + Math.random() * 0.8, t: 0, c: ['#ffe27a', '#fff6c8', '#f6c453'][q % 3], plus: q % 4 === 0, fade: true }); });
+    // 2. shield forms: motes of light fly from the staff to every hero, nearest first
+    const order = heroes.slice().sort((a, b) => Math.abs(a.h.x - A.x) + Math.abs(a.h.y - A.y) - Math.abs(b.h.x - A.x) - Math.abs(b.h.y - A.y));
+    let formed = hitAt;
+    order.forEach((c, i) => {
+      const go = hitAt + i * 90, fly = c.h === A ? 120 : clamp(Math.hypot(c.h.x - A.x, c.h.y - A.y) * 1.6, 160, 300);
+      when(go, () => {
+        const tp = this._tipAt(A) || { x: A.x - 14, y: A.y - 70 };
+        this.mets.push({ kind: 'dsbolt', from: { x: tp.x, y: tp.y }, ctrl: { x: (tp.x + c.h.x) / 2, y: Math.min(tp.y, c.h.y - 60) - 24 }, to: { x: c.h.x, y: c.h.y - 30 }, t0: now(), life: T(fly), pts: [] });
+        if (i === 0) { this.glows.push({ x: tp.x, y: tp.y, r: 40, color: '#ffe9a0', t: 0, life: 0.35, a: 0.9 }); sfx('zap'); }
+      });
+      when(go + fly, () => {
+        c.h.dome = { t0: now(), bright: now() + T(2600) };
+        this.glows.push({ x: c.h.x, y: c.h.y - 2, r: 46, color: '#ffd86a', t: 0, life: 0.45, a: 0.7 });
+        this.mets.push({ kind: 'dsring', x: c.h.x, y: c.h.y, t0: now(), life: T(600) });
+        sfx('shield');
+      });
+      // 3. protection: the dome closes with a flare
+      when(go + fly + 470, () => { this.glows.push({ x: c.h.x, y: c.h.y - 34, r: 50, color: '#fff2c0', t: 0, life: 0.35, a: 0.75 }); if (c.h === A) sfx('twinkle'); });
+      formed = Math.max(formed, go + fly + 470);
+    });
+    // 4. purify: a beam through every hero; the cleansed shed their dark motes and the crosses rise
+    order.forEach((c, i) => when(formed + 120 + i * 80, () => {
+      this.mets.push({ kind: 'dspurify', x: c.h.x, y: c.h.y, t0: now(), life: T(900) });
+      if (i === 0) sfx('heal');
+      if (c.rec.cleansed) {
+        this.mets.push({ kind: 'dscleanse', x: c.h.x, y: c.h.y - 30, t0: now() + T(150), life: T(900) });
+        const lp = this.lowPower ? 0.5 : 1;
+        for (let q = 0; q < 14 * lp; q++) this.particles.push({ x: c.h.x + (Math.random() - 0.5) * 22, y: c.h.y - 6 - Math.random() * 40, vx: (Math.random() - 0.5) * 16, vy: -24 - Math.random() * 30, g: -10, life: 0.6 + Math.random() * 0.5, t: 0, c: ['#6a3a9a', '#9a5ad0', '#c7a2ff', '#3a2050'][q % 4], fade: true, blob: q % 5 === 0 ? 1 : 0 });
+        this.number(c.h.x, c.h.y - 82, 'Cleansed', '#d8fff0', 0.8);
+      }
+    }));
+    const done = formed + 120 + order.length * 80 + 500;
+    // 5. shield remains: the after-state gives every hero the status, and the domes settle to a steady shimmer
+    when(done, () => { this._applyAfter(ev); for (const c of order) if (c.h.dome) c.h.dome.bright = Math.min(c.h.dome.bright, now() + T(500)); });
+    return T(Math.max(acc, done) + 400);
   }
   // Wrath of Heaven with PixelLab effects (public/art/fx/wrath_*): the cleric's Chant animation raises the staff and holds
   // it (divine invocation: a golden halo above the head, holy symbols spiralling round the body, the robes glowing).
@@ -2226,6 +2436,14 @@ export class BattleScene {
       } else if (m.kind === 'wmark') { glow(X(m.x), Y(m.y), (26 + 18 * k) * s * (m.sx || 1) * 0.8, '#ffd86a', 0.25 + 0.45 * k);
       } else if (m.kind === 'wring') { ctx.save(); ctx.translate(X(m.x), Y(m.y)); ctx.scale(1, m.q); glow(0, 0, m.w * 0.55 * s, '#ffd86a', (0.12 + 0.2 * k) * Math.min(1, age / 260) * (m.fade ? clamp((m.life - age) / m.fade, 0, 1) : 1)); ctx.restore();
       } else if (m.kind === 'whalo') { const a = m.follow; glow(X(a.x + a.ox - 2), Y(a.y + a.oy - 66), 22 * s, '#ffe9a0', 0.55); glow(X(a.x + a.ox), Y(a.y + a.oy - 28), 40 * s, '#ffd86a', 0.25);
+      } else if (m.kind === 'demark') { const p = this._hitPoint(m.follow); glow(X(p.x), Y(p.y), 18 * s, '#3fdc9a', 0.25 + 0.1 * Math.sin(age / 70));
+      } else if (m.kind === 'decharge') { glow(X(m.x), Y(m.y), (10 + 18 * Math.min(1, k * 2) + 3 * Math.sin(age / 50)) * s, '#5affc0', 0.45 + 0.3 * Math.min(1, k * 2));
+      } else if (m.kind === 'dearrow') { const P = this._pvAt(m, Math.min(1, age / m.life)); glow(X(P.x), Y(P.y), 16 * s, '#5affc0', 0.6);
+      } else if (m.kind === 'decrit') { if (k < 0.35) glow(X(m.x), Y(m.y), 44 * s * (0.6 + k), '#c8fff0', 0.7 * (1 - k / 0.35));
+      } else if (m.kind === 'dsstar') { const tp = this._tipAt(m.follow) || m.last; if (tp) glow(X(tp.x), Y(tp.y), (18 + 14 * Math.min(1, k * 1.6)) * s * (0.92 + 0.08 * Math.sin(t / 60)), '#ffd86a', 0.75);
+      } else if (m.kind === 'dsbolt') { const P = this._pvAt(m, ease(Math.min(1, age / m.life))); glow(X(P.x), Y(P.y), 16 * s, '#ffe9a0', 0.7);
+      } else if (m.kind === 'dsring') { const e = eo(k), r = (10 + 34 * e) * s; ctx.strokeStyle = hexA('#ffe27a', 0.8 * (1 - k)); ctx.lineWidth = Math.max(1, 3 * s * (1 - k)); ctx.beginPath(); ctx.ellipse(X(m.x), Y(m.y), r, r * 0.26, 0, 0, TAU); ctx.stroke();
+      } else if (m.kind === 'dspurify') { const a = k < 0.2 ? k / 0.2 : Math.max(0, 1 - (k - 0.2) / 0.8); ctx.save(); ctx.translate(X(m.x), Y(m.y - 40)); ctx.scale(0.45, 1.8); glow(0, 0, 34 * s, '#fff2c0', 0.4 * a); ctx.restore();
       } else if (m.kind === 'pcharge') { const g0 = Math.min(1, age / Math.max(1, m.orb)); glow(X(m.x), Y(m.y), (8 + 16 * g0 + (age > m.orb ? 3 * Math.sin(age / 60) : 0)) * s, '#7affd8', 0.35 + 0.35 * g0);
       } else if (m.kind === 'parrow') { const P = this._pvAt(m, Math.min(1, age / m.life)); glow(X(P.x), Y(P.y), 15 * s, '#7affd8', 0.55 * m.a);
       } else if (m.kind === 'pimpact') { if (k < 0.3) glow(X(m.x), Y(m.y - 12), 16 * s, '#a8ffe0', 0.5 * (1 - k / 0.3)); else glow(X(m.x), Y(m.y - 16), 18 * s, '#9a7aff', 0.25 * (1 - k));
@@ -2423,9 +2641,22 @@ export class BattleScene {
     return T(end + 500);
   }
 
+  // Divine Shield's dome round a hero: it forms (frames 0-5) when the skill's light reaches them, shimmers brightly while
+  // the move plays, then stays up dimmer for as long as the Divine Shield status lasts. A blocked hit makes it flare.
+  _drawDome(n, a, t, kx) {
+    const S = PFX.dsDome, d = a.dome, on = a.st && a.st.divine && !a.downed;
+    if (!S.img.complete || !S.img.naturalWidth || (!on && !(d && t < d.bright))) { if (!on && d && t >= d.bright) a.dome = null; return; }
+    const age = d ? t - d.t0 : 1e6, f0 = Math.floor(age / 1000 * S.fps), f = f0 < 6 ? f0 : 6 + Math.floor((f0 - 6) / 1.5) % 8;
+    let al = d && t < d.bright ? 0.95 : 0.36 + 0.07 * Math.sin(t / 300);   // dimmer once the move is over, so a shielded party stays readable
+    if (a.domeFlash && t - a.domeFlash < 450) al = Math.min(1, al + 0.45 * (1 - (t - a.domeFlash) / 450));
+    n.globalAlpha = al * (a.alpha == null ? 1 : a.alpha);
+    n.drawImage(S.img, (f % S.cols) * S.w, Math.floor(f / S.cols) * S.h, S.w, S.h, Math.round(a.x + a.ox + kx - S.ax), Math.round(a.y + a.oy - S.ay), S.w, S.h);
+    n.globalAlpha = 1;
+  }
   // what a hero's gear and buffs did when an enemy hit them
   _react(h, E) {
     const p = this.pos(h.id); if (!p) return;
+    if (h.shielded && p.a) p.a.domeFlash = now();
     if (h.shielded) { this.number(p.x, p.y - 46, 'Shielded!', '#fff6c8', 1); this.glows.push({ x: p.x, y: p.y - 20, r: 30, color: '#fff6c8', t: 0, life: 0.5, a: 0.8, ring: true }); }
     if (h.potion) setTimeout(() => { this.column(p.x, p.y, '#ff8a9a'); this.number(p.x + 8, p.y - 58, 'Potion +' + h.potion, '#8dff9e', 0.9); sfx('heal'); }, 280);
     if (h.plume) setTimeout(() => { this.glows.push({ x: p.x, y: p.y - 20, r: 60, color: '#ff9a3c', t: 0, life: 0.9, a: 0.9 }); this.burst(p.x, p.y - 20, '#ffb347', 36, 50); this.number(p.x, p.y - 60, 'Phoenix Plume!', '#ffb347', 1); this.pose(p.a, 'victory', 600); sfx('heal'); }, 300);
@@ -3111,10 +3342,10 @@ export class BattleScene {
       }
       if (a.chronoRim && t < a.chronoRim.until) {   // Time Stop: the mage's outline glows blue while she channels
         const k = (t - a.chronoRim.t0) / (a.chronoRim.until - a.chronoRim.t0), env = Math.min(1, k * 6, (1 - k) * 6), wf = this.frameFor(a, true);
-        n.globalAlpha = alpha * env * (0.7 + 0.3 * Math.sin(t / 70)); const rim = this.tinted(wf, '#4aa8ff');
+        n.globalAlpha = alpha * env * (0.7 + 0.3 * Math.sin(t / 70)); const rim = this.tinted(wf, a.chronoRim.color || '#4aa8ff');   // Deadeye uses it in emerald
         for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) n.drawImage(rim, x + ox, y + oy);
         n.globalAlpha = alpha; n.drawImage(fr, x, y);
-        n.globalAlpha = alpha * env * 0.12; n.drawImage(this.tinted(wf, '#bfe6ff'), x, y); n.globalAlpha = alpha;
+        n.globalAlpha = alpha * env * 0.12; n.drawImage(this.tinted(wf, a.chronoRim.color ? '#c8fff0' : '#bfe6ff'), x, y); n.globalAlpha = alpha;
       }
       if (a.tstop && t >= a.tstop.t0 && t < a.tstop.until) {   // Time Stop: frozen mid-move and turned to blue crystal
         const wf = this.frameFor(a, true), el = t - a.tstop.t0, k = Math.min(1, el / 160);
@@ -3138,6 +3369,7 @@ export class BattleScene {
       if (a.st && a.st.freeze) { n.globalAlpha = 0.45; n.drawImage(this.tinted(this.frameFor(a, true), '#bff6ff'), x, y); }
       if (spun) n.restore();
       n.globalAlpha = 1;
+      if (this.pixelFx && a.type === 'hero') this._drawDome(n, a, t, kx);
       if (inLava) this.drawLavaLip(n, t, time, a, x + info.ax);
     }
     this.drawSpikes(n, t);

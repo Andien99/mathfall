@@ -154,8 +154,8 @@
       p: { dmg: 8, hits: 3 }, desc: p => `Call down the stars: ${p.dmg} damage to every enemy, 3 times.` },
     phantom_volley: { cls: 'ranger', name: 'Phantom Volley', rarity: 'legendary', cost: 8, target: 'allEnemies', icon: 'phantom', fx: 'phantom', color: '#a8ffe0',
       p: { dmg: 6, poison: 2, arrowsN: 6 }, desc: p => `Fire ${p.arrowsN} ghost arrows of ${p.dmg} damage at random enemies. Each adds ${p.poison} Poison.` },
-    deadeye: { cls: 'ranger', name: 'Deadeye', rarity: 'legendary', cost: 8, target: 'enemy', icon: 'deadeye', fx: 'proj_arrow', color: '#ff6b6b',
-      p: { dmg: 22 }, desc: p => `A perfect shot: ${p.dmg} damage, doubled if the target is Poisoned, Burning or Marked.` },
+    deadeye: { cls: 'ranger', name: 'Deadeye', rarity: 'legendary', cost: 8, target: 'allEnemies', icon: 'deadeye', fx: 'deadeye', color: '#5affc0',
+      p: { dmg: 10 }, desc: p => `Lock on to every enemy: one arrow each, always a critical hit, for ${p.dmg * 2} damage.` },
 
     // ================================================================= CLERIC
     healing_light: { cls: 'cleric', name: 'Healing Light', rarity: 'common', cost: 4, target: 'ally', icon: 'heal', fx: 'heal', color: '#9dffb0',
@@ -187,7 +187,7 @@
     resurrection: { cls: 'cleric', name: 'Resurrection', rarity: 'legendary', cost: 8, target: 'party', icon: 'resurrection', fx: 'revive_party', color: '#ffe27a',
       p: { heal: 10 }, desc: p => `Revive every fallen hero at half HP, and heal everyone ${p.heal}.`, allowDowned: true },
     divine_shield: { cls: 'cleric', name: 'Divine Shield', rarity: 'legendary', cost: 8, target: 'party', icon: 'divine_shield', fx: 'divine', color: '#fff6c8',
-      p: {}, desc: () => 'A holy barrier: no hero takes damage from enemies this round.' },
+      p: {}, desc: () => 'A holy barrier: no hero takes damage from enemies this round, and every hero loses Weak and Vulnerable.' },
     wrath_of_heaven: { cls: 'cleric', name: 'Wrath of Heaven', rarity: 'legendary', cost: 8, target: 'allEnemies', icon: 'wrath', fx: 'pillar', color: '#fff0a8',
       p: { dmg: 4, hitsN: 4, heal: 8 }, desc: p => `A pillar of light over the whole battlefield strikes every enemy ${p.hitsN} times for ${p.dmg}, and every hero heals ${p.heal}.` }
   };
