@@ -28,6 +28,15 @@ const DARK_A = 0.84;
 const projKind = fx => ({ mark: 'proj_arrow', multishot: 'proj_arrow', ricochet: 'proj_arrow', missiles: 'proj_arcane' }[fx] || fx);
 // the Minotaur's Ground Slam: PixelLab earth spikes that burst out of the floor (public/art/fx)
 const SPIKES = [0, 1, 2].map(i => { const im = new Image(); im.src = '/art/fx/earth_spike_' + i + '.png'; return im; });
+// PixelLab effect sprite sheets (public/art/fx, made with create_vfx): the alternative pixel-art look for the Meteor's rock
+// and explosion and Earthshatter's fire columns. Off by default; ?vfx=pixel turns it on (compare the two looks).
+const FX_SHEET = (src, w, h, cols, n, fps, ax, ay, loop) => { const img = new Image(); img.src = '/art/fx/' + src; return { img, w, h, cols, n, fps, ax, ay, loop }; };
+const PFX = {
+  rock: FX_SHEET('meteor_fly.png', 160, 160, 3, 8, 12, 80, 80, true),
+  boom: FX_SHEET('meteor_impact.png', 192, 160, 4, 12, 14, 96, 142, false),
+  geyser: FX_SHEET('fire_column.png', 40, 100, 4, 10, 12, 20, 96, false)
+};
+const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') === 'pixel'; } catch (e) { return false; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
   mark: 'Marked', stun: 'Stunned', regen: 'Mending', steady: 'Iron Skin', thorns: 'Riposte', frost: 'Frost Armour', unbreak: 'Unbreakable', divine: 'Shielded', surge: 'Mana Surge' };
 
@@ -54,6 +63,7 @@ export class BattleScene {
     this.shake = 0; this.shakeT = 0;
     this.trails = []; this.cam = null; this.stars = []; this.rings = []; this.ribbons = []; this.auras = [];
     this.zaps = []; this.ripples = []; this.residue = []; this.xhits = []; this.slivers = []; this.bigArcs = [];   // Champion's Combo: blade aura, ground ripples, leftover crackle
+    this.pixelFx = PIXEL_FX;
     this.mets = [];   // Meteor: hand flame, spark, the rock, its explosion and the fire it leaves
     this.cracks = []; this.spikes = []; this.ghosts = [];
     this.slowmo = 1;   // <1 plays everything in slow motion (used by the /dev/lab.html animation lab)
@@ -1041,7 +1051,7 @@ export class BattleScene {
       // the eruptions: one big column under every enemy, smaller ones in between, the wave rolling away from him
       const spots = ens.map(e => ({ x: e.x, y: e.y + 1, big: true }));
       const from = Math.min(left - 30, ox - 40), to = ox - 20;
-      for (let x = to; x >= from; x -= 18) spots.push({ x: x + (Math.random() - 0.5) * 8, y: gy + (Math.random() - 0.5) * 18, big: false });
+      for (let x = to; x >= from; x -= this.pixelFx ? 28 : 18) spots.push({ x: x + (Math.random() - 0.5) * 8, y: gy + (Math.random() - 0.5) * 18, big: false });
       for (const sp of spots) {
         const d = Math.max(0, ox - sp.x);
         this.mets.push({ kind: 'geyser', x: sp.x, y: sp.y, h: sp.big ? 78 + Math.random() * 18 : 34 + Math.random() * 22, w: sp.big ? 15 : 9, t0: now() + T(40 + d * 2.2), life: T(sp.big ? 700 : 520) });
@@ -1052,6 +1062,22 @@ export class BattleScene {
     });
     setTimeout(() => { A.anim = null; this.move(A, 0, 0, T(320)); }, T(acc + 40));
     return T(acc + 520);
+  }
+  // the PixelLab sprite versions of the meteor, its explosion and the fire columns, drawn crisp on the pixel layer
+  drawPixelFx(n, t) {
+    const frame = (S, age, scale, x, y) => {
+      if (!S.img.complete || !S.img.naturalWidth) return false;
+      let f = Math.floor(age / 1000 * S.fps); if (S.loop) f %= S.n; else if (f >= S.n) return false;
+      const sx = (f % S.cols) * S.w, sy = Math.floor(f / S.cols) * S.h;
+      n.drawImage(S.img, sx, sy, S.w, S.h, Math.round(x - S.ax * scale), Math.round(y - S.ay * scale), S.w * scale, S.h * scale);
+      return true;
+    };
+    for (const m of this.mets) {
+      const age = t - m.t0; if (age < 0 || age > m.life) continue;
+      if (m.kind === 'rock') { const e = Math.pow(age / m.life, 1.6); frame(PFX.rock, age, 2, lerp(m.from.x, m.to.x, e), lerp(m.from.y, m.to.y, e)); }
+      else if (m.kind === 'boom') frame(PFX.boom, age * 0.9, m.w > 70 ? 2 : 1, m.x, m.y + 2);
+      else if (m.kind === 'geyser') frame(PFX.geyser, age * 1.15, 1, m.x, m.y + 2);
+    }
   }
   drawMeteors(ctx, t, sx, sy) {
     if (!this.mets.length) return;
@@ -1110,6 +1136,7 @@ export class BattleScene {
         ctx.fillStyle = sg; ctx.fillRect(0, 0, this.cv.width, this.cv.height * 0.6);
       } else if (m.kind === 'rock') {   // the meteor: a burning rock with a long fiery tail
         const e = Math.pow(k, 1.6), px = lerp(m.from.x, m.to.x, e), py = lerp(m.from.y, m.to.y, e);
+        if (this.pixelFx) { glow(X(px), Y(py), m.R * 3 * s, '#ff5a1a', 0.45); if (Math.random() < 0.8) this.particles.push({ x: px + 30 + Math.random() * 30, y: py - 30 - Math.random() * 30, vx: 60 + Math.random() * 40, vy: -60 - Math.random() * 40, g: 20, life: 0.3, t: 0, c: Math.random() < 0.5 ? '#ffd25a' : '#ff8a3c', streak: 2, drag: 0.9 }); continue; }
         const dx = m.to.x - m.from.x, dy = m.to.y - m.from.y, D = Math.hypot(dx, dy), ux = dx / D, uy = dy / D, nx = -uy, ny = ux;
         const x = X(px), y = Y(py), R = m.R * s, Lt = R * (4 + 3 * k);
         glow(x, y, R * 3.4, '#ff5a1a', 0.55);
@@ -1148,6 +1175,7 @@ export class BattleScene {
         const x = X(m.x), y = Y(m.y), W = m.w * s;
         const rf = (14 + m.w * 1.25 * eo(k / 0.3)) * s, af = k < 0.2 ? 1 : Math.max(0, 1 - (k - 0.2) / 0.6);
         glow(x, y - rf * 0.35, rf * 1.6, '#ff5a1a', 0.5 * af * af);
+        if (this.pixelFx) continue;
         const g = ctx.createRadialGradient(x, y - rf * 0.3, 0, x, y - rf * 0.3, rf);
         g.addColorStop(0, `rgba(255,255,240,${af})`); g.addColorStop(0.25, `rgba(255,230,140,${0.95 * af})`); g.addColorStop(0.55, `rgba(255,140,40,${0.8 * af})`); g.addColorStop(0.85, `rgba(220,50,20,${0.45 * af})`); g.addColorStop(1, 'rgba(120,20,10,0)');
         ctx.save(); ctx.translate(x, y - rf * 0.3); ctx.scale(1.25, 0.95); ctx.translate(-x, -(y - rf * 0.3)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y - rf * 0.3, rf, 0, TAU); ctx.fill(); ctx.restore();
@@ -1194,6 +1222,7 @@ export class BattleScene {
         const up = eo(Math.min(1, k / 0.22)), a = k < 0.45 ? 1 : Math.max(0, 1 - (k - 0.45) / 0.55);
         const x = X(m.x), y = Y(m.y), H = m.h * s * up * (0.92 + 0.08 * Math.sin(t / 40 + m.x)), W = m.w * s;
         glow(x, y - H * 0.4, W * 3.2, '#ff5a1a', 0.5 * a);
+        if (this.pixelFx) continue;
         const col = (w, c0, c1) => { const g = ctx.createLinearGradient(0, y, 0, y - H); g.addColorStop(0, c0); g.addColorStop(1, c1);
           ctx.beginPath(); ctx.moveTo(x - W * w, y); ctx.quadraticCurveTo(x - W * w * 0.9, y - H * 0.55, x + Math.sin(t / 50 + m.x) * W * 0.3, y - H);
           ctx.quadraticCurveTo(x + W * w * 0.9, y - H * 0.55, x + W * w, y); ctx.closePath(); ctx.fillStyle = g; ctx.fill(); };
@@ -1930,6 +1959,7 @@ export class BattleScene {
       else n.fillRect(Math.round(p.x), Math.round(p.y), p.spark && k > 0.5 ? 2 : 1, 1);
     }
     n.globalAlpha = 1;
+    if (this.pixelFx) this.drawPixelFx(n, t);
     for (const z of this.zaps) {   // electricity crackling round the raised blade, stronger as it charges
       if (t > z.until) continue;
       const k = Math.min(1, (t - z.t0) / (z.until - z.t0));
