@@ -51,7 +51,7 @@ export class BattleScene {
     this.shake = 0; this.shakeT = 0;
     this.trails = []; this.cam = null; this.stars = []; this.rings = []; this.ribbons = []; this.auras = [];
     this.zaps = []; this.ripples = []; this.residue = []; this.xhits = []; this.slivers = []; this.bigArcs = [];   // Champion's Combo: blade aura, ground ripples, leftover crackle
-    this.mets = [];   // Meteor: hand flame, spark, snap, the rock, its explosion and the fire it leaves
+    this.mets = [];   // Meteor: hand flame, spark, the rock, its explosion and the fire it leaves
     this.cracks = []; this.spikes = []; this.ghosts = [];
     this.slowmo = 1;   // <1 plays everything in slow motion (used by the /dev/lab.html animation lab)
     this.freezeUntil = 0;
@@ -888,10 +888,10 @@ export class BattleScene {
   _zig(a, b, n, j) { const pts = [a]; for (let i = 1; i < n; i++) pts.push({ x: lerp(a.x, b.x, i / n) + (Math.random() - 0.5) * j, y: lerp(a.y, b.y, i / n) + (Math.random() - 0.5) * j }); pts.push(b); return pts; }
 
   // Meteor with its PixelLab animation (anims.meteor): the mage floats up, thrusts the flame in her hand out at the enemy
-  // (pointAt), crushes it (crushAt),
-  // opens it on a tiny spark (openAt) that shoots up off the screen (sparkAt), raises her arm and snaps her fingers
-  // (snapAt). A giant meteor then streaks in from the top right and lands on the middle of the enemies (hit): fireball,
-  // shockwave, cracks, rubble and fire left burning on the floor. She floats back down after it (downAt).
+  // (pointAt), crushes it (crushAt) and pauses, then opens her hand on a tiny spark (openAt) that sits a moment and shoots
+  // up off the screen (sparkAt). She turns her back on the enemy, staff pointed at the ground (turnAt), and a giant meteor
+  // streaks in from the top right behind her and lands on the middle of the enemies (hit): fireball, shockwave, cracks,
+  // rubble and fire left burning on the floor. Then she turns back and floats down (downAt).
   _meteorAnim(A, ev, T, anim) {
     const M = anim.meteor;
     const at = []; let acc = 0; for (const [, ms] of anim.timeline) { at.push(acc); acc += ms; }
@@ -915,8 +915,8 @@ export class BattleScene {
     const xs = ens.map(e => e.x), cx = ens.length ? xs.reduce((a, b) => a + b, 0) / xs.length : A.x - 160;
     const cy = ens.length ? ens.reduce((a, e) => a + e.y, 0) / ens.length : A.y;
     const spread = ens.length ? Math.max(56, (Math.max(...xs) - Math.min(...xs)) / 2 + 40) : 60;
-    // close-up on the mage until the snap, then the camera eases out so the meteor and the enemies fit
-    this.cam = { x: A.x - 4, y: A.y - 58, t0: at0, dur: T(at[M.snapAt] + 260), z: 1.12 };
+    // close-up on the mage until she turns away, then the camera eases out so the meteor and the enemies fit
+    this.cam = { x: A.x - 4, y: A.y - 58, t0: at0, dur: T(at[M.turnAt] + 260), z: 1.12 };
     // 1. she rises off the floor on a ring of light
     this.move(A, 0, -(M.lift || 30), T(at[2] + 120));
     this.rune(A.x, A.y, flame); this.burst(A.x, A.y - 2, '#d8c8b0', 10, 24, 20); sfx('cast');
@@ -939,20 +939,17 @@ export class BattleScene {
     });
     // 4. she opens her hand on a tiny spark, which shoots up and out of the top of the screen
     when(M.openAt, () => {
-      this.mets.push({ kind: 'spark', follow: palm, color: flame, t0: now(), hold: T(at[M.sparkAt] - at[M.openAt] + 120), fly: T(420), life: T(at[M.sparkAt] - at[M.openAt] + 120 + 420), pts: [] });
+      this.mets.push({ kind: 'spark', follow: palm, color: flame, t0: now(), hold: T(at[M.sparkAt] - at[M.openAt]), fly: T(420), life: T(at[M.sparkAt] - at[M.openAt] + 420), pts: [] });
       sfx('twinkle');
     });
-    when(M.sparkAt, () => { this.darken = { t0: now(), dur: T(at[anim.hit] - at[M.sparkAt] + 700) }; sfx('rise'); }, 120);
-    // 5. the snap: a click of light at her fingertips
-    when(M.snapAt, () => {
-      const tip = { x: A.x + A.ox + M.snapTip[0], y: A.y + A.oy + M.snapTip[1] };
-      this.mets.push({ kind: 'snap', x: tip.x, y: tip.y, t0: now(), life: T(260) });
-      this.glows.push({ x: tip.x, y: tip.y, r: 22, color: '#fff2c0', t: 0, life: 0.25, a: 0.9 });
-      this.flash = Math.max(this.flash || 0, 0.06);
-      sfx('snap');
+    when(M.sparkAt, () => { this.darken = { t0: now(), dur: T(at[anim.hit] - at[M.sparkAt] + 700) }; sfx('rise'); });
+    // 5. she turns her back on the enemy, staff pointed at the ground: a swish of her cloak
+    when(M.turnAt, () => {
+      for (let i = 0; i < 10; i++) this.particles.push({ x: A.x + A.ox + (Math.random() - 0.5) * 20, y: A.y + A.oy - 10 - Math.random() * 30, vx: 40 + Math.random() * 40, vy: (Math.random() - 0.5) * 20, g: 0, life: 0.3 + Math.random() * 0.2, t: 0, c: Math.random() < 0.5 ? '#8a7aa8' : '#cfc4e0', fade: true });
+      sfx('whoosh');
     });
     // 6. the meteor: its shadow and a burning ring mark the spot, the sky glows red, and it streaks in from the top right
-    const fallFrom = at[M.snapAt] + 120, fall = at[anim.hit] - fallFrom;
+    const fallFrom = at[M.turnAt] + 120, fall = at[anim.hit] - fallFrom;
     setTimeout(() => {
       this.mets.push({ kind: 'mark', x: cx, y: cy, w: spread, t0: now(), life: T(fall + 120) });
       this.mets.push({ kind: 'rock', from: { x: cx + 230, y: cy - 330 }, to: { x: cx, y: cy - 10 }, R: 36, t0: now(), life: T(fall), rot: Math.random() * 6,
@@ -972,9 +969,9 @@ export class BattleScene {
       this.impact(ev, tgt, 'meteor', rc);
       sfx('boom');
     });
-    // 8. she floats back down, and the flame lights up in her hand again
+    // 8. she turns back and floats down, and the flame lights up in her hand again
     when(M.downAt, () => this.move(A, 0, 0, T(acc - at[M.downAt])));
-    setTimeout(() => { const p = palm(); this.glows.push({ x: p.x, y: p.y, r: 18, color: flame, t: 0, life: 0.35, a: 0.8 }); this.burst(p.x, p.y, flame, 8, 20); }, T(acc - 120));
+    setTimeout(() => { const p = palm(); this.glows.push({ x: p.x, y: p.y, r: 18, color: flame, t: 0, life: 0.35, a: 0.8 }); this.burst(p.x, p.y, flame, 8, 20); }, T(at[M.downAt] + 40));
     setTimeout(() => { A.anim = null; this.move(A, 0, 0, T(120)); }, T(acc + 60));
     return T(acc + 450);
   }
@@ -1022,12 +1019,6 @@ export class BattleScene {
         ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = Math.max(1, s * 0.7);
         ctx.beginPath(); ctx.moveTo(X(x) - L, Y(y)); ctx.lineTo(X(x) + L, Y(y)); ctx.moveTo(X(x), Y(y) - L); ctx.lineTo(X(x), Y(y) + L); ctx.stroke();
         ctx.fillStyle = '#ffffff'; ctx.fillRect(X(x) - s, Y(y) - s, 2 * s, 2 * s);
-      } else if (m.kind === 'snap') {   // the click: short rays of light and a ring at the fingertips
-        const e = eo(k / 0.5), a = 1 - k;
-        ctx.strokeStyle = hexA('#fff6d8', a); ctx.lineWidth = Math.max(1, s * 1.1); ctx.lineCap = 'round';
-        for (let j = 0; j < 5; j++) { const ang = -Math.PI / 2 + (j - 2) * 0.6, r0 = (3 + 4 * e) * s, r1 = (5 + 8 * e) * s; ctx.beginPath(); ctx.moveTo(X(m.x) + Math.cos(ang) * r0, Y(m.y) + Math.sin(ang) * r0); ctx.lineTo(X(m.x) + Math.cos(ang) * r1, Y(m.y) + Math.sin(ang) * r1); ctx.stroke(); }
-        ctx.strokeStyle = hexA('#ffd25a', 0.6 * a); ctx.beginPath(); ctx.arc(X(m.x), Y(m.y), (3 + 8 * e) * s, 0, TAU); ctx.stroke();
-        glow(X(m.x), Y(m.y), 9 * s, '#ffffff', 0.8 * a);
       } else if (m.kind === 'mark') {   // the landing spot: a darkening shadow and a burning ring on the floor
         const e = k * k, x = X(m.x), y = Y(m.y), rx = (m.w * (0.5 + 0.7 * e)) * s;
         ctx.globalCompositeOperation = 'source-over';

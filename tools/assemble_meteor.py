@@ -7,8 +7,8 @@ Keyframes were made with edit_image from the attack frame (both mages at once), 
          the arm across (it kept the pose), so the arm was painted over by hand (point_paint in the frames branch)
          and edit_image redrew it in the sprite's style
   pfist  the outstretched hand squeezed shut on the flame      popen  the outstretched hand open again, palm up, empty
-  praise that arm raised to the upper left                     snap   the arm straight up, fingers snapping
-  half / open  the arm halfway up / palm up at her side (on the way back down)
+  away   turned away from the enemy (the float frame mirrored, then edit_image: staff held in one hand pointing at
+         the ground, the free hand relaxed; the gem in the staff head was filled back in by hand)
 PixelLab's pinned in-betweens for these kept adding big spell effects of their own (fire blasts, swooshes), so the
 move is built from the keyframes, plus the few in-betweens whose effect came off as a separate blob (crush1/2 and
 raise) after dropping everything but the body. (Those are no longer used.) The rise and the descent are moved in code.
@@ -20,9 +20,9 @@ from PIL import Image
 
 SEQ = {   # sheet: frame names in play order (see build_attack.py 'mage:*/meteor' for timing and markers)
     'mage':   ['atk0', 'float', 'float+', 'float', 'point', 'point+', 'point', 'pfist', 'pfist+', 'pfist', 'popen', 'popen+',
-               'praise', 'snap', 'snap+', 'snap', 'half', 'open', 'atk0'],
+               'away', 'away+', 'away', 'away+', 'away', 'float', 'atk0'],
     'mage_m': ['atk0', 'float', 'float+', 'float', 'point', 'point+', 'point', 'pfist', 'pfist+', 'pfist', 'popen', 'popen+',
-               'praise', 'snap', 'snap+', 'snap', 'half', 'open', 'atk0'],
+               'away', 'away+', 'away', 'away+', 'away', 'float', 'atk0'],
 }
 
 def lift1(im):
