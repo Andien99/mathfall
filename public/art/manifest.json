@@ -3774,7 +3774,7 @@
      "quake": {
       "jumpAt": 1,
       "holdAt": [
-       4,
+       2,
        7
       ],
       "spinAt": 8,
@@ -4711,7 +4711,7 @@
      "quake": {
       "jumpAt": 1,
       "holdAt": [
-       4,
+       2,
        7
       ],
       "spinAt": 8,

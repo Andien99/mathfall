@@ -35,7 +35,8 @@ const PFX = {
   rock: FX_SHEET('meteor_fly.png', 160, 160, 3, 8, 12, 80, 80, true),
   boom: FX_SHEET('meteor_impact.png', 192, 160, 4, 12, 14, 96, 142, false),
   geyser: FX_SHEET('fire_column.png', 40, 100, 4, 10, 12, 20, 96, false),
-  blade: FX_SHEET('flame_blade.png', 58, 156, 4, 8, 12, 16, 52, true)   // anchored on the sword tip (made round the knight's hold frame)
+  blade: FX_SHEET('flame_blade.png', 58, 156, 4, 8, 12, 16, 52, true),   // anchored on the sword tip (made round the knight's hold frame)
+  vortex: FX_SHEET('fire_vortex.png', 85, 85, 1, 1, 1, 42.5, 42.5, true)   // one image, spun in code (Earthshatter's dive)
 };
 const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') !== 'code'; } catch (e) { return true; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
@@ -1010,32 +1011,33 @@ export class BattleScene {
     const t0 = now();
     A.anim = { d: anim, t0, speed: T(1000) / 1000, at, total: acc };
     const when = (f, fn, extra = 0) => setTimeout(fn, T(at[f] + extra));
-    // where he lands: in front of the nearest enemy (the one furthest right)
+    // where he lands: on the nearest enemy (the one furthest right)
     const near = ens.length ? ens.reduce((a, e) => (e.x > a.x ? e : a)) : null;
-    const land = near ? { x: near.x + (near.size === 'xl' ? 46 : near.size === 'l' ? 26 : 20) + 14, y: near.y + 2 } : { x: A.x - 90, y: A.y };
-    // the raised sword and its flames reach ~158px above his feet, so a hero standing high up the screen first
-    // steps forward and down to a launch spot low enough for the leap to fit on screen
-    const HEAD = 158, floor = this.stage.y + this.stage.h - 8;
-    const launch = { x: A.x - 16, y: Math.min(floor, Math.max(A.y, HEAD + 40)) };
-    const rise = Math.max(30, Math.min(74, launch.y - HEAD));
-    const apex = { x: launch.x - A.x - rise / Math.tan(70 * Math.PI / 180), y: launch.y - A.y - rise };   // 70 degrees up and towards the enemy
+    const land = near ? { x: near.x + 4, y: near.y + 1 } : { x: A.x - 120, y: A.y };
+    // the peak sits on a 45 degree line up from the enemy, as high as the screen allows (the spinning fireball round his
+    // body has to stay on screen): 50-100px above it. He runs up to a launch spot and leaps to it at 70 degrees.
+    const TOPROOM = 62, k70 = 1 / Math.tan(70 * Math.PI / 180);
+    const drop = Math.max(50, Math.min(100, land.y - TOPROOM));
+    const peak = { x: land.x + drop, y: land.y - drop };
+    const rise = Math.max(40, A.y - peak.y);
+    const launch = { x: peak.x + rise * k70, y: peak.y + rise };
+    const apex = { x: peak.x - A.x, y: peak.y - A.y };
     const left = ens.length ? Math.min(...ens.map(e => e.x)) : land.x - 60, gy = ens.length ? ens.reduce((a, e) => a + e.y, 0) / ens.length : land.y;
-    this.cam = { x: (A.x + left) / 2, y: launch.y - 60, t0, dur: T(acc + 380), z: 1.05 };
-    this.move(A, launch.x - A.x, launch.y - A.y, T(at[Q.jumpAt] - 10));   // crouched, he slides into the launch spot
+    this.cam = { x: (A.x + left) / 2, y: (peak.y + land.y) / 2, t0, dur: T(acc + 380), z: 1.04, vig: 0.15 };   // light vignette: he leaps to the top edge
+    this.move(A, launch.x - A.x, launch.y - A.y, T(at[Q.jumpAt] - 10));   // the run-up (crouched)
     sfx('whirl');
     // 1. the leap
-    when(Q.jumpAt, () => { this.move(A, apex.x, apex.y, T(at[Q.holdAt[0]] - at[Q.jumpAt])); this.burst(A.x, A.y, '#d8c8b0', 14, 30, 30); sfx('whoosh'); });
-    // 2. the flaming blade, held up in the air (it floats a little)
+    when(Q.jumpAt, () => { this.move(A, apex.x, apex.y, T(at[Q.spinAt] - at[Q.jumpAt])); this.burst(launch.x, launch.y, '#d8c8b0', 14, 30, 30); sfx('whoosh'); });   // rising all through the charge, slowing at the top
+    // 2. the blade bursts into flame as he rises
     when(Q.holdAt[0], () => {
       const holdMs = at[Q.spinAt] - at[Q.holdAt[0]];
       this.mets.push({ kind: 'fblade', follow: A, len: Q.blade || 28, t0: now(), life: T(holdMs + 200), hold: T(holdMs) });
-      this.move(A, apex.x, apex.y - 4, T(holdMs));
       sfx('burn'); sfx('charge');
     });
-    // 3. the spin dive: the sprite turns over twice inside a wheel of fire on the way down
+    // 3. the spin dive: straight down a 45 degree line onto the enemy, turning over inside a spinning ball of fire
     when(Q.spinAt, () => {
       const ms = T(at[anim.hit] - at[Q.spinAt]);
-      A.spin = { t0: now(), dur: ms, turns: 2 };
+      A.spin = { t0: now(), dur: ms, turns: 2.5 };
       this.move(A, land.x - A.x, land.y - A.y, ms, true, true);
       this.mets.push({ kind: 'wheel', follow: A, t0: now(), life: ms + T(60) });
       sfx('whirl');
@@ -1044,7 +1046,7 @@ export class BattleScene {
     when(anim.hit, () => {
       A.spin = null;
       this.shake = Math.max(this.shake, 11); this.shakeT = now(); this.flash = Math.max(this.flash || 0, 0.15); this.freezeUntil = now() + 130;
-      const ox = land.x - 18, oy = land.y;
+      const ox = land.x - 8, oy = land.y;
       this.glows.push({ x: ox, y: oy - 10, r: 70, color: '#ff7a2a', t: 0, life: 0.5, a: 1 });
       for (let j = 0; j < 3; j++) this.mets.push({ kind: 'fring', x: ox, y: oy + 1, t0: now() + T(j * 120), life: T(700), r1: 80 + j * 35 });
       for (let i = 0; i < 7; i++) { const a = Math.PI + (i / 6 - 0.5) * 2.4, L = 50 + Math.random() * 70; this._crack(Math.round(ox), Math.round(oy + 1), Math.round(ox + Math.cos(a) * L), Math.round(oy + 1 + Math.sin(a) * L * 0.22), T(220), T(1800)); }
@@ -1078,6 +1080,12 @@ export class BattleScene {
       if (m.kind === 'rock') { const e = Math.pow(age / m.life, 1.6); frame(PFX.rock, age, 2, lerp(m.from.x, m.to.x, e), lerp(m.from.y, m.to.y, e)); }
       else if (m.kind === 'boom') frame(PFX.boom, age * 0.9, m.w > 70 ? 2 : 1, m.x, m.y + 2);
       else if (m.kind === 'geyser') frame(PFX.geyser, age * 1.15, 1, m.x, m.y + 2);
+      else if (m.kind === 'wheel' && PFX.vortex.img.complete && PFX.vortex.img.naturalWidth) {   // he dives inside a spinning ball of fire
+        const a = m.follow, cx = Math.round(a.x + a.ox), cy = Math.round(a.y + a.oy - 24), k = age / m.life;
+        const sc = Math.min(1, age / 90) * (k > 0.85 ? 1 - (k - 0.85) / 0.3 : 1);
+        n.save(); n.translate(cx, cy); n.rotate(-age / 1000 * Math.PI * 2 * 3.2); n.scale(sc, sc);
+        n.drawImage(PFX.vortex.img, -42.5, -42.5); n.restore();
+      }
       else if (m.kind === 'fblade' && age < m.hold) {   // the blade on fire while he holds it up (not once he starts to spin)
         const tip = this._tipAt(m.follow); if (!tip) continue;
         n.globalAlpha = Math.min(1, age / 160); frame(PFX.blade, age, 1, tip.x, tip.y); n.globalAlpha = 1;
@@ -1209,6 +1217,7 @@ export class BattleScene {
         if (Math.random() < 0.9) this.particles.push({ x: tip.x + (Math.random() - 0.5) * 8, y: tip.y + Math.random() * L - L * g0 * 0.5, vx: (Math.random() - 0.5) * 16, vy: -40 - Math.random() * 50, g: 0, life: 0.35 + Math.random() * 0.3, t: 0, c: Math.random() < 0.5 ? '#ffb347' : '#ff6a2a', blob: Math.random() < 0.3 ? 1 : 0, fade: true });
       } else if (m.kind === 'wheel') {   // the spin: a ring of fire round the tumbling knight
         const a = m.follow, cx = X(a.x + a.ox), cy = Y(a.y + a.oy - 24), rot = -age / 60, R = 30 * s;
+        if (this.pixelFx) { glow(cx, cy, R * 2.2, '#ff4a1a', 0.55); for (let j = 0; j < 3; j++) { const q = Math.random() * 6.28; this.particles.push({ x: a.x + a.ox + Math.cos(q) * 38, y: a.y + a.oy - 24 + Math.sin(q) * 38, vx: 40 + Math.random() * 40, vy: -40 - Math.random() * 30, g: 40, life: 0.35, t: 0, c: Math.random() < 0.5 ? '#ffb347' : '#e8301a', streak: 2, drag: 0.9 }); } continue; }
         ctx.lineCap = 'round';
         for (const [w, col, al] of [[9, '#ff5a1a', 0.45], [5, '#ffb347', 0.8], [2, '#fff2c8', 0.95]]) {
           ctx.strokeStyle = hexA(col, al); ctx.lineWidth = w * s;
@@ -1847,7 +1856,7 @@ export class BattleScene {
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#07050c'; ctx.fillRect(0, 0, this.cv.width, this.cv.height);
     ctx.drawImage(this.bgUp, sx, sy);
-    const dk = this._darkNow(t);   // legendary skills: the background (not the fighters or the effects) dims
+    const dk = this._darkNow(t); this._dk = dk;   // legendary skills: the background (not the fighters or the effects) dims
     if (dk) { ctx.fillStyle = `rgba(4,5,18,${dk})`; ctx.fillRect(0, 0, this.cv.width, this.cv.height); }
 
     // ---- native dynamic layer
@@ -2200,12 +2209,14 @@ export class BattleScene {
     const T = THEMES[this.theme] || THEMES.halls;
     // dark ambient grade at the top
     let g = ctx.createLinearGradient(0, 0, 0, Hd);
-    g.addColorStop(0, 'rgba(6,4,16,0.62)'); g.addColorStop(0.42, 'rgba(10,8,24,0.18)'); g.addColorStop(0.7, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(4,2,10,0.45)');
+    const ease = 1 - 0.8 * (this._dk || 0) / DARK_A;   // during a legendary move the background is already dark: lighten the grade so a hero leaping high isn't greyed out
+    g.addColorStop(0, `rgba(6,4,16,${0.62 * ease})`); g.addColorStop(0.42, `rgba(10,8,24,${0.18 * ease})`); g.addColorStop(0.7, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(4,2,10,0.45)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, Wd, Hd);
     // additive lights
     ctx.globalCompositeOperation = 'lighter';
+    const lightK = 1 - 0.75 * (this._dk || 0) / DARK_A;   // the room's lights dim with a legendary darkening
     for (const L of this.lights) {
-      let a = L.a;
+      let a = L.a * lightK;
       if (L.kind === 'torch') a *= 0.82 + 0.18 * Math.sin(time * 13 + L.phase) * Math.sin(time * 7.3 + L.phase * 2);
       if (L.kind === 'crystal') a *= 0.75 + 0.25 * Math.sin(time * 1.6 + L.phase);
       const x = L.x * s + sx, y = L.y * s + sy, r = L.r * s;
@@ -2218,7 +2229,7 @@ export class BattleScene {
       for (let i = 0; i < 3; i++) {
         const x0 = (0.22 + i * 0.27) * Wd + Math.sin(time * 0.3 + i) * 10 * s;
         const w = (40 + i * 14) * s, slant = 70 * s;
-        const a = 0.05 + 0.025 * Math.sin(time * 0.7 + i * 2);
+        const a = (0.05 + 0.025 * Math.sin(time * 0.7 + i * 2)) * (1 - (this._dk || 0) / DARK_A * 0.85);   // the shafts dim with a legendary darkening
         const lg = ctx.createLinearGradient(0, 0, 0, Hd * 0.85);
         lg.addColorStop(0, `rgba(255,236,200,${a * 1.6})`); lg.addColorStop(1, 'rgba(255,236,200,0)');
         ctx.fillStyle = lg;
