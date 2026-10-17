@@ -414,7 +414,7 @@ const SKILL_FX = {
     }
   },
   divine_shield(X) { for (const h of X.heroes()) X.status(h, 'divine', { t: 1 }); },
-  wrath_of_heaven(X, p) { for (const e of X.enemies()) X.hit(e, p.dmg); for (const h of X.heroes()) X.heal(h, p.heal); }
+  wrath_of_heaven(X, p) { for (let i = 0; i < p.hitsN; i++) for (const e of X.enemies()) X.hit(e, p.dmg).wave = i; for (const h of X.heroes()) X.heal(h, p.heal); }
 };
 
 // ---------------------------------------------------------------- hero actions

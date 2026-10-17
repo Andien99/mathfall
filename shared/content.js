@@ -191,7 +191,7 @@
     divine_shield: { cls: 'cleric', name: 'Divine Shield', rarity: 'legendary', cost: 8, target: 'party', icon: 'divine_shield', fx: 'divine', color: '#fff6c8',
       p: {}, desc: () => 'A holy barrier: no hero takes damage from enemies this round.' },
     wrath_of_heaven: { cls: 'cleric', name: 'Wrath of Heaven', rarity: 'legendary', cost: 8, target: 'allEnemies', icon: 'wrath', fx: 'pillar', color: '#fff0a8',
-      p: { dmg: 16, heal: 8 }, desc: p => `A pillar of light over the whole battlefield: ${p.dmg} damage to every enemy, and every hero heals ${p.heal}.` }
+      p: { dmg: 4, hitsN: 4, heal: 8 }, desc: p => `A pillar of light over the whole battlefield strikes every enemy ${p.hitsN} times for ${p.dmg}, and every hero heals ${p.heal}.` }
   };
   const UNDEAD = ['skeleton', 'thrall', 'hollowking'];
 
