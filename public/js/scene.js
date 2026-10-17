@@ -29,12 +29,13 @@ const projKind = fx => ({ mark: 'proj_arrow', multishot: 'proj_arrow', ricochet:
 // the Minotaur's Ground Slam: PixelLab earth spikes that burst out of the floor (public/art/fx)
 const SPIKES = [0, 1, 2].map(i => { const im = new Image(); im.src = '/art/fx/earth_spike_' + i + '.png'; return im; });
 // PixelLab effect sprite sheets (public/art/fx, made with create_vfx): the alternative pixel-art look for the Meteor's rock
-// and explosion and Earthshatter's fire columns. On by default; ?vfx=code shows the older code-drawn shapes instead.
+// and explosion and Earthshatter's flaming blade and fire columns. On by default; ?vfx=code shows the older code-drawn shapes instead.
 const FX_SHEET = (src, w, h, cols, n, fps, ax, ay, loop) => { const img = new Image(); img.src = '/art/fx/' + src; return { img, w, h, cols, n, fps, ax, ay, loop }; };
 const PFX = {
   rock: FX_SHEET('meteor_fly.png', 160, 160, 3, 8, 12, 80, 80, true),
   boom: FX_SHEET('meteor_impact.png', 192, 160, 4, 12, 14, 96, 142, false),
-  geyser: FX_SHEET('fire_column.png', 40, 100, 4, 10, 12, 20, 96, false)
+  geyser: FX_SHEET('fire_column.png', 40, 100, 4, 10, 12, 20, 96, false),
+  blade: FX_SHEET('flame_blade.png', 58, 156, 4, 8, 12, 16, 52, true)   // anchored on the sword tip (made round the knight's hold frame)
 };
 const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') !== 'code'; } catch (e) { return true; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
@@ -1027,7 +1028,7 @@ export class BattleScene {
     // 2. the flaming blade, held up in the air (it floats a little)
     when(Q.holdAt[0], () => {
       const holdMs = at[Q.spinAt] - at[Q.holdAt[0]];
-      this.mets.push({ kind: 'fblade', follow: A, len: Q.blade || 28, t0: now(), life: T(holdMs + 200) });
+      this.mets.push({ kind: 'fblade', follow: A, len: Q.blade || 28, t0: now(), life: T(holdMs + 200), hold: T(holdMs) });
       this.move(A, apex.x, apex.y - 4, T(holdMs));
       sfx('burn'); sfx('charge');
     });
@@ -1077,6 +1078,10 @@ export class BattleScene {
       if (m.kind === 'rock') { const e = Math.pow(age / m.life, 1.6); frame(PFX.rock, age, 2, lerp(m.from.x, m.to.x, e), lerp(m.from.y, m.to.y, e)); }
       else if (m.kind === 'boom') frame(PFX.boom, age * 0.9, m.w > 70 ? 2 : 1, m.x, m.y + 2);
       else if (m.kind === 'geyser') frame(PFX.geyser, age * 1.15, 1, m.x, m.y + 2);
+      else if (m.kind === 'fblade' && age < m.hold) {   // the blade on fire while he holds it up (not once he starts to spin)
+        const tip = this._tipAt(m.follow); if (!tip) continue;
+        n.globalAlpha = Math.min(1, age / 160); frame(PFX.blade, age, 1, tip.x, tip.y); n.globalAlpha = 1;
+      }
     }
   }
   drawMeteors(ctx, t, sx, sy) {
@@ -1191,6 +1196,7 @@ export class BattleScene {
         const L = m.len, g0 = Math.min(1, age / (m.life * 0.5)), fl = 0.85 + 0.15 * Math.sin(t / 31) * Math.sin(t / 73);
         const x = X(tip.x), yTop = Y(tip.y - L * g0 * fl), yBot = Y(tip.y + L), fade = k > 0.85 ? (1 - k) / 0.15 : 1;
         glow(x, Y(tip.y), (26 + 22 * g0) * s, '#ff6a1a', 0.55 * fade);
+        if (this.pixelFx) continue;
         const flame = (w, c0, c1) => {   // a tall tapering tongue of fire along the blade and beyond its tip
           const ww = w * s * (0.6 + 0.4 * g0), wob = Math.sin(t / 45) * 2 * s;
           const g = ctx.createLinearGradient(0, yBot, 0, yTop); g.addColorStop(0, c0); g.addColorStop(1, c1);
@@ -1915,6 +1921,11 @@ export class BattleScene {
       if (a.dying) alpha = Math.max(0, 1 - (t - a.dying) / 300);
       if (a.type === 'hero' && !a.connected && !this.victory) alpha *= 0.55;   // everyone celebrates at full colour
       n.globalAlpha = alpha;
+      const spun = a.spin && t < a.spin.t0 + a.spin.dur;
+      if (spun) {   // Earthshatter's dive: the sprite (and its outline) turns over round the middle of the body
+        const k = Math.max(0, (t - a.spin.t0) / a.spin.dur), cxp = Math.round(a.x + a.ox + kx), cyp = Math.round(a.y + a.oy - 24);
+        n.save(); n.translate(cxp, cyp); n.rotate(-k * a.spin.turns * Math.PI * 2); n.translate(-cxp, -cyp);
+      }
       // my hero: cyan rim glow (drawn as offset white silhouettes)
       if (a.id === this.myId || a.id === this.allyTarget) {
         const wf = this.frameFor(a, true);
@@ -1923,16 +1934,11 @@ export class BattleScene {
         for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) n.drawImage(tint, x + ox, y + oy);
         n.globalAlpha = alpha;
       }
-      const spun = a.spin && t < a.spin.t0 + a.spin.dur;
-      if (spun) {   // Earthshatter's dive: the sprite turns over round the middle of the body
-        const k = Math.max(0, (t - a.spin.t0) / a.spin.dur), cxp = Math.round(a.x + a.ox + kx), cyp = Math.round(a.y + a.oy - 24);
-        n.save(); n.translate(cxp, cyp); n.rotate(-k * a.spin.turns * Math.PI * 2); n.translate(-cxp, -cyp);
-      }
       n.drawImage(fr, x, y);
-      if (spun) n.restore();
       if (t < a.flashUntil) { n.globalAlpha = 0.85; n.drawImage(this.frameFor(a, true), x, y); }
       // frozen overlay
       if (a.st && a.st.freeze) { n.globalAlpha = 0.45; n.drawImage(this.tinted(this.frameFor(a, true), '#bff6ff'), x, y); }
+      if (spun) n.restore();
       n.globalAlpha = 1;
     }
     this.drawSpikes(n, t);
