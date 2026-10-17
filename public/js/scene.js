@@ -36,7 +36,10 @@ const PFX = {
   boom: FX_SHEET('meteor_impact.png', 192, 160, 4, 12, 14, 96, 142, false),
   geyser: FX_SHEET('fire_column.png', 40, 100, 4, 10, 12, 20, 96, false),
   blade: FX_SHEET('flame_blade.png', 58, 156, 4, 8, 12, 16, 52, true),   // anchored on the sword tip (made round the knight's hold frame)
-  vortex: FX_SHEET('fire_vortex.png', 85, 85, 1, 1, 1, 42.5, 42.5, true)   // one image, spun in code (Earthshatter's dive)
+  vortex: FX_SHEET('fire_vortex.png', 85, 85, 1, 1, 1, 42.5, 42.5, true),   // one image, spun in code (Earthshatter's dive)
+  // the burning greatsword in Earthshatter's wind-up pose, one per knight, anchored on the feet (made round each wind-up frame)
+  gsf: FX_SHEET('knight_greatsword_fire.png', 97, 103, 4, 8, 12, 45, 94, true),
+  gsfF: FX_SHEET('knight_f_greatsword_fire.png', 93, 78, 4, 8, 12, 42, 73, true)
 };
 const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') !== 'code'; } catch (e) { return true; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
@@ -1014,9 +1017,9 @@ export class BattleScene {
     // where he lands: on the nearest enemy (the one furthest right)
     const near = ens.length ? ens.reduce((a, e) => (e.x > a.x ? e : a)) : null;
     const land = near ? { x: near.x + 4, y: near.y + 1 } : { x: A.x - 120, y: A.y };
-    // the peak sits on a 45 degree line up from the enemy, as high as the screen allows (the spinning fireball round his
-    // body has to stay on screen): 50-100px above it. He runs up to a launch spot and leaps to it at 70 degrees.
-    const TOPROOM = 62, k70 = 1 / Math.tan(70 * Math.PI / 180);
+    // the peak sits on a 45 degree line up from the enemy, as high as the screen allows (the burning greatsword over his
+    // shoulder has to stay on screen): 50-100px above it. He runs up to a launch spot and leaps to it at 70 degrees.
+    const TOPROOM = 86, k70 = 1 / Math.tan(70 * Math.PI / 180);   // the wind-up pose and its flames reach ~82px above the feet
     const drop = Math.max(50, Math.min(100, land.y - TOPROOM));
     const peak = { x: land.x + drop, y: land.y - drop };
     const rise = Math.max(40, A.y - peak.y);
@@ -1087,6 +1090,8 @@ export class BattleScene {
         n.drawImage(PFX.vortex.img, -42.5, -42.5); n.restore();
       }
       else if (m.kind === 'fblade' && age < m.hold) {   // the blade on fire while he holds it up (not once he starts to spin)
+        const A = m.follow, girl = String(A.skin || '').endsWith(':f');
+        if (A.cls === 'knight') { n.globalAlpha = Math.min(1, age / 160); frame(girl ? PFX.gsfF : PFX.gsf, age, 1, A.x + A.ox, A.y + A.oy); n.globalAlpha = 1; continue; }
         const tip = this._tipAt(m.follow); if (!tip) continue;
         // the fire's base (30px below its anchor) sits on the crossguard, m.len px below the tip
         n.globalAlpha = Math.min(1, age / 160); frame(PFX.blade, age, 1, tip.x, tip.y + (m.len - 30)); n.globalAlpha = 1;
