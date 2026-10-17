@@ -29,14 +29,14 @@ const projKind = fx => ({ mark: 'proj_arrow', multishot: 'proj_arrow', ricochet:
 // the Minotaur's Ground Slam: PixelLab earth spikes that burst out of the floor (public/art/fx)
 const SPIKES = [0, 1, 2].map(i => { const im = new Image(); im.src = '/art/fx/earth_spike_' + i + '.png'; return im; });
 // PixelLab effect sprite sheets (public/art/fx, made with create_vfx): the alternative pixel-art look for the Meteor's rock
-// and explosion and Earthshatter's fire columns. Off by default; ?vfx=pixel turns it on (compare the two looks).
+// and explosion and Earthshatter's fire columns. On by default; ?vfx=code shows the older code-drawn shapes instead.
 const FX_SHEET = (src, w, h, cols, n, fps, ax, ay, loop) => { const img = new Image(); img.src = '/art/fx/' + src; return { img, w, h, cols, n, fps, ax, ay, loop }; };
 const PFX = {
   rock: FX_SHEET('meteor_fly.png', 160, 160, 3, 8, 12, 80, 80, true),
   boom: FX_SHEET('meteor_impact.png', 192, 160, 4, 12, 14, 96, 142, false),
   geyser: FX_SHEET('fire_column.png', 40, 100, 4, 10, 12, 20, 96, false)
 };
-const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') === 'pixel'; } catch (e) { return false; } })();
+const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') !== 'code'; } catch (e) { return true; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
   mark: 'Marked', stun: 'Stunned', regen: 'Mending', steady: 'Iron Skin', thorns: 'Riposte', frost: 'Frost Armour', unbreak: 'Unbreakable', divine: 'Shielded', surge: 'Mana Surge' };
 
