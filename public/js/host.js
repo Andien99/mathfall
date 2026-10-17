@@ -373,7 +373,7 @@ function onWatch(st) {
   watchScene.last = st;
   const run = st.run;
   const node = run.map.nodes.find(n => n.id === run.map.pos);
-  watchScene.setTheme(run.raidMode || (node && node.type === 'boss') ? 'lair' : node && node.row >= Math.ceil((run.rows - 1) / 2) ? 'crypt' : 'halls');
+  watchScene.setTheme(run.raidMode ? 'inferno' : (node && node.type === 'boss') ? 'lair' : node && node.row >= Math.ceil((run.rows - 1) / 2) ? 'crypt' : 'halls');
   watchScene.raid = run.raidMode ? st.raid : null;
   watchScene.mode = run.phase === 'combat' ? 'battle' : 'room';
   if (st.events && st.events.length) watchScene.play(st.events);

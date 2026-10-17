@@ -4,6 +4,8 @@ import { Sprite, Mask, ramp, shift, col, rng } from './pixel.js';
 export const THEMES = {
   halls: { wall: '#3d3650', wall2: '#332d45', mortar: '#15121d', floor: '#4b4258', floor2: '#3f3750', moss: '#3d4a3a', crystal: ['#fff6c8', '#ffc24a', '#e07a24', '#8a3a24'], crystalGlow: '#ffb347', torch: '#ff9a3c', door: '#ffcf7a', recess: '#0f0c18', back: '#2b2f5a', fog: [70, 64, 110] },
   crypt: { wall: '#34424a', wall2: '#2b373f', mortar: '#10161a', floor: '#3f4b4f', floor2: '#344044', moss: '#3a5a40', crystal: ['#e8ffff', '#7ff3ff', '#2fb0d0', '#1f5a7a'], crystalGlow: '#5ae0ff', torch: '#ff9a3c', door: '#9ff0ff', recess: '#0a1014', back: '#1f4a5a', fog: [60, 90, 100] },
+  // the raid: the Inferno Dragon's lava cavern (PixelLab art, see paintInferno); fog/crystal values are for shared code
+  inferno: { wall: '#2b1a23', wall2: '#22141c', mortar: '#0d0609', floor: '#3b2a2d', floor2: '#2f1a23', moss: '#3a1a14', crystal: ['#fff2b0', '#ffc24a', '#ff6a2a', '#8f1c23'], crystalGlow: '#ff7a2a', torch: '#ff7a2a', door: '#ff9a3c', recess: '#0d0609', back: '#5a1a14', fog: [130, 50, 36] },
   lair: { wall: '#4a3632', wall2: '#3c2b29', mortar: '#160d0e', floor: '#56403a', floor2: '#47332f', moss: '#4a3a2a', crystal: ['#fff6c8', '#ffc24a', '#e07a24', '#8a3a24'], crystalGlow: '#ffa040', torch: '#ff8a3c', door: '#ffb050', recess: '#140a0a', back: '#5a2a1f', fog: [110, 70, 60] }
 };
 
@@ -33,7 +35,134 @@ function crystalCluster(S, x, y, size, pal, R, light = [-0.8, -0.5]) {
   return { x, y: y - size * 0.6, r: size * 3.2 };
 }
 
-export function paintDungeon(W, H, theme = 'halls', seed = 7, floorTopFrac = 0.46) {
+// ---------------- the raid arena: the Inferno Dragon's lava cavern
+// Three PixelLab images (public/art/bg/, built by tools/build_inferno.py): the back wall, the floor and
+// the lava. They load in the background when the page opens; until then the raid falls back to the lair.
+export const INFERNO_ART = {};
+const loadImg = src => new Promise(res => { if (typeof Image === 'undefined') return res(null); const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+export const infernoReady = Promise.all(['wall', 'floor', 'floor_tall', 'lava'].map(k => loadImg(`/art/bg/inferno_${k}.png`).then(im => { INFERNO_ART[k] = im; })))
+  .then(() => !!(INFERNO_ART.wall && INFERNO_ART.floor && INFERNO_ART.lava));
+const hasInferno = () => !!(INFERNO_ART.wall && INFERNO_ART.floor && INFERNO_ART.lava);
+// where the lava falls are in inferno_wall.png (x0, x1, y0, y1)
+const FALLS = [[116, 133, 16, 112], [244, 262, 0, 104]];
+
+// Draws an image tiled across [0, w) with every other copy mirrored, centred, so any width is covered without a seam.
+function mirrorTile(ctx, im, y, w, h = im.height, vflip = false) {
+  const iw = im.width, off = Math.round((w - iw) / 2);
+  for (let k = -Math.ceil(Math.max(0, off) / iw) - 1; off + k * iw < w; k++) {
+    const x = off + k * iw; if (x + iw <= 0) continue;
+    const mir = Math.abs(k) % 2 === 1, sy = vflip ? im.height - h : 0;
+    ctx.save(); ctx.translate(x + (mir ? iw : 0), y + (vflip ? h : 0)); ctx.scale(mir ? -1 : 1, vflip ? -1 : 1);
+    ctx.drawImage(im, 0, sy, iw, h, 0, 0, iw, h); ctx.restore();
+  }
+  return off;
+}
+
+// pool: { x, y } is where the dragon's rock stands (its feet anchor). The lava pool is drawn round it;
+// the scene animates its surface and draws its front over the bottom of the rock so the rock rises out of it.
+function paintInferno(W, H, seed, floorTopFrac, pool) {
+  const R = rng(seed * 7919 + W * 3 + H);
+  const floorTop = Math.round(H * floorTopFrac);
+  const A = INFERNO_ART;
+  const bg = document.createElement('canvas'); bg.width = W; bg.height = H;
+  const c = bg.getContext('2d'); c.imageSmoothingEnabled = false;
+  c.fillStyle = '#0d0609'; c.fillRect(0, 0, W, H);
+  // back wall, its base tucked a few px under the floor's far edge
+  const wallY = floorTop + 6 - A.wall.height;
+  const wallOff = mirrorTile(c, A.wall, wallY, W);
+  if (wallY > 0) {   // a tall screen: the cave roof fades up into darkness
+    const g = c.createLinearGradient(0, 0, 0, wallY + 30);
+    g.addColorStop(0, '#0a0507'); g.addColorStop(1, 'rgba(10,5,7,0)');
+    c.fillStyle = g; c.fillRect(0, 0, W, wallY + 30);
+  }
+  // floor: the short floor on laptops; on taller screens the deeper one, its near (bottom) rows first,
+  // and anything below that repeats it mirrored (very tall portrait screens)
+  const fh = H - floorTop, tall = A.floor_tall && fh > A.floor.height * 1.2 ? A.floor_tall : A.floor;
+  if (tall !== A.floor && fh <= tall.height) {
+    const tmp = document.createElement('canvas'); tmp.width = tall.width; tmp.height = fh;
+    tmp.getContext('2d').drawImage(tall, 0, tall.height - fh, tall.width, fh, 0, 0, tall.width, fh);
+    mirrorTile(c, tmp, floorTop, W);
+  } else for (let y = floorTop, k = 0; y < H; y += tall.height, k++) mirrorTile(c, tall, y, W, Math.min(tall.height, H - y), k % 2 === 1);
+  // the far edge of the floor sits in shadow where it meets the wall
+  let g = c.createLinearGradient(0, floorTop - 2, 0, floorTop + 18);
+  g.addColorStop(0, 'rgba(8,3,6,0.85)'); g.addColorStop(1, 'rgba(8,3,6,0)');
+  c.fillStyle = g; c.fillRect(0, floorTop - 2, W, 20);
+
+  const lights = [], hot = [];
+  // lava falls: their lights, and the hot pixels the scene makes flow
+  const wd = c.getImageData(0, 0, W, H).data;
+  for (let copy = -2; copy <= 2; copy++) {
+    for (const [x0, x1, y0, y1] of FALLS) {
+      const mir = Math.abs(copy) % 2 === 1;
+      const base = wallOff + copy * A.wall.width;
+      const sx0 = mir ? base + A.wall.width - x1 : base + x0, sx1 = mir ? base + A.wall.width - x0 : base + x1;
+      if (sx1 < 0 || sx0 >= W) continue;
+      const bottom = Math.min(floorTop, wallY + y1);
+      if (bottom <= 0) continue;
+      lights.push({ x: (sx0 + sx1) / 2, y: bottom - 4, r: 46, color: '#ff8a3c', kind: 'lava', a: 0.5, phase: R() * 10 });
+      for (let y = Math.max(0, wallY + y0); y < bottom; y++) for (let x = Math.max(0, sx0); x < Math.min(W, sx1); x++) {
+        const i = (y * W + x) * 4;
+        if (wd[i] > 200 && wd[i + 1] > 110) hot.push(x, y);
+      }
+    }
+  }
+  // a few warm glows along the floor cracks
+  for (let k = 0; k < Math.round(W / 90); k++) lights.push({ x: R() * W, y: floorTop + 12 + R() * (H - floorTop - 20), r: 26 + R() * 18, color: '#ff5a2a', kind: 'lava', a: 0.28, phase: R() * 10 });
+
+  // ---------------- the lava pool round the dragon's rock
+  let poolInfo = null;
+  if (pool) {
+    const cx = pool.x - 30, cy = pool.y - 1, rx = 80, ry = 17;
+    const m = new Mask(W, H);
+    const ph = R() * 6;
+    for (let y = Math.floor(cy - ry - 4); y <= cy + ry + 4; y++) for (let x = Math.floor(cx - rx - 8); x <= cx + rx + 8; x++) {
+      const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry;
+      const ang = Math.atan2(dy, dx);
+      const wob = 1 + 0.06 * Math.sin(ang * 3 + ph) + 0.04 * Math.sin(ang * 7 + ph * 2) + 0.025 * Math.sin(ang * 13);
+      if (dx * dx + dy * dy <= wob * wob) m.set(x, y);
+    }
+    // the shore: a dark rock rim with a lit top edge, heated orange just inside
+    const S = new Sprite(W, H);
+    const ring = new Mask(W, H);
+    const bx0 = Math.max(0, Math.floor(cx - rx - 14)), bx1 = Math.min(W, Math.ceil(cx + rx + 14)), by0 = Math.max(0, Math.floor(cy - ry - 8)), by1 = Math.min(H, Math.ceil(cy + ry + 8));
+    for (let y = by0; y < by1; y++) for (let x = bx0; x < bx1; x++) {
+      if (m.get(x, y)) continue;
+      let near = 0;
+      for (let oy = -2; oy <= 2 && !near; oy++) for (let ox = -3; ox <= 3; ox++) if (m.get(x + ox, y + oy)) { near = 1; break; }
+      if (near) ring.set(x, y);
+    }
+    S.stamp(ring, ['#5f4b4b', '#3b2a2d', '#2b0d1e', '#100407'], { r: 2, light: [0, -1], sel: false });
+    for (let y = by0; y < by1; y++) for (let x = bx0; x < bx1; x++) if (m.get(x, y) && (!m.get(x, y - 1) || !m.get(x - 1, y) || !m.get(x + 1, y))) S.set(x, y, '#a74e31');
+    c.drawImage(S.toCanvas(), 0, 0);
+    // the scene fills the pool with moving lava through this mask
+    const mask = document.createElement('canvas'); mask.width = W; mask.height = H;
+    const mx = mask.getContext('2d'), md = mx.createImageData(W, H);
+    for (let i = 0; i < m.a.length; i++) if (m.a[i]) md.data[i * 4 + 3] = 255;
+    mx.putImageData(md, 0, 0);
+    const box = { x: Math.max(0, Math.floor(cx - rx - 8)), y: Math.floor(cy - ry - 4) };
+    box.w = Math.min(W, Math.ceil(cx + rx + 8)) - box.x; box.h = Math.ceil(ry * 2 + 9);
+    poolInfo = { mask, box, cx, cy, rx, ry, surf: pool.y - 3, footX: pool.x, footY: pool.y };
+    lights.push({ x: cx + 10, y: pool.y - 6, r: 120, color: '#ff6a2a', kind: 'lava', a: 0.62, phase: 1 });
+    lights.push({ x: pool.x, y: pool.y - 40, r: 70, color: '#ffb050', kind: 'lava', a: 0.3, phase: 4 });   // up-light on the dragon's belly
+  }
+
+  // ---------------- foreground: stalactites from the top corners, dark rocks in the bottom corners
+  const F = new Sprite(W, H);
+  const dark = ['#3b2a2d', '#22141c', '#140a10', '#0a0507'];
+  const stal = (x0, len, w) => F.stamp(new Mask(W, H).poly([[x0 - w, -2], [x0 + w, -2], [x0 + w * 0.25, len * 0.7], [x0, len], [x0 - w * 0.3, len * 0.65]]), dark, { r: 2, light: [-0.5, 0.8] });
+  stal(6, 30 + R() * 14, 8); stal(20 + R() * 8, 18 + R() * 10, 5); stal(W - 8, 34 + R() * 14, 9); stal(W - 24 - R() * 8, 16 + R() * 10, 5);
+  const rock = (x0, y0, r) => { const mm = new Mask(W, H); for (let j = 0; j < 4; j++) mm.ellipse(x0 + (R() - 0.5) * r, y0 + (R() - 0.3) * r * 0.3, r * (0.5 + R() * 0.5), r * (0.35 + R() * 0.3)); F.stamp(mm, dark, { r: 3 }); };
+  rock(-4, H + 2, 26); rock(W + 4, H + 2, 30);
+  F.outline({ k: 0.3 });
+
+  return { bg, fg: F.toCanvas(), lights, torches: [], crystals: [], floorTop, pool: poolInfo, hot };
+}
+
+export function paintDungeon(W, H, theme = 'halls', seed = 7, floorTopFrac = 0.46, opts = {}) {
+  if (theme === 'inferno') {
+    if (hasInferno()) return paintInferno(W, H, seed, floorTopFrac, opts.pool);
+    theme = 'lair';   // art still loading
+  }
   const T = THEMES[theme] || THEMES.halls;
   const R = rng(seed * 9973 + W * 7 + H);
   const S = new Sprite(W, H);

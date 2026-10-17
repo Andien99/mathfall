@@ -9,14 +9,17 @@ const q = new URLSearchParams(location.search);
 const cv = document.getElementById('cv');
 const scene = new BattleScene(cv, { myId: 'p2' });
 window.scene = scene;
-const boss = q.get('boss'); const theme = q.get('theme') || (boss ? 'lair' : 'halls');
+const raid = q.get('raid'); const boss = q.get('boss') || (raid ? 'voidmaw' : null); const theme = q.get('theme') || (raid ? 'inferno' : boss ? 'lair' : 'halls');
 scene.setTheme(theme);
 function fit(){ scene.resize(innerWidth, innerHeight, { x: 0, y: 40, w: innerWidth - (innerWidth > 900 ? 300 : 0), h: innerHeight - 190 }); }
 const H = (id,name,cls,v,hp,max)=>({id,name,cls,variant:v,hp,maxHp:max,block:0,st:{},skills:[],focus:id==='p2'?2:0,downed:false,acted:id==='p1',connected:true});
 const run = { heroes: [H('p1','Mia','knight',0,40,48), H('p2','Leo','mage',0,30,34), H('p3','Ava','ranger',0,12,38), H('p4','Sam','cleric',0,40,40)],
-  combat: { enemies: boss ? [ {id:'e1',kind:'wyrm',name:'Gravemaw',size:'xl',tier:'boss',hp:160,maxHp:230,block:12,st:{burn:{v:3,t:2}},intent:{type:'attackAll',dmg:8,perShard:6,label:'Shatterstorm'}}, {id:'e2',kind:'shard',name:'Crystal Shard',size:'s',hp:16,maxHp:16,block:0,st:{},intent:{type:'attack',dmg:4,target:'p1'}}, {id:'e3',kind:'shard',name:'Crystal Shard',size:'s',hp:10,maxHp:16,block:0,st:{},intent:{type:'attack',dmg:4,target:'p3'}} ]
+  combat: { enemies: raid ? [ {id:'raid',kind:'voidmaw',name:'Inferno Dragon',size:'xl',tier:'raid',hp:2400,maxHp:3100,block:0,st:{},intent:{type:'attackAll',dmg:9,label:'Inferno Breath'}} ]
+   : boss ? [ {id:'e1',kind:boss==='1'?'wyrm':boss,name:'Gravemaw',size:'xl',tier:'boss',hp:160,maxHp:230,block:12,st:{burn:{v:3,t:2}},intent:{type:'attackAll',dmg:8,perShard:6,label:'Shatterstorm'}}, {id:'e2',kind:'shard',name:'Crystal Shard',size:'s',hp:16,maxHp:16,block:0,st:{},intent:{type:'attack',dmg:4,target:'p1'}}, {id:'e3',kind:'shard',name:'Crystal Shard',size:'s',hp:10,maxHp:16,block:0,st:{},intent:{type:'attack',dmg:4,target:'p3'}} ]
    : [ {id:'e1',kind:q.get('e1')||'skeleton',name:'Skeleton Warrior',size:'m',hp:22,maxHp:30,block:0,st:{poison:{v:4}},intent:{type:'attack',dmg:8,target:'p2'}}, {id:'e2',kind:q.get('e2')||'slime',name:'Mire Slime',size:'s',hp:24,maxHp:24,block:6,st:{},intent:{type:'block',block:8}}, {id:'e3',kind:q.get('e3')||'hexer',name:'Goblin Hexer',size:'s',hp:20,maxHp:20,block:0,st:{vuln:{t:2}},intent:{type:'debuff',status:'vuln',target:'p1'}} ] } };
 if (q.get('two')) run.combat.enemies = run.combat.enemies.slice(0,2);
+if (raid) { const C=['#e05a5a','#5aa0e0','#5ad08a','#e0c05a','#b07ae0']; const cls=['knight','mage','ranger','cleric'];
+  scene.raid = { allies: Array.from({length: +raid > 1 ? +raid : 20}, (_, i) => ({ cls: cls[i%4], skin: cls[i%4], variant: i%3, color: C[Math.floor(i/4)%5], downed: i===7 })) }; }
 fit(); scene.sync(run, {force:true}); addEventListener('resize', fit);
 scene.target = 'e1';
 if (q.get('anim')) {

@@ -1,6 +1,6 @@
 // Battle scene renderer: pixel layer at native resolution, modern lighting on top.
 import * as SP from './sprites.js';
-import { paintDungeon, fogTexture, THEMES } from './dungeon.js';
+import { paintDungeon, fogTexture, THEMES, INFERNO_ART, infernoReady } from './dungeon.js';
 import { Sprite, Mask } from './pixel.js';
 import { sfx } from './audio.js';
 
@@ -116,6 +116,7 @@ export class BattleScene {
     this.lowPower = false;
     this._raf = this._raf.bind(this);
     this.frameTimes = [];
+    infernoReady.then(() => { if (this.theme === 'inferno') { this._paintKey = null; this.paint(); } });   // the raid cavern's art arrives after the page opens
     requestAnimationFrame(this._raf);
   }
 
@@ -193,11 +194,13 @@ export class BattleScene {
     if (!this.W) return;
     const stageBottom = this.stage.y + this.stage.h;
     const frac = Math.max(0.3, Math.min(0.44, (stageBottom - 82) / this.H));
-    const key = [this.W, this.H, this.s, this.cv.width, this.cv.height, this.theme, frac.toFixed(3)].join(':');
+    const pool = this.theme === 'inferno' ? this.bossSpot(Math.round(this.H * frac)) : null;   // the raid: the dragon's rock stands in a lava pool
+    const key = [this.W, this.H, this.s, this.cv.width, this.cv.height, this.theme, frac.toFixed(3), pool ? pool.x + ',' + pool.y : ''].join(':');
     if (key === this._paintKey) return;
     this._paintKey = key;
-    const d = paintDungeon(this.W, this.H, this.theme, 11, frac);
+    const d = paintDungeon(this.W, this.H, this.theme, 11, frac, { pool });
     this.bgNative = d.bg; this.fgNative = d.fg;
+    this.pool = d.pool || null; this.hot = d.hot || null; this.infernoOn = !!d.pool; this._lip = null;
     this.lights = d.lights; this.torches = d.torches; this.crystals = d.crystals; this.floorTop = d.floorTop;
     // upscale caches at display resolution
     const up = (src, blur) => {
@@ -222,6 +225,12 @@ export class BattleScene {
     } catch (e) { /* filters unsupported */ }
   }
 
+  // where an xl boss's feet go (layout puts it there; the raid cavern paints its lava pool round it)
+  bossSpot(ft = this.floorTop) {
+    const bottom = Math.min(this.H - 6, this.stage.y + this.stage.h - 4);
+    const span = Math.max(30, bottom - ft - 14);
+    return { x: Math.round(this.stage.x + this.stage.w * 0.28 - 4), y: Math.round(ft + 14 + span * 0.78) };
+  }
   stagePoint(fx, fy) { return [this.stage.x + this.stage.w * fx, this.stage.y + this.stage.h * fy]; }
 
   layout() {
@@ -248,7 +257,7 @@ export class BattleScene {
     const ex = this.stage.x + this.stage.w * 0.28;
     const boss = enemies.find(e => e.size === 'xl');
     const smalls = enemies.filter(e => e.size !== 'xl');
-    if (boss) { boss.x = Math.round(ex - 4); boss.y = Math.round(ft + 14 + span * 0.78); }
+    if (boss) { const b = this.bossSpot(ft); boss.x = b.x; boss.y = b.y; }
     const ES = smalls.length === 1 ? [[0, 0.6]] : smalls.length === 2 ? [[22, 0.25], [-24, 0.85]] : [[30, 0.18], [-36, 0.48], [26, 0.98]];
     smalls.forEach((e, i) => {
       if (boss && e.kind === 'shard') { // crystals float above the boss's back
@@ -556,7 +565,7 @@ export class BattleScene {
     const bigMove = melee && first && fx !== 'whirl' && ((fx === 'slash_heavy' && SP.heroAnim(A.skin || A.cls, 'power')) || SP.heroAnim(A.skin || A.cls, ['slash_heavy', 'slash_wide', 'shadow'].includes(fx) ? 'slash' : fx));   // knight: slash, cleric: smite
     if (bigMove) return this._bigSlash(A, first, ev, tgt, fx, rc, bigMove, T, home);
     if (melee && first && fx !== 'whirl') {
-      const dest = { x: first.x + (first.size === 'xl' ? 46 : first.size === 'l' ? 26 : 20), y: first.y + 2 };
+      const dest = { x: first.x + this.reachDX(first), y: first.y + 2 };
       this.pose(A, 'windup', T(170));
       this.move(A, -3, 0, T(120));
       setTimeout(() => { this.move(A, dest.x - home.x, dest.y - home.y, T(150), true); }, T(150));
@@ -644,7 +653,7 @@ export class BattleScene {
     const total = acc;
     const speed = T(1000) / 1000;
     const cast = !!anim.cast;   // casters stay put (cleric smite); fighters dash in
-    const dest = cast ? home : { x: first.x + (first.size === 'xl' ? 46 : first.size === 'l' ? 26 : 20) + (anim.dash || 0), y: first.y + 2 };
+    const dest = cast ? home : { x: first.x + this.reachDX(first) + (anim.dash || 0), y: first.y + 2 };
     A.anim = { d: anim, t0: now(), speed, at, total };
     if (!cast) {
       const d0 = anim.dashAt ? at[anim.dashAt] : 0;   // power strike: powers up in place first, then dashes
@@ -2079,7 +2088,7 @@ export class BattleScene {
   _comboAnim(A, ev, tgt, rc, T, home, anim) {
     const at = []; let acc = 0; for (const [, ms] of anim.timeline) { at.push(acc); acc += ms; }
     const firstE = this.actors.get(tgt[0].id);
-    const reach = e => ({ x: e.x + (e.size === 'xl' ? 46 : e.size === 'l' ? 26 : 20) + (anim.dash || 0), y: e.y + 2 });
+    const reach = e => ({ x: e.x + this.reachDX(e) + (anim.dash || 0), y: e.y + 2 });
     const d0 = reach(firstE);
     this.pose(A, 'windup', T(140)); sfx('whirl');
     this.move(A, d0.x - home.x, d0.y - home.y, T(160), true);
@@ -2151,7 +2160,7 @@ export class BattleScene {
     const skin = A.skin || A.cls;
     const own = SP.heroAnim(skin, 'combo'); if (own) return this._comboAnim(A, ev, tgt, rc, T, home, own);
     const slash = SP.heroAnim(skin, 'slash'), power = SP.heroAnim(skin, 'power');
-    const reach = e => ({ x: e.x + (e.size === 'xl' ? 46 : e.size === 'l' ? 26 : 20), y: e.y + 2 });
+    const reach = e => ({ x: e.x + this.reachDX(e), y: e.y + 2 });
     const sub = (an, from, total) => {   // part of a hand-made move, squeezed into total ms
       const tl = an.timeline.slice(from), sum = tl.reduce((a, x) => a + x[1], 0), k = total ? total / sum : 1;
       const d = { ...an, timeline: tl.map(([f, ms]) => [f, ms * k]) };
@@ -2263,7 +2272,7 @@ export class BattleScene {
       sfx('enemyWind');
       const reach = E.size === 'xl' ? 0 : 1;
       if (firstT && reach) setTimeout(() => this.move(E, firstT.x - E.x - (E.size === 'l' ? 30 : 22), firstT.y - E.y, T(160), true), T(240));
-      if (E.size === 'xl') setTimeout(() => this.move(E, 18, 0, T(140), true), T(240));
+      if (E.size === 'xl' && !this.inLava(E)) setTimeout(() => this.move(E, 18, 0, T(140), true), T(240));   // the raid dragon's rock stays in its lava pool: it leans in instead
       hits.forEach((h, i) => {
         setTimeout(() => {
           this.pose(E, 'attack', T(200));
@@ -2295,6 +2304,7 @@ export class BattleScene {
         this.pose(E, 'attack', T(400));
         for (const h of ev.targets) {
           const p = this.pos(h.id); if (!p || h.shatter) continue;
+          if (E.kind === 'voidmaw') { for (let k = 0; k < 3; k++) this.projectile({ x: E.x + 8, y: E.y - 118 }, { x: p.x + (k - 1) * 4, y: p.y - 18 }, 'proj_fire', 260 + k * 60); continue; }   // the dragon breathes fireballs from its jaws
           for (let k = 0; k < 4; k++) this.projectile({ x: E.x + 30, y: E.y - 40 + k * 4 }, { x: p.x + (k - 2) * 3, y: p.y - 18 }, 'crystal', 220 + k * 40);
         }
       }, T(420));
@@ -2303,7 +2313,7 @@ export class BattleScene {
           const p = this.pos(h.id); if (!p) continue;
           if (h.shatter) { this.burst(p.x, p.y - 10, '#ffc24a', 40, 44); continue; }
           if (h.dodged) { this.move(p.a, 10, -10, T(120), true); setTimeout(() => this.move(p.a, 0, 0, T(200), true), T(180)); this.number(p.x, p.y - 46, 'Dodged!', '#9fffe0', 1.1, true); this.arc(p.x - 12, p.y - 18, 12, '#9fffe0'); continue; }
-          this.burst(p.x, p.y - 18, '#ffc24a', 16, 28);
+          this.burst(p.x, p.y - 18, E.kind === 'voidmaw' ? '#ff7a2a' : '#ffc24a', 16, 28);
           if (h.blocked) this.shield(p.x, p.y, '#7fc8ff');
           if (h.dmg > 0) { this.flashActor(p.a); this.pose(p.a, 'hurt', 320); this.knock(p.a, 4); this.number(p.x, p.y - 42, h.dmg, '#ff7a6a', 1.2, true); }
           this._react(h, E);
@@ -2386,6 +2396,104 @@ export class BattleScene {
     const rubble = pts.filter((_, i) => i % 3 === 1).map(([x, y]) => [x + Math.round((Math.random() - 0.5) * 4), y + (Math.random() < 0.5 ? -2 : 2), Math.random() < 0.5 ? 2 : 1]);
     this.cracks.push({ pts, branches, rubble, t0: now(), grow, life });
   }
+  // ------------------------------------------------------------ the raid cavern (theme 'inferno')
+  inLava(a) { return !!(this.infernoOn && a && a.kind === 'voidmaw'); }
+  // how far in front of an enemy a melee hero stops (the raid dragon: on the shore, past the lava)
+  reachDX(e) { return this.inLava(e) ? 58 : e.size === 'xl' ? 46 : e.size === 'l' ? 26 : 20; }
+  // the lava pool (scrolling PixelLab lava through the pool mask), bubbles, the lava falls' flow, rising embers
+  drawInfernoBack(n, t, time) {
+    const P = this.pool, lava = INFERNO_ART.lava;
+    if (P && lava) {
+      const b = P.box;
+      if (!this._poolBuf || this._poolBuf.width !== b.w || this._poolBuf.height !== b.h) { this._poolBuf = document.createElement('canvas'); this._poolBuf.width = b.w; this._poolBuf.height = b.h; }
+      const c = this._poolBuf.getContext('2d'); c.imageSmoothingEnabled = false;
+      c.globalCompositeOperation = 'source-over'; c.clearRect(0, 0, b.w, b.h);
+      const off = Math.floor(time * 5) % lava.width, vy = Math.round((b.h - lava.height) / 2);
+      for (let x = -off; x < b.w; x += lava.width) c.drawImage(lava, x, vy);
+      if (lava.height < b.h) for (let x = -off; x < b.w; x += lava.width) { c.drawImage(lava, x, vy - lava.height); c.drawImage(lava, x, vy + lava.height); }
+      // a slow pulse of heat across the surface
+      c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.08 + 0.06 * Math.sin(time * 1.7);
+      c.fillStyle = '#ff9a3c'; c.fillRect(0, 0, b.w, b.h); c.globalAlpha = 1;
+      c.globalCompositeOperation = 'destination-in'; c.drawImage(P.mask, -b.x, -b.y);
+      c.globalCompositeOperation = 'source-over';
+      n.drawImage(this._poolBuf, b.x, b.y);
+      // bubbles: a bright point swells, bursts into a ring and throws up a droplet
+      this._bubbles = this._bubbles || [];
+      if (!this.lowPower && Math.random() < 0.06) {
+        const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 0.85;
+        const bx = Math.round(P.cx + Math.cos(a) * P.rx * r), by = Math.round(P.cy + Math.sin(a) * P.ry * r);
+        if (Math.abs(bx - P.footX) > 46 || by > P.surf + 2) this._bubbles.push({ x: bx, y: by, t0: t });
+      }
+      for (let i = this._bubbles.length - 1; i >= 0; i--) {
+        const B = this._bubbles[i], k = (t - B.t0) / 700;
+        if (k >= 1) { this._bubbles.splice(i, 1); continue; }
+        if (k < 0.45) { n.fillStyle = '#fff2b0'; n.fillRect(B.x, B.y, 1, 1); if (k > 0.2) { n.fillStyle = '#ffc24a'; n.fillRect(B.x - 1, B.y, 3, 1); n.fillRect(B.x, B.y - 1, 1, 1); } }
+        else {
+          const r = 1 + Math.round((k - 0.45) * 6);
+          n.globalAlpha = 1 - k; n.fillStyle = '#ffd060';
+          n.fillRect(B.x - r, B.y, 1, 1); n.fillRect(B.x + r, B.y, 1, 1); n.fillRect(B.x, B.y - Math.max(1, r >> 1), 1, 1);
+          n.globalAlpha = 1;
+          if (!B.pop) { B.pop = 1; this.particles.push({ x: B.x, y: B.y - 1, vx: (Math.random() - 0.5) * 14, vy: -26 - Math.random() * 14, g: 90, life: 0.45, t: 0, c: '#ffc24a' }); }
+        }
+      }
+    }
+    // the lava falls run downwards
+    if (this.hot && !this.lowPower) {
+      const h = this.hot; n.fillStyle = '#fff2b0';
+      for (let i = 0; i < h.length; i += 2) { const x = h[i], y = h[i + 1]; if (Math.sin(y * 0.42 - time * 9 + (x % 4) * 1.3) > 0.82) n.fillRect(x, y, 1, 1); }
+    }
+    // embers drift up off the pool and the floor cracks
+    if (!this.lowPower && Math.random() < 0.35) {
+      const fromPool = P && Math.random() < 0.55;
+      const x = fromPool ? P.cx + (Math.random() - 0.5) * P.rx * 1.6 : Math.random() * this.W;
+      const y = fromPool ? P.cy + (Math.random() - 0.5) * P.ry : this.floorTop + 6 + Math.random() * (this.H - this.floorTop - 10);
+      this.particles.push({ x, y, vx: (Math.random() - 0.5) * 10, vy: -10 - Math.random() * 16, g: -3, life: 1.6 + Math.random() * 1.6, t: 0, c: ['#ffc24a', '#ff8a3c', '#ff5a2a', '#fff2b0'][Math.floor(Math.random() * 4)], fade: true });
+    }
+  }
+  // drawn just after the dragon: the front of the pool over the bottom of its rock, so the rock rises out of
+  // the lava, then the lava glowing where it touches the rock and small wavelets running away from it
+  drawLavaLip(n, t, time, a, ax) {
+    const P = this.pool; if (!P || !this._poolBuf) return;
+    if (!this._lip) {   // how wide the rock is at the lava line (from the idle frame)
+      const fr = SP.enemyFrame('voidmaw', 'idle0'), info = SP.enemyInfo('voidmaw');
+      const row = info.ay - (P.footY - P.surf);
+      let l = 0, r = 0;
+      try {
+        const d = fr.getContext('2d').getImageData(0, row, fr.width, 1).data;
+        let x0 = -1, x1 = -1; for (let x = 0; x < fr.width; x++) if (d[x * 4 + 3] > 100) { if (x0 < 0) x0 = x; x1 = x; }
+        if (x0 >= 0) { l = x0 - info.ax; r = x1 - info.ax; }
+      } catch (e) { l = -66; r = 41; }
+      this._lip = { l: l || -66, r: r || 41 };
+    }
+    const b = P.box, L = this._lip;
+    const x0 = Math.max(b.x, Math.round(ax + L.l - 6)), x1 = Math.min(b.x + b.w, Math.round(ax + L.r + 7));
+    const y0 = P.surf, y1 = b.y + b.h;
+    // the lava's glow on the foot of the rock, fading upwards
+    const info = SP.enemyInfo('voidmaw'), glow = this.tinted(this.frameFor(a, true), '#ff7a2a');
+    const fx = Math.round(ax - info.ax), fy = Math.round(a.y + a.oy - info.ay);
+    n.save(); n.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 6; k++) { const r0 = info.ay - 4 - (k + 1) * 4; n.globalAlpha = (0.26 - k * 0.04) * (0.85 + 0.15 * Math.sin(time * 2.3 + 1)); n.drawImage(glow, 0, r0, glow.width, 4, fx, fy + r0, glow.width, 4); }
+    n.restore();
+    // column by column, so the lava line laps gently instead of cutting straight across the rock
+    for (let x = x0; x < x1; x++) {
+      const yy = y0 + (Math.sin(x * 0.35 + time * 2.2) > 0.55 ? -1 : 0) + (Math.sin(x * 0.13 - time * 1.3) > 0.65 ? 1 : 0);
+      if (y1 > yy) n.drawImage(this._poolBuf, x - b.x, yy - b.y, 1, y1 - yy, x, yy, 1, y1 - yy);
+      if (x < ax + L.l - 1 || x > ax + L.r + 1) continue;
+      const f = Math.sin(time * 6 + x * 0.9) * 0.5 + 0.5;   // the lava glowing against the rock, flickering
+      n.globalAlpha = 0.35 + 0.5 * f; n.fillStyle = f > 0.85 ? '#fff2b0' : f > 0.4 ? '#ffc24a' : '#ff8a3c'; n.fillRect(x, yy, 1, 1);
+      n.globalAlpha = 1;
+    }
+    // wavelets spreading out from both sides of the rock
+    for (let k = 0; k < 2; k++) {
+      const d = (time * 9 + k * 13) % 26, al = 1 - d / 26;
+      n.globalAlpha = 0.8 * al; n.fillStyle = '#ffd060';
+      n.fillRect(Math.round(ax + L.l - 3 - d), y0 + 1 + (d > 13 ? 1 : 0), 3, 1);
+      n.fillRect(Math.round(ax + L.r + 1 + d * 0.6), y0 + 1 + (d > 13 ? 1 : 0), 3, 1);
+    }
+    n.globalAlpha = 1;
+    if (!this.lowPower && Math.random() < 0.05) this.particles.push({ x: ax + L.l + Math.random() * (L.r - L.l), y: y0, vx: (Math.random() - 0.5) * 6, vy: -8 - Math.random() * 8, g: -2, life: 1.2, t: 0, c: '#5f4b4b', blob: 1, fade: true });   // a wisp of smoke off the hot rock
+  }
+
   drawCracks(n, t) {
     const line = (pts, upto, col, dy, w = 1, every = 1) => {
       n.fillStyle = col;
@@ -2501,7 +2609,7 @@ export class BattleScene {
   }
   knock(a, dx) { a.knock = { dx, t0: now() }; }
   // enemies shudder side to side when they take damage (bigger hits shake harder)
-  hitShake(a, dmg = 5) { if (a && a.type === 'enemy') a.hshake = { t0: now(), amp: Math.min(9, 4.5 + dmg / 4) }; }
+  hitShake(a, dmg = 5) { if (a && a.type === 'enemy') a.hshake = { t0: now(), amp: Math.min(this.inLava(a) ? 4 : 9, 4.5 + dmg / 4) }; }   // the dragon's rock only rocks a little in its pool
   flashActor(a) { if (a) a.flashUntil = now() + 110; }
   burst(x, y, color, n = 16, speed = 30, gy = 30) {
     if (this.lowPower) n = Math.ceil(n / 2);
@@ -2715,6 +2823,7 @@ export class BattleScene {
       n.restore();
       n.globalAlpha = 1;
     }
+    if (this.infernoOn) this.drawInfernoBack(n, t, time);
     this.drawCracks(n, t);
     for (let i = this.ghosts.length - 1; i >= 0; i--) {   // after-images (the Minotaur's charge)
       const g = this.ghosts[i]; const k = (t - g.t0) / g.life;
@@ -2739,8 +2848,9 @@ export class BattleScene {
       const info = a.type === 'enemy' ? SP.enemyInfo(a.kind) : anf ? { ax: anf.ax, ay: anf.ay } : { ax: SP.ANCHOR_X, ay: SP.ANCHOR_Y };
       let x = Math.round(a.x + a.ox + kx - info.ax), y = Math.round(a.y + a.oy - info.ay);
       if (a.kind === 'shard') y += Math.round(Math.sin(time * 2 + a.phase) * 2);
-      // shadow
-      n.globalAlpha = 0.45 * (a.alpha == null ? 1 : a.alpha);
+      // shadow (not for the raid dragon's rock: it stands in lava)
+      const inLava = this.infernoOn && a.kind === 'voidmaw';
+      n.globalAlpha = inLava ? 0 : 0.45 * (a.alpha == null ? 1 : a.alpha);
       n.fillStyle = '#05030a';
       const shw = a.type === 'hero' ? 9 : a.size === 'xl' ? 50 : a.size === 'l' ? 18 : 12;
       n.beginPath(); n.ellipse(Math.round(a.x + a.ox + kx), Math.round(a.y + a.oy) - 1, shw, Math.max(2, shw * 0.28), 0, 0, Math.PI * 2); n.fill();
@@ -2784,6 +2894,7 @@ export class BattleScene {
       if (a.st && a.st.freeze) { n.globalAlpha = 0.45; n.drawImage(this.tinted(this.frameFor(a, true), '#bff6ff'), x, y); }
       if (spun) n.restore();
       n.globalAlpha = 1;
+      if (inLava) this.drawLavaLip(n, t, time, a, x + info.ax);
     }
     this.drawSpikes(n, t);
     // particles
@@ -3054,13 +3165,20 @@ export class BattleScene {
       let a = L.a * lightK;
       if (L.kind === 'torch') a *= 0.82 + 0.18 * Math.sin(time * 13 + L.phase) * Math.sin(time * 7.3 + L.phase * 2);
       if (L.kind === 'crystal') a *= 0.75 + 0.25 * Math.sin(time * 1.6 + L.phase);
+      if (L.kind === 'lava') a *= 0.8 + 0.2 * Math.sin(time * 2.3 + L.phase) * Math.sin(time * 1.1 + L.phase * 3);
       const x = L.x * s + sx, y = L.y * s + sy, r = L.r * s;
       const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
       rg.addColorStop(0, hexA(L.color, a * 0.55)); rg.addColorStop(0.35, hexA(L.color, a * 0.2)); rg.addColorStop(1, hexA(L.color, 0));
       ctx.fillStyle = rg; ctx.fillRect(x - r, y - r, r * 2, r * 2);
     }
+    // the lava cavern: heat glowing up from below instead of daylight from the ceiling
+    if (this.infernoOn) {
+      const hg = ctx.createLinearGradient(0, Hd, 0, Hd * 0.35);
+      hg.addColorStop(0, `rgba(255,80,30,${0.1 * lightK})`); hg.addColorStop(1, 'rgba(255,80,30,0)');
+      ctx.fillStyle = hg; ctx.fillRect(0, 0, Wd, Hd);
+    }
     // light shafts from the ceiling
-    if (!this.lowPower) {
+    if (!this.lowPower && !this.infernoOn) {
       for (let i = 0; i < 3; i++) {
         const x0 = (0.22 + i * 0.27) * Wd + Math.sin(time * 0.3 + i) * 10 * s;
         const w = (40 + i * 14) * s, slant = 70 * s;

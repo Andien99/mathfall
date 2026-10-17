@@ -174,7 +174,7 @@ function onState(st) {
   const run = st.run;
   // theme from the node we are in
   const node = run.map.nodes.find(n => n.id === run.map.pos);
-  scene.setTheme(run.raidMode || (node && node.type === 'boss') ? 'lair' : node && node.row >= Math.ceil((run.rows - 1) / 2) ? 'crypt' : 'halls');
+  scene.setTheme(run.raidMode ? 'inferno' : (node && node.type === 'boss') ? 'lair' : node && node.row >= Math.ceil((run.rows - 1) / 2) ? 'crypt' : 'halls');
   scene.raid = run.raidMode ? st.raid : null;
   scene.mode = run.phase === 'combat' ? 'battle' : 'room';
   scene.victory = run.phase === 'room' && run.room && (run.room.type === 'victory' || run.room.type === 'complete');
