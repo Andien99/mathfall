@@ -16,7 +16,7 @@ const STATUS_COL = { burn: '#ff8a3c', poison: '#8fe05a', weak: '#c7a2ff', vuln: 
 // short labels for the status chips under health bars
 const STATUS_SHORT = { burn: 'B', poison: 'P', str: 'S', mark: 'Mk', regen: '+', thorns: 'Th', weak: 'We', vuln: 'Vu', chill: 'Ch', freeze: 'Fr', taunt: 'Ta', stun: 'St', steady: 'Ir', frost: 'Fa', unbreak: 'Ub', divine: 'Dv', surge: 'Su' };
 // colour of the glow and numbers for each support effect
-const SUP_COL = { heal: '#9dffb0', heal_party: '#9dffb0', revive: '#9dffb0', revive_party: '#ffe27a', bless_party: '#ffe9a0', aegis: '#ffe9a0', buff_party: '#ff9a7a', empower: '#ff9a7a', rally_party: '#ffc08a',
+const SUP_COL = { heal: '#9dffb0', heal_party: '#9dffb0', revive: '#9dffb0', revive_party: '#ffe27a', bless_party: '#ffe9a0', buff_party: '#ff9a7a', empower: '#ff9a7a', rally_party: '#ffc08a',
   taunt: '#ffd36b', counter: '#ffe08a', unbreakable: '#ffd36b', surge: '#9fd8ff', shield_ice: '#a8f0ff', smoke: '#c8c4d8', ward: '#ffe9a0', divine: '#fff6c8', shield_self: '#c8d4e8' };
 const SUPPORT = ['defend', 'shield_party', ...Object.keys(SUP_COL)];
 // Champion's Combo cross-slash impacts: the blades' directions (degrees) for the 1st, 2nd and 3rd slash

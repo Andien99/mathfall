@@ -82,8 +82,6 @@
       p: { dmg: 6 }, desc: p => `Deal ${p.dmg} damage plus your current block.` },
     riposte: { cls: 'knight', name: 'Riposte', rarity: 'rare', cost: 5, target: 'self', icon: 'riposte', fx: 'counter', color: '#ffe08a',
       p: { block: 10, thorns: 6 }, desc: p => `Gain ${p.block} block. Enemies that hit you this round take ${p.thorns} damage back.` },
-    aegis: { cls: 'knight', name: 'Aegis', rarity: 'legendary', cost: 8, target: 'party', icon: 'aegis', fx: 'aegis', color: '#ffe27a',
-      p: { block: 16, heal: 10 }, desc: p => `Every hero gains ${p.block} block and heals ${p.heal}.` },
     unbreakable: { cls: 'knight', name: 'Unbreakable', rarity: 'legendary', cost: 8, target: 'self', icon: 'unbreakable', fx: 'unbreakable', color: '#ffd36b',
       p: { block: 10 }, desc: p => `Gain ${p.block} block. Every enemy attack targets you this round at half damage, and you can't fall.` },
     earthshatter: { cls: 'knight', name: 'Earthshatter', rarity: 'legendary', cost: 8, target: 'allEnemies', icon: 'earthshatter', fx: 'quake', color: '#e0a060',

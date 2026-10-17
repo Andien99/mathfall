@@ -87,7 +87,6 @@ check('Unbreakable: taunts, halves damage, cannot fall', () => {
   assert.strictEqual(h.hp, 1); assert.ok(!h.downed);
 });
 check('Earthshatter: 16 to all and Weak', () => { const { ev, e } = cast(fight('knight'), 'earthshatter', null); assert.strictEqual(dmgTo(ev, 'e3'), 16); assert.ok(e.every(x => x.st.weak)); });
-check('Aegis: 16 block and 10 heal', () => { const { ev } = cast(fight('knight'), 'aegis', null); const a = ev.targets.find(t => t.id === 'h2'); assert.strictEqual(a.block, 16); assert.strictEqual(a.heal, 10); });
 check('Arcane Missiles: 3 x 4', () => { const { ev } = cast(fight('mage'), 'arcane_missiles', null); assert.deepStrictEqual(ev.targets.map(t => t.dmg), [4, 4, 4]); });
 check('Kindle doubles Burn', () => { const { e } = cast(fight('mage'), 'kindle', 'e1', r => { r.combat.enemies[0].st.burn = { v: 4, t: 1 }; }); assert.strictEqual(e[0].st.burn.v, 8); });
 check('Frostbite freezes a chilled enemy', () => { const { e } = cast(fight('mage'), 'frostbite', 'e1', r => { r.combat.enemies[0].st.chill = { t: 1 }; }); assert.ok(e[0].st.freeze); });

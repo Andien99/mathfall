@@ -321,7 +321,6 @@ const SKILL_FX = {
   battle_cry(X, p) { for (const h of X.heroes()) X.status(h, 'str', { v: X.n(p.str), t: p.strT }); },
   shield_slam(X, p) { const r = X.hit(X.enemy(), p.dmg + X.hero.block); r.slam = X.hero.block; },
   riposte(X, p) { X.block(X.hero, p.block); X.status(X.hero, 'thorns', { v: X.n(p.thorns), t: 1 }); },
-  aegis(X, p) { for (const h of X.heroes()) { X.heal(h, p.heal); X.block(h, p.block); } },
   unbreakable(X, p) { X.block(X.hero, p.block); X.status(X.hero, 'taunt', { t: 1 }); X.status(X.hero, 'unbreak', { t: 1 }); },
   earthshatter(X, p) { for (const e of X.enemies()) X.status(e, 'weak', { t: p.weakT }, X.hit(e, p.dmg)); },
   champions_combo(X, p) {

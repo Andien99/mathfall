@@ -768,7 +768,6 @@ const ICONS = {
   phoenix: (S, m) => { S.stamp(m().poly([[9, 2], [12, 8], [17, 6], [12, 13], [9, 17], [6, 13], [1, 6], [6, 8]]), fire, { r: 2 }); S.dot(9, 9, '#ffffff'); },
   venom_storm: (S, m) => { S.stamp(m().circle(6, 11, 4).circle(12, 7, 4.5).circle(12, 13, 3.4), green, { r: 2 }); S.dots([[5, 10], [11, 6], [12, 12]], '#ffffff'); },
   starfall: (S, m) => { const star = (x, y, r) => S.stamp(m().poly([[x, y - r], [x + r * 0.3, y - r * 0.3], [x + r, y], [x + r * 0.3, y + r * 0.3], [x, y + r], [x - r * 0.3, y + r * 0.3], [x - r, y], [x - r * 0.3, y - r * 0.3]]), holy, { r: 1 }); star(11, 7, 6); star(4, 13, 3.5); S.dots([[15, 15], [2, 3]], '#ffffff'); },
-  aegis: (S, m) => { S.stamp(m().poly([[9, 1], [16, 4], [15, 11], [9, 17], [3, 11], [2, 4]]), holy, { r: 2 }); S.stamp(m().poly([[9, 4], [13, 6], [12.5, 10.5], [9, 14], [5.5, 10.5], [5, 6]]), R('#3f7ad8'), { r: 1, sel: false }); S.dot(9, 8, '#ffffff'); },
   dragon: (S, m) => { S.stamp(m().poly([[1, 9], [9, 3], [17, 4], [13, 8], [17, 11], [9, 12], [5, 16]]), R('#c83a2f'), { r: 2 }); S.dots([[11, 6]], '#fff27a'); S.stamp(m().poly([[13, 4], [16, 0], [15, 5]]), P.bone, { r: 1 }); },
   focus: (S, m) => { S.stamp(m().poly([[9, 1], [11, 7], [17, 9], [11, 11], [9, 17], [7, 11], [1, 9], [7, 7]]), ['#ffffff', '#b8f2ff', '#7a8aff', '#3a3fa8'], { r: 1 }); },
   rise: (S, m) => { S.stamp(m().poly([[9, 1], [15, 9], [11, 9], [11, 16], [7, 16], [7, 9], [3, 9]]), holy, { r: 1 }); },
