@@ -1348,12 +1348,12 @@ export class BattleScene {
     if (!ens.length) { this._applyAfter(ev); return T(600); }
     // the timeline: a fast draw, a held full draw, then release / recoil / redraw for each arrow, then the recoil to idle
     const frs = shoot.timeline.map(x => x[0]), C0 = shoot.charge, R0 = shoot.release, R1 = frs.includes(R0 + 1) ? R0 + 1 : R0;
-    const nShots = 12;   // arrows loosed in the rapid release (the hits are spread across them)
+    const nShots = 24;   // arrows loosed in the rapid release (the hits are spread across them)
     const tl = [];
     for (const f of frs) if (f < C0) tl.push([f, 38]);
     const holdIdx = tl.length; tl.push([C0, 640]);
     const relIdx = [];
-    for (let i = 0; i < nShots; i++) { relIdx.push(tl.length); tl.push([R0, 35], [R1, 35]); if (i < nShots - 1) tl.push([C0, 40]); }
+    for (let i = 0; i < nShots; i++) { relIdx.push(tl.length); tl.push([R0, 25], [R1, 25]); if (i < nShots - 1) tl.push([C0, 30]); }
     const tail = shoot.timeline.filter(x => x[0] > R1);
     if (tail.length) for (const x of tail) tl.push([x[0], x[1]]); else tl.push([R1, 220]);
     const anim = Object.assign({}, shoot, { timeline: tl });
@@ -1385,21 +1385,21 @@ export class BattleScene {
     groups.forEach((recs, i) => {
       const rel = at[relIdx[i]];
       // the arrows climb to split points well above the enemies, so the copies always have room to fan down onto them
-      const split = { x: lerp(tip.x, cx, 0.55) + (i - (nShots - 1) / 2) * 5, y: Math.max(22, Math.min(tip.y, topY) - 40 - (i % 4) * 7) };
+      const split = { x: lerp(tip.x, cx, 0.55) + (i - (nShots - 1) / 2) * 3, y: Math.max(22, Math.min(tip.y, topY) - 40 - (i % 4) * 7) };
       const fly1 = clamp(Math.hypot(split.x - tip.x, split.y - tip.y) * 1.3, 130, 210);
       // 2. rapid release: a sharp cyan flash at the bow and the arrow away
       setTimeout(() => {
         this.glows.push({ x: tip.x, y: tip.y, r: 26, color: '#c8fff0', t: 0, life: 0.18, a: 1 });
         this.burst(tip.x, tip.y, '#7affd8', 8, 46, 0);
         this.mets.push({ kind: 'parrow', from: tip, ctrl: { x: lerp(tip.x, split.x, 0.35), y: tip.y - 6 }, to: split, t0: now(), life: T(fly1), a: 1, pts: [] });
-        if (i % 2 === 0) sfx('bow'); if (i === 0) sfx('whoosh');
+        if (i % 3 === 0) sfx('bow'); if (i === 0) sfx('whoosh');
       }, T(rel));
       // 3. spectral duplication: a flash, then the copies fan out on their own curves, staggered
       const sAt = rel + fly1;
       setTimeout(() => {
         this.glows.push({ x: split.x, y: split.y, r: 8, grow: 22, color: '#7affd8', t: 0, life: 0.28, a: 0.9, ring: true });
         this.glows.push({ x: split.x, y: split.y, r: 22, color: '#c8fff0', t: 0, life: 0.2, a: 0.9 });
-        if (i % 3 === 0) sfx('twinkle');
+        if (i % 4 === 0) sfx('twinkle');
       }, T(sAt));
       const shots = recs.map(r => ({ rec: r, e: this.actors.get(r.id) })).filter(c => c.e);
       const strays = Math.max(0, (this.lowPower ? 1 : 2) - shots.length);   // every arrow splits into two copies (one on low-power devices)
