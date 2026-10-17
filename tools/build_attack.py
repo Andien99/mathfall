@@ -88,14 +88,14 @@ EXTRA = {
     'knight:f/combo': dict(base='knight:f', ms=[50, 50, 60, 90,  40, 50, 50, 110,  40, 45, 50, 100,  45, 45, 45, 90,  40, 50, 50, 130,
                                                 70, 60, 60, 60, 60, 80,  260, 260, 260, 260,  70, 60, 60, 70, 45, 45, 70, 420],
                            hit=35, slashAt=[5, 9, 17], holdAt=[26, 29], arcAt=34, blade=28, track='top', dash=18, cast=False),
-    # Meteor (tools/assemble_meteor.py): rise into a hover, crush the flame in the hand ('crushAt'), open it on a tiny
+    # Meteor (tools/assemble_meteor.py): rise into a hover, thrust the flame out at the enemy ('pointAt'), crush it ('crushAt'), open the hand on a tiny
     # spark ('openAt') that flies up off the screen ('sparkAt'), raise the arm and snap the fingers ('snapAt'); the
-    # meteor falls while she holds the pose and lands on 'hit', then she floats back down. 'palm' / 'snapTip': where the
+    # meteor falls while she holds the pose and lands on 'hit', then she floats back down. 'hands' ([from frame, [x, y]]) / 'snapTip': where the
     # hand is, px from the feet (sprite facing as drawn); 'lift': how high she floats (px); 'flame': the hand flame's colour.
-    'mage:f/meteor': dict(base='mage:f', ms=[120, 140, 220, 220, 70, 70, 120, 230, 230, 160, 420, 90, 70, 160, 300, 420, 200, 160, 300],
-                          hit=16, meteor=dict(liftAt=0, crushAt=6, openAt=9, sparkAt=10, snapAt=13, downAt=16, palm=[25, -41], snapTip=[17, -62], lift=30, flame='#ff8a3c')),
-    'mage:m/meteor': dict(base='mage:m', ms=[120, 140, 220, 220, 70, 70, 120, 230, 230, 160, 420, 90, 70, 160, 300, 420, 200, 160, 300],
-                          hit=16, meteor=dict(liftAt=0, crushAt=6, openAt=9, sparkAt=10, snapAt=13, downAt=16, palm=[21, -36], snapTip=[16, -54], lift=30, flame='#5ab8ff')),
+    'mage:f/meteor': dict(base='mage:f', ms=[120, 140, 160, 120, 90, 220, 200, 120, 230, 200, 160, 420, 90, 160, 300, 420, 200, 160, 300],
+                          hit=16, meteor=dict(pointAt=4, crushAt=7, openAt=10, sparkAt=11, snapAt=13, downAt=16, hands=[[0, [25, -41]], [4, [-13, -43]], [7, [-12, -40]], [10, [-13, -41]]], snapTip=[17, -62], lift=30, flame='#ff8a3c')),
+    'mage:m/meteor': dict(base='mage:m', ms=[120, 140, 160, 120, 90, 220, 200, 120, 230, 200, 160, 420, 90, 160, 300, 420, 200, 160, 300],
+                          hit=16, meteor=dict(pointAt=4, crushAt=7, openAt=10, sparkAt=11, snapAt=13, downAt=16, hands=[[0, [21, -36]], [4, [-15, -43]], [7, [-14, -40]], [10, [-16, -41]]], snapTip=[16, -54], lift=30, flame='#5ab8ff')),
     'knight:m/power': dict(base='knight:m', ms=[60, 70, 90, 110, 120, 130, 140, 110, 90, 380], hit=9, aura=[1, 7], dashAt=7, dashFrames=8, upswing=9, dash=10, cast=False),
     'knight:f/power': dict(base='knight:f', ms=[60, 70, 110, 120, 130, 140, 110, 90, 380], hit=8, aura=[1, 6], dashAt=6, dashFrames=7, upswing=8, dash=10, cast=False),
 }

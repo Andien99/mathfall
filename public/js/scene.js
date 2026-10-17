@@ -887,7 +887,8 @@ export class BattleScene {
   // a jagged line from a to b (for bolts)
   _zig(a, b, n, j) { const pts = [a]; for (let i = 1; i < n; i++) pts.push({ x: lerp(a.x, b.x, i / n) + (Math.random() - 0.5) * j, y: lerp(a.y, b.y, i / n) + (Math.random() - 0.5) * j }); pts.push(b); return pts; }
 
-  // Meteor with its PixelLab animation (anims.meteor): the mage floats up, crushes the flame in her hand (crushAt),
+  // Meteor with its PixelLab animation (anims.meteor): the mage floats up, thrusts the flame in her hand out at the enemy
+  // (pointAt), crushes it (crushAt),
   // opens it on a tiny spark (openAt) that shoots up off the screen (sparkAt), raises her arm and snaps her fingers
   // (snapAt). A giant meteor then streaks in from the top right and lands on the middle of the enemies (hit): fireball,
   // shockwave, cracks, rubble and fire left burning on the floor. She floats back down after it (downAt).
@@ -901,7 +902,12 @@ export class BattleScene {
     if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
     if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
     const flame = M.flame || '#ff8a3c';
-    const palm = () => ({ x: A.x + A.ox + M.palm[0], y: A.y + A.oy + M.palm[1] });
+    const palm = () => {   // where her flame hand is on the current frame (M.hands: [from frame, [x, y]] from the feet)
+      const m = A.anim, el = m ? (now() - m.t0) / m.speed : 0;
+      let f = 0; if (m) while (f + 1 < m.at.length && el >= m.at[f + 1]) f++;
+      let h = M.hands[0][1]; for (const [k, xy] of M.hands) if (f >= k) h = xy;
+      return { x: A.x + A.ox + h[0], y: A.y + A.oy + h[1] };
+    };
     const at0 = now();
     A.anim = { d: anim, t0: at0, speed: T(1000) / 1000, at, total: acc };
     const when = (f, fn, extra = 0) => setTimeout(fn, T(at[f] + extra));
@@ -915,7 +921,14 @@ export class BattleScene {
     this.move(A, 0, -(M.lift || 30), T(at[2] + 120));
     this.rune(A.x, A.y, flame); this.burst(A.x, A.y - 2, '#d8c8b0', 10, 24, 20); sfx('cast');
     this.mets.push({ kind: 'hand', follow: palm, color: flame, t0: at0, life: T(at[M.crushAt]) });
-    // 2. she crushes the flame: embers squeeze out between her fingers, a puff of smoke, light leaking from the fist
+    // 2. she thrusts the flame out at the enemy: it flares and throws a few embers their way
+    when(M.pointAt, () => {
+      const p = palm();
+      this.glows.push({ x: p.x, y: p.y - 4, r: 34, color: flame, t: 0, life: 0.4, a: 0.9 });
+      for (let i = 0; i < 12; i++) this.particles.push({ x: p.x, y: p.y - 4, vx: -60 - Math.random() * 90, vy: (Math.random() - 0.5) * 50, g: -20, life: 0.4 + Math.random() * 0.3, t: 0, c: i % 3 ? flame : '#fff6c8', streak: 2, drag: 0.88 });
+      sfx('burn');
+    });
+    // 3. she crushes the flame: embers squeeze out between her fingers, a puff of smoke, light leaking from the fist
     when(M.crushAt, () => {
       const p = palm();
       for (let i = 0; i < 22; i++) { const a = Math.random() * Math.PI * 2, v = 50 + Math.random() * 90; this.particles.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, g: 60, life: 0.35 + Math.random() * 0.35, t: 0, c: Math.random() < 0.3 ? '#ffffff' : i % 2 ? flame : '#ffd25a', streak: 2 + (i % 3), drag: 0.85 }); }
@@ -924,13 +937,13 @@ export class BattleScene {
       this.mets.push({ kind: 'fist', follow: palm, color: flame, t0: now(), life: T(at[M.openAt] - at[M.crushAt]) });
       sfx('crush');
     });
-    // 3. she opens her hand on a tiny spark, which shoots up and out of the top of the screen
+    // 4. she opens her hand on a tiny spark, which shoots up and out of the top of the screen
     when(M.openAt, () => {
       this.mets.push({ kind: 'spark', follow: palm, color: flame, t0: now(), hold: T(at[M.sparkAt] - at[M.openAt] + 120), fly: T(420), life: T(at[M.sparkAt] - at[M.openAt] + 120 + 420), pts: [] });
       sfx('twinkle');
     });
     when(M.sparkAt, () => { this.darken = { t0: now(), dur: T(at[anim.hit] - at[M.sparkAt] + 700) }; sfx('rise'); }, 120);
-    // 4. the snap: a click of light at her fingertips
+    // 5. the snap: a click of light at her fingertips
     when(M.snapAt, () => {
       const tip = { x: A.x + A.ox + M.snapTip[0], y: A.y + A.oy + M.snapTip[1] };
       this.mets.push({ kind: 'snap', x: tip.x, y: tip.y, t0: now(), life: T(260) });
@@ -938,7 +951,7 @@ export class BattleScene {
       this.flash = Math.max(this.flash || 0, 0.06);
       sfx('snap');
     });
-    // 5. the meteor: its shadow and a burning ring mark the spot, the sky glows red, and it streaks in from the top right
+    // 6. the meteor: its shadow and a burning ring mark the spot, the sky glows red, and it streaks in from the top right
     const fallFrom = at[M.snapAt] + 120, fall = at[anim.hit] - fallFrom;
     setTimeout(() => {
       this.mets.push({ kind: 'mark', x: cx, y: cy, w: spread, t0: now(), life: T(fall + 120) });
@@ -946,7 +959,7 @@ export class BattleScene {
         cracks: Array.from({ length: 6 }, () => { let a = Math.random() * Math.PI * 2, r = 0.1 + Math.random() * 0.3; const pts = []; for (let j = 0; j < 4; j++) { pts.push([Math.cos(a) * r, Math.sin(a) * r]); a += (Math.random() - 0.5) * 0.9; r += 0.18 + Math.random() * 0.15; } return pts; }) });
       sfx('fall');
     }, T(fallFrom));
-    // 6. impact
+    // 7. impact
     when(anim.hit, () => {
       this.mets.push({ kind: 'boom', x: cx, y: cy, w: spread, t0: now(), life: T(1100) });
       this.mets.push({ kind: 'burn', x: cx, y: cy, w: spread, t0: now(), life: T(1700) });
@@ -959,7 +972,7 @@ export class BattleScene {
       this.impact(ev, tgt, 'meteor', rc);
       sfx('boom');
     });
-    // 7. she floats back down, and the flame lights up in her hand again
+    // 8. she floats back down, and the flame lights up in her hand again
     when(M.downAt, () => this.move(A, 0, 0, T(acc - at[M.downAt])));
     setTimeout(() => { const p = palm(); this.glows.push({ x: p.x, y: p.y, r: 18, color: flame, t: 0, life: 0.35, a: 0.8 }); this.burst(p.x, p.y, flame, 8, 20); }, T(acc - 120));
     setTimeout(() => { A.anim = null; this.move(A, 0, 0, T(120)); }, T(acc + 60));
