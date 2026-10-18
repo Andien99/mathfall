@@ -144,18 +144,135 @@ const SOUNDS = {
                [0, fx({ wave: 'saw', freq: 90, attack: 0.05, sustain: 0.4, decay: 0.3, slide: -0.04, vib: 0.4, vibSpeed: 0.5, gain: 0.55 })]]),
   hex:    fx({ freq: 600, duty: 0.3, sustain: 0.15, decay: 0.15, slide: -0.15, vib: 0.5, vibSpeed: 0.55, phaser: 0.3 }),
   defeat: mix([[0, fx({ freq: 700, duty: 0.4, sustain: 0.05, decay: 0.2, slide: -0.3, repeat: 0.6 })],
-               [0, fx({ wave: 'noise', freq: 1500, sustain: 0.04, decay: 0.25, slide: -0.2, gain: 0.6 })]])
+               [0, fx({ wave: 'noise', freq: 1500, sustain: 0.04, decay: 0.25, slide: -0.2, gain: 0.6 })]]),
+
+  // ---- legendary skills: each beat of the animation has its own sound ----
+  // Hero's Resolve (knight)
+  resolveCharge: mix([[0, fx({ freq: 160, duty: 0.5, sustain: 0.65, decay: 0.2, slide: 0.075, vib: 0.2, vibSpeed: 0.7, phaser: 0.3 })],
+                      [0, fx({ wave: 'noise', freq: 400, attack: 0.3, sustain: 0.4, decay: 0.15, slide: 0.08, hpf: 0.2, gain: 0.45 })]]),
+  resolveVanish: mix([[0, fx({ freq: 1800, duty: 0.5, sustain: 0.03, decay: 0.18, slide: -0.35, repeat: 0.68 })],
+                      [0, fx({ wave: 'noise', freq: 5000, sustain: 0.01, decay: 0.15, slide: -0.2, hpf: 0.35, gain: 0.6 })]]),
+  resolveSlash:  mix([[0, fx({ wave: 'noise', freq: 4200, sustain: 0.01, decay: 0.07, slide: -0.35, hpf: 0.3, punch: 0.5 })],
+                      [0, fx({ freq: 1900, duty: 0.75, sustain: 0.005, decay: 0.05, slide: -0.6, gain: 0.5 })]]),
+  resolveBurst:  mix([[0, fx({ wave: 'noise', freq: 700, sustain: 0.05, decay: 0.3, slide: -0.12, punch: 0.6 })],
+                      [0.02, fx({ freq: 'E6', duty: 0.5, sustain: 0.03, decay: 0.25, arp: 0.4, arpSpeed: 0.75, gain: 0.5 })]]),
+  resolveAppear: mix([[0, tune([['E5', 1], ['G#5', 1], ['B5', 1], ['E6', 1], ['G#6', 1], ['B6', 3]], 0.035, { ...lead2, decay: 0.12 })],
+                      [0, fx({ wave: 'noise', freq: 1500, sustain: 0.05, decay: 0.2, slide: -0.2, hpf: 0.2, gain: 0.5 })]]),
+  resolveExtend: mix([[0, fx({ wave: 'saw', freq: 110, attack: 0.08, sustain: 0.5, decay: 0.2, slide: 0.06, vib: 0.15, vibSpeed: 0.6, lpf: 0.6 })],
+                      [0, fx({ freq: 220, duty: 0.6, attack: 0.08, sustain: 0.5, decay: 0.2, slide: 0.06, phaser: 0.5, phaserRamp: -0.1, gain: 0.5 })]]),
+  resolveStrike: mix([[0, fx({ wave: 'noise', freq: 240, sustain: 0.2, decay: 0.7, slide: -0.05, punch: 0.7 })],
+                      [0, fx({ freq: 100, duty: 0, sustain: 0.06, decay: 0.4, slide: -0.25, gain: 0.7 })],
+                      ...['C5', 'G5', 'C6', 'E6'].map(n => [0.05, fx({ freq: n, duty: 0.6, sustain: 0.35, decay: 0.5, vib: 0.08, vibSpeed: 0.6, gain: 0.22 })])]),
+
+  // Phantom Volley (ranger)
+  phantomLeap:  fx({ freq: 280, duty: 0.5, sustain: 0.06, decay: 0.15, slide: 0.25, gain: 0.9 }),
+  phantomDraw:  fx({ freq: 210, duty: 0.75, sustain: 0.45, decay: 0.15, slide: 0.1, vib: 0.3, vibSpeed: 0.75, phaser: 0.4, phaserRamp: -0.15 }),
+  phantomShot:  fx({ freq: 1300, duty: 0.5, sustain: 0.02, decay: 0.08, slide: -0.3, punch: 0.3 }),
+  phantomSplit: fx({ freq: 'E7', duty: 0.75, sustain: 0.01, decay: 0.08, arp: 0.3, arpSpeed: 0.8 }),
+  phantomHit:   mix([[0, fx({ wave: 'noise', freq: 2500, sustain: 0.01, decay: 0.07, slide: -0.3, punch: 0.4 })],
+                     [0, fx({ wave: 'sine', freq: 900, sustain: 0.01, decay: 0.08, slide: -0.45, gain: 0.6 })]]),
+
+  // Deadeye (ranger)
+  lockOn:        tune([['A6', 1], ['E7', 1.5]], 0.045, { wave: 'square', duty: 0.5, decay: 0.03 }),
+  lockSnap:      mix([[0, fx({ freq: 2100, duty: 0.5, sustain: 0.01, decay: 0.05, punch: 0.6 })], [0.05, fx({ freq: 2800, duty: 0.75, sustain: 0.01, decay: 0.08 })]]),
+  deadeyeCharge: mix([[0, fx({ freq: 330, duty: 0.5, sustain: 0.55, decay: 0.12, slide: 0.07, vib: 0.25, vibSpeed: 0.8, dutyRamp: 0.2 })],
+                      [0, fx({ freq: 660, duty: 0.75, sustain: 0.55, decay: 0.12, slide: 0.07, repeat: 0.55, gain: 0.35 })]]),
+  deadeyeShot:   mix([[0, fx({ wave: 'saw', freq: 1500, sustain: 0.04, decay: 0.2, slide: -0.25, punch: 0.5 })],
+                      [0, fx({ wave: 'noise', freq: 3000, sustain: 0.02, decay: 0.15, slide: -0.2, hpf: 0.2, gain: 0.6 })]]),
+  critHit:       mix([[0, fx({ wave: 'noise', freq: 600, sustain: 0.05, decay: 0.22, slide: -0.15, punch: 0.6 })],
+                      [0, fx({ freq: 170, duty: 0, sustain: 0.03, decay: 0.15, slide: -0.4, gain: 0.7 })],
+                      [0.05, fx({ freq: 'B6', duty: 0.5, sustain: 0.04, decay: 0.25, arp: 0.25, arpSpeed: 0.8, gain: 0.45 })]]),
+
+  // Divine Shield (cleric)
+  divineCast:  mix([[0, tune([['C5', 1], ['E5', 1], ['G5', 1], ['C6', 1], ['E6', 1], ['G6', 1], ['C7', 3]], 0.04, { ...lead2, decay: 0.2, vib: 0.1, vibSpeed: 0.6 })],
+                    [0, fx({ wave: 'sine', freq: 'C4', attack: 0.05, sustain: 0.3, decay: 0.2, gain: 0.5 })]]),
+  divineMote:  fx({ wave: 'sine', freq: 1500, sustain: 0.03, decay: 0.12, slide: 0.12 }),
+  shieldForm:  mix([[0, fx({ freq: 280, duty: 0.5, sustain: 0.12, decay: 0.15, slide: 0.22, phaser: 0.4 })],
+                    [0.04, fx({ wave: 'sine', freq: 560, sustain: 0.12, decay: 0.15, slide: 0.2, gain: 0.6 })]]),
+  divineSeal:  tune([['G6', 1], ['D7', 3]], 0.06, { ...lead2, decay: 0.2 }),
+  purify:      mix([[0, fx({ wave: 'sine', freq: 400, sustain: 0.3, decay: 0.15, slide: 0.18, vib: 0.2, vibSpeed: 0.7 })],
+                    [0.15, fx({ freq: 'E7', duty: 0.75, sustain: 0.02, decay: 0.2, arp: 0.3, arpSpeed: 0.7, gain: 0.5 })]]),
+
+  // Dragon's Wrath (mage)
+  dragonAwaken: mix([[0, fx({ wave: 'noise', freq: 160, attack: 0.2, sustain: 0.45, decay: 0.25, lpf: 0.35, vib: 0.4, vibSpeed: 0.3 })],
+                     [0, fx({ wave: 'saw', freq: 55, attack: 0.2, sustain: 0.45, decay: 0.25, vib: 0.3, vibSpeed: 0.4, gain: 0.5 })]]),
+  dragonEyes:   fx({ freq: 190, duty: 0.6, attack: 0.05, sustain: 0.3, decay: 0.2, slide: -0.04, vib: 0.6, vibSpeed: 0.35, phaser: 0.5 }),
+  dragonRoar:   mix([[0, fx({ wave: 'saw', freq: 300, attack: 0.03, sustain: 0.5, decay: 0.35, slide: -0.1, vib: 0.55, vibSpeed: 0.65 })],
+                     [0, fx({ freq: 150, duty: 0.3, attack: 0.03, sustain: 0.5, decay: 0.35, slide: -0.1, vib: 0.5, vibSpeed: 0.6, gain: 0.6 })],
+                     [0, fx({ wave: 'noise', freq: 350, attack: 0.03, sustain: 0.55, decay: 0.35, slide: -0.05, vib: 0.5, vibSpeed: 0.6, lpf: 0.6, gain: 0.8 })]]),
+  dragonGather: mix([[0, fx({ wave: 'noise', freq: 400, attack: 0.1, sustain: 0.4, decay: 0.1, slide: 0.1, repeat: 0.6, lpf: 0.6 })],
+                     [0, fx({ wave: 'saw', freq: 90, attack: 0.1, sustain: 0.4, decay: 0.1, slide: 0.12, vib: 0.3, vibSpeed: 0.7, gain: 0.5 })]]),
+  dragonLunge:  mix([[0, fx({ wave: 'noise', freq: 900, sustain: 0.08, decay: 0.15, slide: 0.25, punch: 0.3 })],
+                     [0.1, fx({ wave: 'noise', freq: 2500, sustain: 0.02, decay: 0.12, slide: -0.3, hpf: 0.2, punch: 0.5 })]]),
+  dragonBite:   mix([[0, fx({ wave: 'noise', freq: 3000, sustain: 0.01, decay: 0.05, punch: 0.8 })],
+                     [0, fx({ freq: 160, duty: 0, sustain: 0.02, decay: 0.08, slide: -0.5 })],
+                     [0.07, fx({ wave: 'noise', freq: 2200, sustain: 0.01, decay: 0.06, punch: 0.8, gain: 0.8 })]]),
+  dragonErupt:  mix([[0, fx({ wave: 'noise', freq: 320, sustain: 0.2, decay: 0.6, slide: -0.05, repeat: 0.42, punch: 0.6 })],
+                     [0, fx({ wave: 'saw', freq: 85, sustain: 0.1, decay: 0.4, slide: -0.2, gain: 0.6 })]]),
+  dragonFade:   mix([[0, fx({ wave: 'noise', freq: 2500, attack: 0.05, sustain: 0.2, decay: 0.5, slide: -0.08, hpf: 0.3, gain: 0.6 })],
+                     [0, fx({ freq: 500, duty: 0.75, sustain: 0.2, decay: 0.4, slide: -0.1, vib: 0.3, vibSpeed: 0.6, repeat: 0.5, gain: 0.5 })]]),
+
+  // Time Stop (mage)
+  tsChannel: fx({ freq: 300, duty: 0.5, attack: 0.05, sustain: 0.5, decay: 0.2, slide: 0.05, vib: 0.3, vibSpeed: 0.6, phaser: 0.5, phaserRamp: -0.1 }),
+  tsStreak:  mix([[0, fx({ freq: 2400, duty: 0.5, sustain: 0.03, decay: 0.15, slide: -0.3 })],
+                  [0, fx({ wave: 'noise', freq: 4000, sustain: 0.02, decay: 0.15, slide: -0.3, hpf: 0.3, gain: 0.5 })]]),
+  tsFreeze:  mix([[0, fx({ wave: 'noise', freq: 1500, attack: 0.18, sustain: 0.02, decay: 0.05, slide: 0.15, hpf: 0.2 })],
+                  [0.2, fx({ wave: 'sine', freq: 70, sustain: 0.05, decay: 0.4, slide: -0.2, punch: 0.4 })],
+                  [0.2, tune([['E7', 1], ['C7', 1], ['A6', 1], ['F6', 1], ['D6', 3]], 0.05, { ...lead2, decay: 0.2 })]]),
+  freeze:    mix([[0, fx({ freq: 'B6', duty: 0.75, sustain: 0.02, decay: 0.15, arp: 0.5, arpSpeed: 0.75 })],
+                  [0, fx({ wave: 'noise', freq: 6000, sustain: 0.01, decay: 0.1, hpf: 0.45, gain: 0.6 })]]),
+  tick:      mix([[0, fx({ freq: 2200, duty: 0.75, sustain: 0.005, decay: 0.025 })], [0, fx({ wave: 'noise', freq: 5000, sustain: 0.003, decay: 0.02, hpf: 0.4, gain: 0.6 })]]),
+  tock:      mix([[0, fx({ freq: 1500, duty: 0.75, sustain: 0.005, decay: 0.03 })], [0, fx({ wave: 'noise', freq: 3000, sustain: 0.003, decay: 0.025, hpf: 0.3, gain: 0.6 })]]),
+  tsRewind:  mix([[0, fx({ freq: 350, duty: 0.5, sustain: 0.4, decay: 0.1, slide: 0.15, repeat: 0.72, dutyRamp: 0.3 })],
+                  [0, fx({ wave: 'noise', freq: 800, sustain: 0.4, decay: 0.1, slide: 0.15, phaser: 0.4, gain: 0.4 })]]),
+  shatter:   mix([[0, fx({ wave: 'noise', freq: 5000, sustain: 0.02, decay: 0.25, slide: -0.1, hpf: 0.3, punch: 0.7 })],
+                  [0, tune([['E7', 1], ['C8', 1], ['G7', 1], ['A7', 1], ['D7', 2]], 0.025, { ...lead2, decay: 0.08, gain: 0.6 })]]),
+  tsBreak:   mix([[0, fx({ wave: 'noise', freq: 400, sustain: 0.1, decay: 0.5, slide: -0.08, punch: 0.6 })],
+                  [0, fx({ wave: 'noise', freq: 6000, sustain: 0.03, decay: 0.4, slide: -0.1, hpf: 0.35, gain: 0.7 })],
+                  [0.08, tune([['A5', 1], ['C#6', 1], ['E6', 1], ['A6', 4]], 0.05, { ...lead2, decay: 0.3, gain: 0.6 })]]),
+
+  // Resurrection (cleric)
+  resInvoke:   mix(['C5', 'E5', 'G5'].map(n => [0, fx({ wave: 'sine', freq: n, attack: 0.1, sustain: 0.35, decay: 0.3, vib: 0.1, vibSpeed: 0.5 })])),
+  resPortal:   mix([[0, fx({ freq: 140, duty: 0.5, attack: 0.1, sustain: 0.45, decay: 0.2, slide: 0.08, vib: 0.3, vibSpeed: 0.5, phaser: 0.5 })],
+                    [0, fx({ wave: 'noise', freq: 600, attack: 0.15, sustain: 0.4, decay: 0.2, slide: 0.1, hpf: 0.25, gain: 0.5 })]]),
+  angelAppear: mix(['C5', 'G5', 'C6', 'E6', 'G6'].map((n, i) => [i * 0.05, fx({ freq: n, duty: 0.75, attack: 0.08, sustain: 0.5, decay: 0.45, vib: 0.12, vibSpeed: 0.55, gain: 0.5 })])),
+  wingFlap:    fx({ wave: 'noise', freq: 700, sustain: 0.25, decay: 0.1, slide: 0.04, repeat: 0.62, lpf: 0.55, punch: 0.4 }),
+  holyBeam:    mix([[0, fx({ wave: 'saw', freq: 280, attack: 0.04, sustain: 0.55, decay: 0.25, vib: 0.1, vibSpeed: 0.6, lpf: 0.6 })],
+                    [0, fx({ freq: 560, duty: 0.5, attack: 0.04, sustain: 0.55, decay: 0.25, phaser: 0.4, gain: 0.5 })],
+                    [0, fx({ wave: 'noise', freq: 5000, attack: 0.04, sustain: 0.5, decay: 0.25, hpf: 0.4, gain: 0.4 })]]),
+  soulRise:    fx({ wave: 'sine', freq: 420, attack: 0.05, sustain: 0.35, decay: 0.2, slide: 0.13, vib: 0.35, vibSpeed: 0.65 }),
+  heartbeat:   mix([[0, fx({ wave: 'sine', freq: 75, sustain: 0.02, decay: 0.1, punch: 0.6 })], [0.16, fx({ wave: 'sine', freq: 65, sustain: 0.02, decay: 0.14, punch: 0.6, gain: 0.8 })]]),
+  revive:      mix([[0, tune([['E6', 1], ['G6', 1], ['E7', 1], ['C7', 1], ['D7', 1], ['G7', 3]], 0.075, { ...lead, decay: 0.12 })],
+                    [0, tune([['C4', 3], ['G4', 3]], 0.075, bass)]]),
+  angelDepart: mix([[0, fx({ wave: 'sine', freq: 600, attack: 0.05, sustain: 0.35, decay: 0.3, slide: 0.1, vib: 0.2, vibSpeed: 0.6 })],
+                    [0.1, tune([['G7', 1], ['E7', 1], ['C7', 1], ['G6', 2]], 0.07, { ...lead2, decay: 0.15, gain: 0.5 })]])
 };
 
 // How loud each sound plays in the game (target RMS level; the builder works out the gain).
 const LEVEL = { click: 0.05, vote: 0.08, coin: 0.12, correct: 0.15, wrong: 0.12, banner: 0.16, open: 0.15,
   victory: 0.17, lose: 0.15, twinkle: 0.07, focus: 0.1, heal: 0.13, shield: 0.12, ice: 0.11, poison: 0.1,
   charge: 0.1, rise: 0.09, hex: 0.1, cast: 0.12, enemyWind: 0.1, hit: 0.2, hitBig: 0.24, boom: 0.28,
-  roar: 0.22, stomp: 0.2, crush: 0.18, defeat: 0.15, fall: 0.15 };
+  roar: 0.22, stomp: 0.2, crush: 0.18, defeat: 0.15, fall: 0.15,
+  resolveCharge: 0.1, resolveSlash: 0.14, resolveAppear: 0.12, resolveExtend: 0.12, resolveStrike: 0.28, resolveBurst: 0.2,
+  phantomDraw: 0.1, phantomShot: 0.1, phantomSplit: 0.06, phantomHit: 0.12, phantomLeap: 0.12,
+  lockOn: 0.08, lockSnap: 0.08, deadeyeCharge: 0.1, deadeyeShot: 0.16, critHit: 0.22,
+  divineCast: 0.13, divineMote: 0.07, shieldForm: 0.11, divineSeal: 0.1, purify: 0.11,
+  dragonAwaken: 0.16, dragonEyes: 0.1, dragonRoar: 0.24, dragonGather: 0.14, dragonBite: 0.18, dragonErupt: 0.26, dragonFade: 0.1,
+  tsChannel: 0.1, tsStreak: 0.12, tsFreeze: 0.16, freeze: 0.1, tick: 0.07, tock: 0.07, tsRewind: 0.12, shatter: 0.14, tsBreak: 0.22,
+  resInvoke: 0.12, resPortal: 0.12, angelAppear: 0.13, wingFlap: 0.1, holyBeam: 0.13, soulRise: 0.09, heartbeat: 0.2, revive: 0.16, angelDepart: 0.1 };
 const DEFAULT_LEVEL = 0.16;
 
 // ---------- render ----------
-function render(sound) {
+// sfxr's noise uses Math.random: seed it from the sound's name so every rebuild gives identical files.
+function seeded(name) {
+  let h = 2166136261; for (const ch of name) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return () => { h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+}
+function render(sound, name) {
+  const rand = Math.random; Math.random = seeded(name);
+  try { return renderParts(sound); } finally { Math.random = rand; }
+}
+function renderParts(sound) {
   const parts = sound.parts.map(q => ({ ...q, data: new SoundEffect(q.p).getRawBuffer().normalized }));
   const len = Math.max(...parts.map(q => Math.round(q.at * 44100) + q.data.length));
   const buf = new Float32Array(len);
@@ -190,7 +307,7 @@ const manPath = path.join(OUT, 'manifest.json');
 let manifest = {}; try { manifest = JSON.parse(fs.readFileSync(manPath, 'utf8')); } catch (e) {}
 for (const [name, sound] of Object.entries(SOUNDS)) {
   if (only.length && !only.includes(name)) continue;
-  const a = render(sound), file = wav8(a);
+  const a = render(sound, name), file = wav8(a);
   fs.writeFileSync(path.join(OUT, name + '.wav'), file);
   total += file.length;
   let rms = 0; for (const v of a) rms += v * v; rms = Math.sqrt(rms / a.length);

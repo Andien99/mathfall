@@ -1641,7 +1641,7 @@ export class BattleScene {
     const H = LP ? LP.height : 0, TILT = LP ? -(45 - LP.aimDeg) * Math.PI / 180 : 0;
     if (LP) {
       const j = tl.findIndex(x => x[0] === LP.jumpAt), up = at[holdIdx] - at[j];
-      setTimeout(() => { this.setLift(A, H, T(up + 60), 'out'); this.setTilt(A, TILT, T(up + 60)); sfx('whoosh'); this.burst(A.x + A.ox, A.y + A.oy - 2, '#a8ffe0', 10, 40, 0); }, T(at[j]));
+      setTimeout(() => { this.setLift(A, H, T(up + 60), 'out'); this.setTilt(A, TILT, T(up + 60)); sfx('phantomLeap'); this.burst(A.x + A.ox, A.y + A.oy - 2, '#a8ffe0', 10, 40, 0); }, T(at[j]));
       setTimeout(() => { this.setLift(A, 0, T(at[landIdx] - at[fallIdx]), 'in'); this.setTilt(A, 0, T(at[landIdx] - at[fallIdx])); }, T(at[fallIdx]));
       setTimeout(() => { this.burst(A.x + A.ox, A.y + A.oy - 1, '#a8c8ff', 12, 36, 0); this.shake = Math.max(this.shake, 2); this.shakeT = now(); sfx('stomp'); }, T(at[landIdx]));
       setTimeout(() => { A.lift = 0; A.liftT = null; A.tilt = 0; A.tiltT = null; }, T(acc + 80));
@@ -1663,8 +1663,8 @@ export class BattleScene {
     for (let ms = at[relIdx[0]]; ms < lastRel + 170; ms += 35) setTimeout(ghost, T(ms));
     if (LP) setTimeout(() => this.mets.push({ kind: 'pcharge', x: tip.x, y: tip.y, t0: now(), orb: T(140), life: T(lastRel - at[holdIdx] + 60) }), T(at[holdIdx]));
     else this.mets.push({ kind: 'pcharge', x: tip.x, y: tip.y, t0, orb: T(at[holdIdx]), life: T(lastRel + 60) });
-    sfx('charge');
-    setTimeout(() => { sfx('twinkle'); this.glows.push({ x: tip.x, y: tip.y, r: 16, color: '#7affd8', t: 0, life: 0.35, a: 0.8 }); }, T(at[holdIdx]));
+    sfx('phantomDraw');
+    setTimeout(() => { sfx('lockSnap'); this.glows.push({ x: tip.x, y: tip.y, r: 16, color: '#7affd8', t: 0, life: 0.35, a: 0.8 }); }, T(at[holdIdx]));
     // which records each arrow carries (round robin), and where it splits: about halfway, a little above the line
     const groups = Array.from({ length: nShots }, () => []);
     tgt.forEach((r, i) => groups[Math.floor(i * nShots / tgt.length) % nShots].push(r));
@@ -1684,14 +1684,14 @@ export class BattleScene {
         this.glows.push({ x: tip.x, y: tip.y, r: 26, color: '#c8fff0', t: 0, life: 0.18, a: 1 });
         this.burst(tip.x, tip.y, '#7affd8', 8, 46, 0);
         this.mets.push({ kind: 'parrow', from: tip, ctrl: LP ? { x: (tip.x + split.x) / 2, y: (tip.y + split.y) / 2 } : { x: lerp(tip.x, split.x, 0.35), y: tip.y - 6 }, to: split, t0: now(), life: T(fly1), a: 1, pts: [] });
-        if (i % 3 === 0) sfx('bow'); if (i === 0) sfx('whoosh');
+        sfx('phantomShot'); if (i === 0) sfx('whoosh');
       }, T(rel));
       // 3. spectral duplication: a flash, then the copies fan out on their own curves, staggered
       const sAt = rel + fly1;
       setTimeout(() => {
         this.glows.push({ x: split.x, y: split.y, r: 8, grow: 22, color: '#7affd8', t: 0, life: 0.28, a: 0.9, ring: true });
         this.glows.push({ x: split.x, y: split.y, r: 22, color: '#c8fff0', t: 0, life: 0.2, a: 0.9 });
-        if (i % 4 === 0) sfx('twinkle');
+        if (i % 2 === 0) sfx('phantomSplit');
       }, T(sAt));
       const shots = recs.map(r => ({ rec: r, e: this.actors.get(r.id) })).filter(c => c.e);
       const strays = Math.max(0, (this.lowPower ? 1 : 2) - shots.length);   // every arrow splits into two copies (one on low-power devices)
@@ -1708,7 +1708,7 @@ export class BattleScene {
         setTimeout(() => { met = { kind: 'parrow', from: split, ctrl, to, t0: now(), life: T(fly2), a: j === 0 ? 1 : c.rec ? 0.8 : 0.6, pts: [] }; this.mets.push(met); }, T(go));
         // 4. phantom barrage: a small cyan flash and spectral burst on each strike
         setTimeout(() => {
-          this.mets.push({ kind: 'pimpact', x: to.x, y: to.y + (c.rec ? 12 : 4), t0: now(), life: T(760) });
+          sfx('phantomHit'); this.mets.push({ kind: 'pimpact', x: to.x, y: to.y + (c.rec ? 12 : 4), t0: now(), life: T(760) });
           // 5. spirit dissipation: blue-violet wisps rise off the strike and the trail breaks into drifting motes
           const lp = this.lowPower ? 0.5 : 1;
           for (let q = 0; q < 10 * lp; q++) this.particles.push({ x: to.x + (Math.random() - 0.5) * 8, y: to.y + (Math.random() - 0.5) * 8, vx: (Math.random() - 0.5) * 34, vy: -18 - Math.random() * 34, g: -8, life: 0.5 + Math.random() * 0.5, t: 0, c: ['#7affd8', '#a8c8ff', '#9a7aff', '#c8fff0', '#b48cff'][q % 5], plus: q % 4 === 0, fade: true, drag: 0.94 });
@@ -1761,7 +1761,7 @@ export class BattleScene {
     const [mx, my] = shoot.muzzle || [-30, -40];
     const tip = { x: A.x + A.ox + mx, y: A.y + A.oy + my };
     const when = (ms, fn) => setTimeout(fn, T(ms));
-    sfx('charge');
+    sfx('deadeyeCharge');
     // 1. focus: a reticle locks on to each enemy in turn (spin in, snap, then pulse until its arrow lands)
     const lands = [];
     shots.forEach((c, i) => {
@@ -1772,15 +1772,15 @@ export class BattleScene {
       when(lk, () => {
         this.mets.push({ kind: 'demark', follow: c.e, t0: now(), life: T(rel + fly - lk) });
         this.mets.push({ kind: 'desight', from: tip, follow: c.e, t0: now() + T(330), life: T(rel - lk - 330) });
-        sfx('whoosh');
+        sfx('lockOn');
       });
-      when(lk + 330, () => { const p = this._hitPoint(c.e); this.glows.push({ x: p.x, y: p.y, r: 22, color: '#8fffd8', t: 0, life: 0.25, a: 0.8 }); sfx('twinkle'); });   // the lock-on snap
+      when(lk + 330, () => { const p = this._hitPoint(c.e); this.glows.push({ x: p.x, y: p.y, r: 22, color: '#8fffd8', t: 0, life: 0.25, a: 0.8 }); sfx('lockSnap'); });   // the lock-on snap
     });
     // 2. charge: energy gathers on the arrowhead and her outline burns emerald while the draw is held
     when(at[holdIdx], () => {
       this.mets.push({ kind: 'decharge', x: tip.x, y: tip.y, t0: now(), life: T(at[relIdx[shots.length - 1]] - at[holdIdx] + 40) });
       A.chronoRim = { t0: now(), until: now() + T(at[relIdx[shots.length - 1]] - at[holdIdx] + 120), color: '#3fdc9a' };
-      sfx('charge');
+      sfx('deadeyeCharge');
     });
     // 3. release: one arrow per enemy; 4. impact: a critical hit on each
     const last = {}; tgt.forEach((t, i) => { last[t.id] = i; });
@@ -1791,7 +1791,7 @@ export class BattleScene {
         this.glows.push({ x: tip.x, y: tip.y, r: 26, color: '#c8fff0', t: 0, life: 0.18, a: 1 });
         this.burst(tip.x, tip.y, '#8fffd8', 8, 46, 0);
         this.mets.push({ kind: 'dearrow', from: tip, ctrl: { x: lerp(tip.x, to.x, 0.5), y: Math.min(tip.y, to.y) - 8 }, to, t0: now(), life: T(fly), pts: [] });
-        sfx('bow'); if (i === 0) sfx('whoosh');
+        sfx('deadeyeShot');
       });
       when(rel + fly, () => {
         const p = this._hitPoint(c.e);
@@ -1801,7 +1801,7 @@ export class BattleScene {
         const lp = this.lowPower ? 0.5 : 1;
         for (let q = 0; q < 12 * lp; q++) this.particles.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 120, vy: (Math.random() - 0.5) * 90 - 20, g: 90, life: 0.4 + Math.random() * 0.4, t: 0, c: ['#8fffd8', '#3fbf8f', '#ffffff', '#ffd25a'][q % 4], streak: q % 3 ? 2 : 0, plus: q % 3 === 0, drag: 0.92 });
         this.impact(ev, tgt, 'deadeye', rc, [c.rec], true);
-        sfx('hitBig');
+        sfx('critHit');
         if (last[c.rec.id] === tgt.indexOf(c.rec)) this._applyAfter(ev, [c.rec.id]);
       });
     });
@@ -1832,7 +1832,7 @@ export class BattleScene {
     when(at[C0], () => {
       this.mets.push({ kind: 'dsstar', follow: A, t0: now(), life: T(hitAt - at[C0] + 160) });
       A.holy = { t0: now(), until: now() + T(hitAt - at[C0] + 400) };
-      sfx('cast'); sfx('twinkle');
+      sfx('divineCast');
     });
     when(at[C0] + 60, () => { const lp = this.lowPower ? 0.5 : 1; for (let q = 0; q < 22 * lp; q++) this.particles.push({ x: A.x + (Math.random() - 0.5) * 40, y: A.y - Math.random() * 10, vx: (Math.random() - 0.5) * 8, vy: -16 - Math.random() * 30, g: -6, life: 0.9 + Math.random() * 0.8, t: 0, c: ['#ffe27a', '#fff6c8', '#f6c453'][q % 3], plus: q % 4 === 0, fade: true }); });
     // 2. shield forms: motes of light fly from the staff to every hero, nearest first
@@ -1843,22 +1843,22 @@ export class BattleScene {
       when(go, () => {
         const tp = this._tipAt(A) || { x: A.x - 14, y: A.y - 70 };
         this.mets.push({ kind: 'dsbolt', from: { x: tp.x, y: tp.y }, ctrl: { x: (tp.x + c.h.x) / 2, y: Math.min(tp.y, c.h.y - 60) - 24 }, to: { x: c.h.x, y: c.h.y - 30 }, t0: now(), life: T(fly), pts: [] });
-        if (i === 0) { this.glows.push({ x: tp.x, y: tp.y, r: 40, color: '#ffe9a0', t: 0, life: 0.35, a: 0.9 }); sfx('zap'); }
+        if (i === 0) { this.glows.push({ x: tp.x, y: tp.y, r: 40, color: '#ffe9a0', t: 0, life: 0.35, a: 0.9 }); sfx('divineMote'); }
       });
       when(go + fly, () => {
         c.h.dome = { t0: now(), bright: now() + T(2600) };
         this.glows.push({ x: c.h.x, y: c.h.y - 2, r: 46, color: '#ffd86a', t: 0, life: 0.45, a: 0.7 });
         this.mets.push({ kind: 'dsring', x: c.h.x, y: c.h.y, t0: now(), life: T(600) });
-        sfx('shield');
+        sfx('shieldForm');
       });
       // 3. protection: the dome closes with a flare
-      when(go + fly + 470, () => { this.glows.push({ x: c.h.x, y: c.h.y - 34, r: 50, color: '#fff2c0', t: 0, life: 0.35, a: 0.75 }); if (c.h === A) sfx('twinkle'); });
+      when(go + fly + 470, () => { this.glows.push({ x: c.h.x, y: c.h.y - 34, r: 50, color: '#fff2c0', t: 0, life: 0.35, a: 0.75 }); if (c.h === A) sfx('divineSeal'); });
       formed = Math.max(formed, go + fly + 470);
     });
     // 4. purify: a beam through every hero; the cleansed shed their dark motes and the crosses rise
     order.forEach((c, i) => when(formed + 120 + i * 80, () => {
       this.mets.push({ kind: 'dspurify', x: c.h.x, y: c.h.y, t0: now(), life: T(900) });
-      if (i === 0) sfx('heal');
+      if (i === 0) sfx('purify');
       if (c.rec.cleansed) {
         this.mets.push({ kind: 'dscleanse', x: c.h.x, y: c.h.y - 30, t0: now() + T(150), life: T(900) });
         const lp = this.lowPower ? 0.5 : 1;
@@ -1973,26 +1973,26 @@ export class BattleScene {
       A.holy = { t0: now(), until: at(SOUL) };
       this.mets.push({ kind: 'rhalo', follow: A, dy: 54, t0: now(), life: T(SOUL + 300 - KNEEL) });
       this.mets.push({ kind: 'wring', ring: 0, x: kneel.x, y: kneel.y, w: 34, q: 0.32, dir: 1, fade: T(300), t0: now(), life: T(CLOSE + 100 - KNEEL) });
-      sfx('heal'); sfx('cast');
+      sfx('resInvoke');
     });
     when(KNEEL + 170, () => {
       for (const F of focus) {
         if (fallen.length) this.mets.push({ kind: 'wring', ring: 2, x: F.x, y: F.y + 1, w: 54, q: 0.3, dir: -1, fade: T(300), t0: now(), life: T(CLOSE + 100 - KNEEL - 170) });
         this.mets.push({ kind: 'rmotes', x: F.x, y: F.y, t0: now(), life: T(SOUL - KNEEL - 170) });
       }
-      sfx('twinkle');
+      sfx('divineMote');
     });
     // 2. heavenly descent
     when(PORTAL, () => {
       this.mets.push({ kind: 'rportal', x: hx, y: py, open: T(380), close: T(400), t0: now(), life: T(CLOSE + 400 - PORTAL) });
       this.mets.push({ kind: 'rshaft', x: hx, y0: py + 4, y1: Math.max(...focus.map(a => a.y)) + 4, w0: 52, w1: 66, t0: now(), life: T(BODY_GO + 200 - PORTAL) });
-      sfx('charge'); sfx('twinkle');
+      sfx('resPortal');
     });
     const angel = { kind: 'rangel', hx, hy, py, sy0: py + 24, t0: at(APPEAR), life: T(WINGS_GO + 700 - APPEAR),
       tA: at(APPEAR), tH: at(HOVER), tU: at(UNFOLD), tUe: at(SPREAD), tFull: at(FULL), tAsc: at(ASCEND), tAe: at(ASCEND + 1400),
       tBd: at(BODY_GO), tWd: at(WINGS_GO), bd: T(350), wd: T(650), bodyGone: false, wingsGone: false, T };
-    when(APPEAR, () => { this.mets.push(angel); sfx('heal'); });
-    when(UNFOLD, () => sfx('whoosh'));
+    when(APPEAR, () => { this.mets.push(angel); sfx('angelAppear'); });
+    when(UNFOLD, () => sfx('wingFlap'));
     // 3. angelic blessing
     const hand = F => () => { const P = this._angelAt(angel, now()), side = F.x < P.x ? -1 : 1; return { x: P.x + side * 22, y: P.y - 15 }; };
     when(SPREAD, () => { for (let i = 0; i < 8 * lp + 2; i++) this._resFeather(hx + (Math.random() - 0.5) * 120, hy - 30 + (Math.random() - 0.5) * 40, T); });
@@ -2001,7 +2001,7 @@ export class BattleScene {
         this.mets.push({ kind: 'rbeam', from: hand(F), to: F, t0: now(), life: T(PULSE + 150 - BEAM) });
         this.mets.push({ kind: 'rorbit', follow: F, t0: now(), life: T(PULSE + 200 - BEAM) });
       }
-      sfx('heal'); sfx('charge');
+      sfx('holyBeam');
     });
     for (let i = 1; i <= 4; i++) when(SPREAD + i * 280, () => { for (let j = 0; j < 3 * lp + 1; j++) this._resFeather(hx + (Math.random() - 0.5) * 130, hy - 20 + (Math.random() - 0.5) * 30, T); });
     when(PARTY, () => {   // the rest of the party: a softer light and their heals
@@ -2021,7 +2021,7 @@ export class BattleScene {
           F.radiant = { t0: now(), until: at(RISE + 1000), pulses: [] };
           this.mets.push({ kind: 'rspirit', follow: F, t0: now(), life: T(PULSE - SOUL + 40), up: T(500), hold: T(650) });
         }
-        sfx('rise');
+        sfx('soulRise');
       });
       for (let j = 0; j < 3; j++) when(PULSE + j * 120, () => {
         for (const F of fallen) {
@@ -2030,7 +2030,7 @@ export class BattleScene {
           if (j === 0) this.mets.push({ kind: 'wring', ring: 0, x: F.x, y: F.y + 1, w: 26, q: 0.3, dir: 1, fade: T(400), t0: now(), life: T(CLOSE + 150 - PULSE) });
         }
         this.flash = Math.max(this.flash || 0, j ? 0.05 : 0.12);
-        sfx(j ? 'twinkle' : 'heal');
+        sfx('heartbeat');
       });
       // 5. resurrection
       when(RISE, () => {
@@ -2046,18 +2046,18 @@ export class BattleScene {
           for (let i = 0; i < 40 * lp; i++) { const q = Math.random() * Math.PI * 2, v = 30 + Math.random() * 70; this.particles.push({ x: F.x + Math.cos(q) * 4, y: F.y - 22 + Math.sin(q) * 10, vx: Math.cos(q) * v, vy: Math.sin(q) * v * 0.7 - 30, g: 40, life: 0.6 + Math.random() * 0.6, t: 0, c: ['#ffffff', '#fff2c0', '#ffe27a', '#ffc24a'][i % 4], plus: i % 5 === 0, drag: 0.92, fade: true }); }
           this.glows.push({ x: F.x, y: F.y - 24, r: 46, color: '#fff2c0', t: 0, life: 0.5, a: 0.9 });
         }
-        sfx('correct'); sfx('heal');
+        sfx('revive');
       });
     }
-    when(FULL, () => sfx('whoosh'));
+    when(FULL, () => sfx('wingFlap'));
     // 6. heavenly departure (the dissolve itself runs in drawPixelFx as the angel's clock passes tBd / tWd)
-    when(BODY_GO, () => sfx('rise'));
+    when(BODY_GO, () => sfx('angelDepart'));
     when(WINGS_GO, () => {
       for (const F of focus) this.glows.push({ x: F.x, y: F.y - 24, r: 40, color: '#ffe9a0', t: 0, life: 1.3, a: 0.45 });
-      sfx('twinkle');
+      sfx('divineMote');
     });
     when(HOME, () => { A.pose = null; this.move(A, 0, 0, T(320)); });
-    when(CLOSE, () => sfx('twinkle'));
+    when(CLOSE, () => sfx('divineSeal'));
     when(RISE + 150, () => this._applyAfter(ev));
     return T(END);
   }
@@ -2163,8 +2163,8 @@ export class BattleScene {
     // 1. awakening
     this.mets.push({ kind: 'daura', follow: A, hand, t0, life: T(BRACE + 200) });
     A.fiery = { t0, until: t0 + T(BITE + 300) };
-    this.rune(A.x, A.y, '#ff5030'); sfx('charge');
-    when(330, () => { const sc = this.W < 260 ? 1.05 : 1.4; this.mets.push({ kind: 'deyes', x: Math.min(A.x + 14, this.W - 70 * sc), y: Math.max(36, A.y - 92), sc, t0: now(), life: T(1250) }); sfx('enemyWind'); });
+    this.rune(A.x, A.y, '#ff5030'); sfx('dragonAwaken');
+    when(330, () => { const sc = this.W < 260 ? 1.05 : 1.4; this.mets.push({ kind: 'deyes', x: Math.min(A.x + 14, this.W - 70 * sc), y: Math.max(36, A.y - 92), sc, t0: now(), life: T(1250) }); sfx('dragonEyes'); });
     // 2. manifestation: the head forms out of swirling flame, rears back, fire gathers in its jaws
     const head = { kind: 'dhead', home, bite, t0: t0 + T(BRACE), tE: t0 + T(BRACE + 650), tD: t0 + T(BRACE + 1080), tS: t0 + T(STRIKE), tB: t0 + T(BITE), tX: t0 + T(GONE), life: T(GONE + 720 - BRACE) };
     when(BRACE, () => {
@@ -2175,13 +2175,13 @@ export class BattleScene {
         const q = Math.random() * Math.PI * 2, r = 46 + Math.random() * 40, v = 2.2 + Math.random();
         this.particles.push({ x: c.x + Math.cos(q) * r, y: c.y + Math.sin(q) * r * 0.7, vx: (-Math.sin(q) * r * 1.6 - Math.cos(q) * r * v), vy: (Math.cos(q) * r * 1.1 - Math.sin(q) * r * 0.7 * v), g: -10, life: 0.45 + Math.random() * 0.3, t: 0, c: ['#ff5030', '#ff8a3c', '#ffd25a', '#fff2c0'][i % 4], streak: 3, drag: 0.9 });
       }
-      sfx('burn'); sfx('roar');
+      sfx('dragonRoar');
     });
-    when(BRACE + 700, () => sfx('charge'));
+    when(BRACE + 700, () => sfx('dragonGather'));
     // 3. the lunge: claws sweep across ahead of it, embers streaming behind
     when(STRIKE - 60, () => {
       if (E) this.mets.push({ kind: 'dclaws', x: bite.x - 4, y: bite.y + 2, sc: 1.15, t0: now(), life: T(840) });
-      sfx('whoosh'); sfx('slash');
+      sfx('dragonLunge');
     });
     when(STRIKE, () => {
       const steps = 8;
@@ -2198,7 +2198,7 @@ export class BattleScene {
       for (let i = 0; i < 18 * lp; i++) { const q = Math.random() * Math.PI * 2, v = 60 + Math.random() * 90; this.particles.push({ x: mo.x, y: mo.y, vx: Math.cos(q) * v, vy: Math.sin(q) * v, g: 60, life: 0.25 + Math.random() * 0.2, t: 0, c: Math.random() < 0.4 ? '#ffffff' : '#ffb347', streak: 3, drag: 0.85 }); }
       if (E) E.redUntil = now() + T(420);
       this.shake = Math.max(this.shake, 5); this.shakeT = now(); this.freezeUntil = now() + 70;
-      sfx('crush');
+      sfx('dragonBite');
     });
     when(BITE + 90, () => {   // and the jaws erupt
       const gx = E ? E.x : bite.x, gy = E ? E.y + 1 : A.y;
@@ -2215,7 +2215,7 @@ export class BattleScene {
       this.mets.push({ kind: 'burn', x: gx, y: gy, w: 40, t0: now() + T(250), life: T(1500) });
       if (E) this.hitShake(E, 12);
       this.impact(ev, tgt, 'dragon', rc);
-      sfx('boom');
+      sfx('dragonErupt');
     });
     // 5. it dissolves into spiralling embers and crimson smoke
     when(GONE, () => {
@@ -2226,7 +2226,7 @@ export class BattleScene {
         this.particles.push({ x: q.x, y: q.y, vx: -dy / r * sw + dx / r * 20, vy: dx / r * sw * 0.6 - 30 - Math.random() * 30, g: -20, life: 0.6 + Math.random() * 0.8, t: 0, c: ['#ff3a1a', '#ff6a2a', '#ffb347', '#ffd25a', '#8a1a14'][i % 5], drag: 0.94, fade: true, plus: i % 9 === 0 });
       }
       for (let i = 0; i < 16 * lp; i++) this.particles.push({ x: c.x + (Math.random() - 0.5) * 90, y: c.y + (Math.random() - 0.5) * 50, vx: (Math.random() - 0.5) * 16, vy: -8 - Math.random() * 16, g: -4, life: 1 + Math.random() * 0.9, t: 0, c: Math.random() < 0.5 ? '#5a1418' : '#3a0e14', blob: 1 + Math.random() * 2.5, fade: true });
-      sfx('rise');
+      sfx('dragonFade');
     });
     setTimeout(() => { A.anim = null; A.fiery = null; }, T(acc + 40));
     return T(acc + 350);
@@ -2316,15 +2316,15 @@ export class BattleScene {
       this.mets.push({ kind: 'tsrune', at: runeAt, t0: now(), life: T(BREAK - RAISE + 20) });
       this.mets.push({ kind: 'tsgather', at: runeAt, t0: now(), life: T(FREEZE - RAISE - 40) });
       A.chronoRim = { t0: now(), until: now() + T(BREAK - RAISE + 200) };
-      this.rune(A.x, A.y, '#6fc8ff'); sfx('charge'); sfx('twinkle');
+      this.rune(A.x, A.y, '#6fc8ff'); sfx('tsChannel');
     });
-    when(RAISE + 520, () => sfx('charge'));
+    when(RAISE + 520, () => sfx('lockSnap'));
     // 2. time freeze
     when(FREEZE - 140, () => {   // the rune flares and a streak of light drops into the middle of the enemies
       const r = runeAt();
       this.glows.push({ x: r.x, y: r.y, r: 40, color: '#bfe6ff', t: 0, life: 0.35, a: 1 });
       for (let i = 0; i < 3; i++) this.arcs.push({ bolt: this._zig(r, { x: field.cx + (Math.random() - 0.5) * 10, y: field.cy - 6 }, 9, 10), color: i ? '#6fc8ff' : '#ffffff', w: i ? 1 : 2, t: 0, life: 0.2 });
-      sfx('zap');
+      sfx('tsStreak');
     });
     const clock = { kind: 'tsclock', x: field.cx, y: field.cy, w: field.w * 1.08, q, t0: t0 + T(FREEZE), tS: t0 + T(SETTLE), tR: t0 + T(RELEASE), tB: t0 + T(BREAK), life: T(BREAK - FREEZE + 520) };
     when(FREEZE, () => {
@@ -2339,7 +2339,7 @@ export class BattleScene {
       const pts = [];
       for (let i = 0; i < 34 * lp; i++) pts.push({ x: field.cx + (Math.random() - 0.5) * field.w * 1.3, y: field.cy - 6 - Math.random() * 70, dx: (Math.random() - 0.5) * 16, dy: (Math.random() - 0.5) * 10, c: ['#ffffff', '#bfe6ff', '#6fc8ff', '#b8a6ff'][i % 4], ph: Math.random() * 6, plus: i % 5 === 0 });
       this.mets.push({ kind: 'tsmotes', pts, cx: field.cx, cy: field.cy - 20, t0: now(), tS: now() + T(380), tR: t0 + T(BREAK), life: T(BREAK - FREEZE + 150) });
-      sfx('ice'); sfx('whoosh');
+      sfx('tsFreeze');
     });
     // each enemy freezes as the shockwave reaches it
     const reach = 88 * field.w * 2.2 / 176;   // the wave's half-width at its widest (px)
@@ -2355,18 +2355,18 @@ export class BattleScene {
         this.glows.push({ x: E.x, y: hy, r: 30 * sc, color: '#bfe6ff', t: 0, life: 0.3, a: 0.9 });
         for (let i = 0; i < 16 * lp; i++) { const qd = Math.random() * Math.PI * 2, v = 30 + Math.random() * 60; this.particles.push({ x: E.x + Math.cos(qd) * 8 * sc, y: E.y - 2, vx: Math.cos(qd) * v, vy: -20 - Math.random() * 50, g: 120, life: 0.35 + Math.random() * 0.3, t: 0, c: ['#ffffff', '#bfe6ff', '#6fc8ff'][i % 3], streak: 2, drag: 0.88 }); }
         this.freezeUntil = now() + 50;
-        sfx('ice');
+        sfx('freeze');
       });
     });
     // 3. frozen state: everything still; the clock ticks
-    when(SETTLE + 150, () => sfx('click'));
-    when(SETTLE + 650, () => sfx('click'));
+    when(SETTLE + 150, () => sfx('tick'));
+    when(SETTLE + 650, () => sfx('tock'));
     // 4. release: the hands spin, the rune and the clock flare, then everything frozen shatters
     when(RELEASE, () => {
       const r = runeAt();
       this.glows.push({ x: r.x, y: r.y, r: 46, color: '#ffffff', t: 0, life: 0.3, a: 1 });
       this.glows.push({ x: field.cx, y: field.cy - 4, r: field.w * 0.55, color: '#bfe6ff', t: 0, life: 0.35, a: 0.8 });
-      sfx('whirl'); sfx('charge');
+      sfx('tsRewind');
     });
     order.forEach(E => when(breakAt(E), () => {
       const sc = E.size === 'xl' ? 2 : E.size === 'l' ? 1.5 : 1, hy = E.y - ({ xl: 40, l: 24 }[E.size] || 14);
@@ -2378,7 +2378,7 @@ export class BattleScene {
       }
       this.impact(ev, tgt, 'timestop', rc, tgt.filter(t => t.id === E.id), true);
       this.shake = Math.max(this.shake, 7); this.shakeT = now();
-      sfx('crush');
+      sfx('shatter');
     }));
     when(BREAK, () => {   // the clock breaks into shards of light, the motes fly off, the colour comes back
       this.flash = 0.3; this.flashC = '210,236,255';
@@ -2388,7 +2388,7 @@ export class BattleScene {
       }
       const r = runeAt();
       this.mets.push({ kind: 'tsshatter', x: r.x, y: r.y, sc: 1, t0: now(), life: T(700) });
-      sfx('boom'); sfx('ice');
+      sfx('tsBreak');
     });
     when(BREAK + order.length * 90 + 60, () => { const rest = ev.targets.filter(t => !isEnemy(t.id)); if (rest.length) this.impact(ev, [], 'timestop', rc, rest, true); this._applyAfter(ev); });
     setTimeout(() => { A.anim = null; A.chronoRim = null; }, T(acc + 40));
@@ -2882,7 +2882,7 @@ export class BattleScene {
     } };
     // ---- 1. charge: light motes stream into him, his outline glows, a ring of light on the floor
     A.chronoRim = { t0, until: t0 + T(CH + 60), color: '#7fc8ff', inner: '#dff4ff' };
-    sfx('charge');
+    sfx('resolveCharge');
     this.glows.push({ x: A.x, y: A.y - 1, r: 12, grow: 26, color: '#9fd8ff', t: 0, life: CH / 1000, a: 0.7, rune: true });   // (glows run on game time: plain seconds)
     for (let ms = 0; ms < CH - 60; ms += 45) when(ms, () => {
       const k = ms / CH, px = A.x + A.ox, py = A.y + A.oy - 24;
@@ -2901,7 +2901,7 @@ export class BattleScene {
     for (let ms = 0; ms < CH; ms += 150) when(ms, () => this.glows.push({ x: A.x - 4, y: A.y - 24, r: 26 + ms / CH * 34, color: '#7fc8ff', t: 0, life: 0.3, a: 0.25 + 0.4 * ms / CH }));
     const tipC = R && R.tipCharge;
     if (tipC) when(200, () => this.stars.push({ kind: 'star', x: A.x + tipC[0], y: A.y + tipC[1], t0: now(), grow: T(CH - 260), color: '#dff4ff' }));
-    when(CH - 260, () => { this.glows.push({ x: A.x - 10, y: A.y - 30, r: 34, color: '#bfe6ff', t: 0, life: 0.3, a: 0.9 }); sfx('twinkle'); });
+    when(CH - 260, () => { this.glows.push({ x: A.x - 10, y: A.y - 30, r: 34, color: '#bfe6ff', t: 0, life: 0.3, a: 0.9 }); sfx('lockSnap'); });
     when(CH - 10, () => { for (const st of this.stars) if (st.color === '#dff4ff') st.done = true; });
     // ---- 2. vanish: a white flash, light shards off his body, a streak of light to the enemies
     when(CH, () => {
@@ -2913,7 +2913,7 @@ export class BattleScene {
       this.glows.push({ x: px, y: py, r: 46, color: '#cfeeff', t: 0, life: 0.3, a: 1 });
       const a = Math.atan2(cy - py, cx - px);
       this.xhits.push({ kind: 'blade', x: px, y: py, a, l1: Math.hypot(cx - px, cy - py), l2: 6, w: 3.2, t0: now(), life: T(300) });
-      sfx('whoosh');
+      sfx('resolveVanish');
     });
     // ---- the ball of light that swells while the slashes land
     this.rbloom = { x: cx, y: cy, r: RAD * 1.25, t0: t0 + T(B0 - 60), t1: t0 + T(B1), t2: t0 + T(B1 + 420) };
@@ -2957,7 +2957,7 @@ export class BattleScene {
       if (last[rec.id] === tgt.indexOf(rec)) this._applyAfter(ev, [rec.id]);
       for (let k = 0; k < 4; k++) this.particles.push({ x: cx + rnd(-RAD, RAD), y: cy + rnd(-RAD, RAD) * 0.7, vx: rnd(-12, 12), vy: rnd(-16, 4), g: 0, life: rnd(0.5, 1.1), t: 0, c: Math.random() < 0.5 ? '#ffffff' : '#bfe6ff', blob: rnd(0.2, 1), fade: true });
       this.shake = Math.max(this.shake, 2); this.shakeT = now(); this.freezeUntil = now() + 35;
-      sfx('slash'); if (i % 3 === 0) sfx('zap');
+      sfx('resolveSlash');
     }));
     // the storm ends in a burst: a flash, a ring of light and sparks flung out
     when(B1, () => {
@@ -2966,7 +2966,7 @@ export class BattleScene {
       for (let k = 0; k < 30; k++) { const a = rnd(0, Math.PI * 2), v = rnd(110, 260); this.slivers.push({ x: cx + Math.cos(a) * 8, y: cy + Math.sin(a) * 8, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.8, len: rnd(8, 20), t0: now(), last: now(), life: T(rnd(500, 1000)) }); }
       this.flash = Math.max(this.flash || 0, 0.22); this.flashC = '225,242,255';
       this.shake = Math.max(this.shake, 6); this.shakeT = now();
-      sfx('hitBig');
+      sfx('resolveBurst');
     });
     // ---- 3. reappear in the air above the enemies, falling in from above as after-images
     when(AP - 30, () => { this.move(A, air.x - home.x, gy - home.y, 1); A.lift = L; A.liftT = null; A.zb = 1000; });
@@ -2978,7 +2978,7 @@ export class BattleScene {
       for (let k = 0; k < 7; k++) this.xhits.push({ kind: 'blade', x: air.x + rnd(-34, 34), y: air.y - rnd(30, 60), a: Math.PI / 2, l1: rnd(30, 60), l2: rnd(20, 50), w: rnd(1.2, 2.2), t0: now() + T(k * 20), life: T(240) });
       this.glows.push({ x: air.x, y: air.y - 30, r: 10, grow: 46, color: '#bfe6ff', t: 0, life: 0.4, a: 0.9, ring: true });
       this.glows.push({ x: air.x, y: air.y - 30, r: 40, color: '#dff4ff', t: 0, life: 0.3, a: 0.8 });
-      sfx('whoosh'); sfx('twinkle');
+      sfx('resolveAppear');
     });
     // ---- 4. the blade extends upward into a long pillar of light, held for a moment
     const P = R || { tipUp: [-33, -100], guardUp: [-33, -61], tipDown: [-33, -15], guardDown: [-33, -51] };
@@ -2987,11 +2987,11 @@ export class BattleScene {
       const tip = { x: air.x + P.tipUp[0], y: air.y + P.tipUp[1] };
       this.glows.push({ x: tip.x, y: tip.y, r: 8, grow: 30, color: '#dff4ff', t: 0, life: 0.45, a: 1, ring: true });
       this.glows.push({ x: tip.x, y: tip.y, r: 30, color: '#ffffff', t: 0, life: 0.3, a: 1 });
-      sfx('charge'); sfx('rise');
+      sfx('resolveExtend');
     });
-    when(EX + 320, () => sfx('twinkle'));
+    when(EX + 320, () => sfx('divineSeal'));
     // ---- 5. the downward strike: the pillar sweeps over and down and crashes onto the enemies as a column of light
-    when(SW, () => { sfx('heavy'); sfx('whoosh'); });
+    when(SW, () => { sfx('dragonLunge'); });
     when(HIT, () => {
       const W = Math.max(46, spread * 1.7 + 16);
       this.rpillar.push({ x: cx, w: W, floor: gy, t0: now(), life: T(1150) });
@@ -3005,7 +3005,7 @@ export class BattleScene {
       this.shake = Math.max(this.shake, 15); this.shakeT = now(); this.freezeUntil = now() + 170;
       if (fin.length) this.impact(ev, tgt, 'xslash', rc, fin, true);
       for (const r of fin) if (last[r.id] === tgt.indexOf(r)) this._applyAfter(ev, [r.id]);
-      sfx('boom'); sfx('hitBig');
+      sfx('resolveStrike');
     });
     // ---- 6. he flashes back to his place, drops in and lands
     when(BACK, () => {
@@ -3014,7 +3014,7 @@ export class BattleScene {
       for (let j = 0; j < 18; j++) { const a = rnd(0, Math.PI * 2), v = rnd(30, 90); this.particles.push({ x: px + rnd(-6, 6), y: py + rnd(-14, 14), vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, g: 20, life: rnd(0.3, 0.6), t: 0, c: j % 3 ? '#9fd8ff' : '#ffffff', fade: true }); }
       const to = { x: home.x - 4, y: home.y - 66 }, a = Math.atan2(to.y - py, to.x - px);
       this.xhits.push({ kind: 'blade', x: px, y: py, a, l1: Math.hypot(to.x - px, to.y - py), l2: 4, w: 2.6, t0: now(), life: T(260) });
-      sfx('whoosh');
+      sfx('resolveVanish');
     });
     when(DROP, () => {
       this.move(A, 0, 0, 1); A.lift = 46; A.liftT = null; A.zb = 0; A.hideHud = false; this.setLift(A, 0, T(LAND - DROP), 'in');

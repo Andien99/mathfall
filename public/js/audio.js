@@ -5,7 +5,8 @@ let ctx = null, master = null, enabled = true, noiseBuf = null;
 let lastPlay = {};
 const buffers = {}, gains = {};
 let raw = null;          // name -> Promise<ArrayBuffer>, started at page load
-const VARY = new Set(['hit', 'hitBig', 'slash', 'heavy', 'bow', 'stomp', 'block', 'hurt', 'crush', 'whoosh', 'coin']);
+const VARY = new Set(['hit', 'hitBig', 'slash', 'heavy', 'bow', 'stomp', 'block', 'hurt', 'crush', 'whoosh', 'coin',
+  'resolveSlash', 'phantomShot', 'phantomHit', 'phantomSplit', 'freeze', 'shatter', 'critHit']);
 
 try {
   raw = fetch('/sfx/manifest.json').then(r => r.json()).then(man => {
@@ -121,5 +122,6 @@ export function sfx(name) {
   const t = performance.now();
   if (lastPlay[name] && t - lastPlay[name] < 45) return;
   lastPlay[name] = t;
+  if (window.__mfSfxLog) window.__mfSfxLog.push(name);   // dev pages can list what played
   try { if (window.__mfSynthOnly || !playBuffer(name)) (SFX[name] || SFX.click)(); } catch (e) { /* ignore */ }
 }

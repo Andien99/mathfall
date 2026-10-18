@@ -15,7 +15,14 @@ const GROUPS = {
   'Interface': ['click', 'vote', 'coin', 'correct', 'wrong', 'banner', 'open', 'victory', 'lose'],
   'Hero attacks and skills': ['slash', 'heavy', 'whirl', 'whoosh', 'bow', 'cast', 'zap', 'burn', 'poison', 'ice', 'heal', 'shield', 'focus', 'twinkle', 'charge', 'rise'],
   'Impacts': ['hit', 'hitBig', 'stomp', 'crush', 'hurt', 'block', 'boom', 'fall'],
-  'Enemies': ['enemyWind', 'roar', 'hex', 'defeat']
+  'Enemies': ['enemyWind', 'roar', 'hex', 'defeat'],
+  "Hero's Resolve (knight)": ['resolveCharge', 'resolveVanish', 'resolveSlash', 'resolveBurst', 'resolveAppear', 'resolveExtend', 'resolveStrike'],
+  'Phantom Volley (ranger)': ['phantomLeap', 'phantomDraw', 'phantomShot', 'phantomSplit', 'phantomHit'],
+  'Deadeye (ranger)': ['lockOn', 'lockSnap', 'deadeyeCharge', 'deadeyeShot', 'critHit'],
+  'Divine Shield (cleric)': ['divineCast', 'divineMote', 'shieldForm', 'divineSeal', 'purify'],
+  "Dragon's Wrath (mage)": ['dragonAwaken', 'dragonEyes', 'dragonRoar', 'dragonGather', 'dragonLunge', 'dragonBite', 'dragonErupt', 'dragonFade'],
+  'Time Stop (mage)': ['tsChannel', 'tsStreak', 'tsFreeze', 'freeze', 'tick', 'tock', 'tsRewind', 'shatter', 'tsBreak'],
+  'Resurrection (cleric)': ['resInvoke', 'resPortal', 'angelAppear', 'wingFlap', 'holyBeam', 'soulRise', 'heartbeat', 'revive', 'angelDepart']
 };
 const out = document.getElementById('out'), synth = document.getElementById('synth');
 for (const [title, names] of Object.entries(GROUPS)) {
