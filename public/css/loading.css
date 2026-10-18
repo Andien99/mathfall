@@ -1,0 +1,36 @@
+/* Mathfall loading screen: shown while the art, effects and sounds download (host page, and the teacher's solo
+   test game). Used by public/js/loading.js and by the blank tab the host opens for a test game. */
+#mfLoad {
+  position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 50% 30%, #2a2a5e 0%, #0e0c1a 60%) #0b0814;
+  color: #f0ecff; font-family: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
+  transition: opacity 0.45s ease, visibility 0.45s;
+}
+#mfLoad.out { opacity: 0; visibility: hidden; pointer-events: none; }
+#mfLoad .ml-box { width: min(440px, 88vw); text-align: center; }
+#mfLoad .ml-gem { width: 64px; height: 64px; margin: 0 auto 18px; image-rendering: pixelated; animation: mlBob 1.6s ease-in-out infinite; }
+#mfLoad .ml-gem svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 0 14px rgba(232, 184, 90, 0.55)); }
+#mfLoad .ml-gem .spin { transform-origin: 16px 16px; animation: mlSpin 2.4s linear infinite; }
+#mfLoad .ml-logo {
+  font-family: 'Cinzel', 'Times New Roman', serif; font-weight: 900; font-size: 46px; letter-spacing: 0.05em; line-height: 1;
+  background: linear-gradient(180deg, #fff3c8, #f2c14e 60%, #a8622a); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+#mfLoad .ml-sub { margin-top: 6px; color: #a8a2c6; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 14px; }
+#mfLoad .ml-bar {
+  margin: 28px 0 10px; height: 18px; padding: 3px; border: 2px solid #e8b85a; border-radius: 3px;
+  background: #07060f; box-shadow: 0 0 0 2px #07060f, 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+#mfLoad .ml-fill {
+  height: 100%; width: 0%; transition: width 0.25s ease-out;
+  background: repeating-linear-gradient(90deg, #ffe2a0 0 8px, #e8b85a 8px 10px);   /* pixel segments */
+  box-shadow: 0 0 10px rgba(255, 210, 120, 0.6);
+}
+#mfLoad .ml-row { display: flex; justify-content: space-between; gap: 12px; font-weight: 700; font-size: 15px; }
+#mfLoad .ml-what { color: #f0ecff; }
+#mfLoad .ml-num { color: #a8a2c6; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#mfLoad .ml-tip { margin-top: 22px; min-height: 2.6em; color: #a8a2c6; font-size: 15px; }
+#mfLoad .ml-skip { margin-top: 14px; display: none; border: 1px solid rgba(160, 175, 255, 0.32); background: linear-gradient(180deg, #2c3a80, #1d2558); color: #f0ecff; border-radius: 7px; padding: 8px 16px; font: inherit; font-weight: 700; cursor: pointer; }
+#mfLoad.slow .ml-skip { display: inline-block; }
+@keyframes mlBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes mlSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #mfLoad .ml-gem, #mfLoad .ml-gem .spin { animation: none; } }

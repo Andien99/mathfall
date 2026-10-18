@@ -165,6 +165,7 @@ $('#createBtn').addEventListener('click', () => {
 $('#testBtn').addEventListener('click', () => {
   $('#createErr').textContent = '';
   const tab = window.open('about:blank', '_blank');   // opened during the click so pop-up blockers allow it
+  loadingTab(tab);
   const sets = sel.setIds.map(id => mySets.find(s => s.id === id)).filter(Boolean).map(s => ({ title: s.title, questions: s.questions, modified: s.modified || [] }));
   socket.emit('host:create', { settings, test: { invincible: $('#testInv').checked }, questions: { bankIds: sel.bankIds, sets, gens: sel.gens, format: sel.format } }, res => {
     if (!res.ok) { if (tab) tab.close(); $('#createErr').textContent = res.msg || 'Could not create the test game.'; return; }
@@ -175,6 +176,21 @@ $('#testBtn').addEventListener('click', () => {
     show('lobby');
   });
 });
+
+// The blank test tab shows the loading screen straight away, while the server creates the game and the page loads.
+function loadingTab(tab) {
+  if (!tab || !window.MF_Loading) return;
+  try {
+    const d = tab.document;
+    d.open();
+    d.write('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<title>Mathfall · Test game</title><link rel="stylesheet" href="/css/fonts.css"><link rel="stylesheet" href="/css/loading.css">' +
+      '<style>html,body{margin:0;background:#0b0814}</style></head><body><div id="mfLoad">' + MF_Loading.markup('Test game') + '</div></body></html>');
+    d.close();
+    d.querySelector('.ml-what').textContent = 'Creating the test game…';
+    d.querySelector('.ml-tip').textContent = 'Invincible heroes are on by default. The pink TEST button jumps to any room.';
+  } catch (e) { /* the tab still works without it */ }
+}
 
 // ------------------------------------------------------------------ socket
 socket.on('connect', () => {
@@ -616,3 +632,4 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#editor
 
 show('setup');
 loadBank();
+if (window.MF_Loading) MF_Loading.ready();

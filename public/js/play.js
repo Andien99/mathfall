@@ -126,6 +126,7 @@ function join(data) {
   $('#joinErr').textContent = '';
   socket.emit('join', { ...data, cls: pendingCls, gender: pendingGender }, res => {
     if (!res || !res.ok) {
+      if (window.MF_Loading) MF_Loading.hide();   // show the error rather than a loading screen
       if (data.token) { sessionStorage.removeItem('mf_session'); showScreen('join'); }
       $('#joinErr').textContent = (res && res.msg) || 'Could not join.';
       return;
@@ -134,6 +135,7 @@ function join(data) {
     scene.myId = me.playerId;
     try { sessionStorage.setItem('mf_session', JSON.stringify(me)); localStorage.setItem('mf_name', res.name); } catch (e) {}
     if (res.state === 'lobby') showScreen('lobby');
+    if (window.MF_Loading) MF_Loading.ready();   // the test game's loading screen hides once every file has arrived
   });
 }
 function tryResume() {
