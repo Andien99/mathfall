@@ -6,7 +6,7 @@ const C = window.MF_Content, A = window.MF_Answers, G = window.MF_Generators;
 const socket = io({ transports: ['websocket', 'polling'] });
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { toast('Your browser could not save that.'); } }
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { toast(k === 'mf_sets' ? 'Your browser is out of room for saved sets. Pictures take the most space: remove some, or Export the set to keep a copy.' : 'Your browser could not save that.'); return false; } }
 };
 let bank = { sets: [], topics: [] };
 let bankCache = {};
@@ -76,7 +76,7 @@ async function getBankSet(id) {
 async function fillPreview(pv, id) {
   const s = await getBankSet(id); clear(pv);
   const ol = h('ol');
-  for (const q of s.questions.slice(0, 80)) ol.append(h('li', null, h('span', { html: mathHTML(q.q) }), ' ', h('span', { class: 'ans', html: '→ ' + mathHTML(answerText(q)) })));
+  for (const q of s.questions.slice(0, 80)) ol.append(h('li', null, h('span', { html: mathHTML(q.q) }), q.image ? h('img', { class: 'pvimg', src: picSrc(q.image), alt: '', loading: 'lazy' }) : null, ' ', h('span', { class: 'ans', html: '→ ' + mathHTML(answerText(q)) })));
   pv.append(ol);
 }
 function answerText(q) { if (q.type === 'mc') return q.options[q.correct] || ''; const a = (q.answers || [])[0] || ''; return /\$/.test(a) ? a : a ? '$' + a + '$' : ''; }
@@ -409,7 +409,7 @@ function renderResults() {
   const stand = h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Team standings')), h('div', { class: 'standings' }, ...teams.map((t, i) => h('div', { class: 'stand', style: { '--tc': t.color } }, h('span', { class: 'place' }, i + 1), h('div', null, h('b', null, t.name), h('div', { class: 'tip', style: { margin: 0 } }, t.members.join(', '))), h('div', null, `${t.bossKills} boss win${t.bossKills === 1 ? '' : 's'} · best floor ${t.bestFloor} · ${t.wipes} fall${t.wipes === 1 ? '' : 's'}`)))));
   const skills = Object.entries(r.skills).map(([k, v]) => ({ k, pct: Math.round(100 * v.c / v.a), a: v.a })).sort((a, b) => a.pct - b.pct);
   const sk = h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Skills, weakest first'), h('p', null, 'Class accuracy on each skill.')), ...skills.map(s => h('div', { class: 'skillrow' }, h('span', null, s.k, h('span', { class: 'tip' }, ` (${s.a})`)), h('div', { class: 'bar' }, h('i', { style: { width: s.pct + '%' } })), h('b', null, s.pct + '%'))));
-  const hard = h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Hardest questions'), h('p', null, 'Questions asked at least twice, lowest accuracy first.')), ...r.questions.filter(q => q.asked >= 2).slice(0, 12).map(q => h('div', { class: 'hardq' }, h('div', { html: mathHTML(q.text) + (q.track === 'modified' ? ' <span class="tip">(supported)</span>' : '') }), h('b', { class: 'pct ' + (q.pct < 50 ? 'lo' : q.pct < 75 ? 'mid' : 'hi') }, `${q.pct}% of ${q.asked}`))));
+  const hard = h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Hardest questions'), h('p', null, 'Questions asked at least twice, lowest accuracy first.')), ...r.questions.filter(q => q.asked >= 2).slice(0, 12).map(q => h('div', { class: 'hardq' }, h('div', null, h('div', { html: mathHTML(q.text) + (q.track === 'modified' ? ' <span class="tip">(supported)</span>' : '') }), q.image ? h('img', { class: 'qthumb', src: q.image, alt: '' }) : null), h('b', { class: 'pct ' + (q.pct < 50 ? 'lo' : q.pct < 75 ? 'mid' : 'hi') }, `${q.pct}% of ${q.asked}`))));
   const tbl = h('table', { class: 'tbl' }, h('thead', null, h('tr', null, h('th', null, 'Student'), h('th', null, 'Team'), h('th', { class: 'num' }, 'Answered'), h('th', { class: 'num' }, 'Correct'), h('th', { class: 'num' }, 'Best streak'), h('th', { class: 'num' }, 'Avg time'), h('th', null, 'Weakest skill'))),
     h('tbody', null, ...r.players.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => {
       const weak = Object.entries(p.bySkill).filter(([, v]) => v.a >= 2).sort((a, b) => a[1].c / a[1].a - b[1].c / b[1].a)[0];
@@ -462,7 +462,7 @@ function qList(key, label, arr, sub) {
     const need = needsAnswer(q);
     const row = h('div', { class: 'qrow', draggable: 'true' },
       h('span', { class: 'ty ' + q.type }, q.type === 'mc' ? 'MC' : 'Typed'),
-      h('div', null, h('div', { html: mathHTML(q.q) }), h('div', { class: 'a' + (need ? ' need' : ''), html: need ? 'Needs an answer' : '✓ ' + mathHTML(answerText(q)) }), q.skill ? h('div', { class: 'sk' }, q.skill) : null),
+      h('div', null, h('div', { html: mathHTML(q.q) }), q.image ? h('img', { class: 'qthumb', src: picSrc(q.image), alt: q.imageAlt || '' }) : null, h('div', { class: 'a' + (need ? ' need' : ''), html: need ? 'Needs an answer' : '✓ ' + mathHTML(answerText(q)) }), q.skill ? h('div', { class: 'sk' }, q.skill) : null),
       h('div', { class: 'ops' },
         h('button', { title: 'Edit', 'aria-label': 'Edit', onclick: () => { edComposer = { type: q.type, target: key, editing: i, draft: JSON.parse(JSON.stringify(q)) }; renderEditor(); } }, '✎'),
         h('button', { title: 'Copy to the other list', 'aria-label': 'Copy to the other list', onclick: () => { (key === 'main' ? edSet.modified : edSet.questions).push(JSON.parse(JSON.stringify(q))); saveSet(); renderEditor(); } }, '⇄'),
@@ -498,7 +498,7 @@ function composer() {
   const pv = h('div', { class: 'livepv' });
   const upd = () => { d.q = qIn.value; setMath(pv, d.q || ' '); };
   qIn.addEventListener('input', upd); upd();
-  box.append(h('label', null, 'Question'), qIn, pv);
+  box.append(h('label', null, 'Question'), qIn, pv, pictureField(d));
   if (c.type === 'mc') {
     const grid = h('div', { class: 'comp-grid' });
     d.options.slice(0, 4).forEach((o, i) => {
@@ -536,17 +536,83 @@ function composer() {
   };
   const add = h('button', { class: 'btn primary', onclick: save }, c.editing != null ? 'Save changes' : 'Add question');
   box.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); save(); } });
+  box.addEventListener('paste', e => {
+    const item = [...(e.clipboardData && e.clipboardData.items || [])].find(it => it.kind === 'file' && /^image\//.test(it.type));
+    if (!item) return;
+    e.preventDefault();
+    pictureField.take && pictureField.take(item.getAsFile());
+  });
   box.append(h('div', { class: 'comp-actions' }, add, c.editing != null ? h('button', { class: 'btn', onclick: () => { edComposer = { type: c.type, target: c.target, editing: null }; renderEditor(); } }, 'Cancel') : h('span', { class: 'tip' }, 'Ctrl + Enter adds it and starts the next one.'), err));
   return box;
 }
 function cleanQuestion(d) {
   const base = { type: d.type, q: (d.q || '').trim(), skill: (d.skill || '').trim() };
+  if (d.image) { base.image = d.image; if (d.imageAlt && d.imageAlt.trim()) base.imageAlt = d.imageAlt.trim(); }
   if (d.hint && d.hint.trim()) base.hint = d.hint.trim();
   if (d.solution && d.solution.trim()) base.solution = d.solution.trim();
   if (d.type === 'mc') { base.options = d.options.map(o => (o || '').trim()).filter(Boolean); base.correct = 0; }
   else base.answers = (d.answers || []).map(a => a.trim()).filter(Boolean);
   return base;
 }
+// ---- question pictures
+// Bank pictures are stored as a path inside the banks folder ("img/…"); uploads as a data: URI.
+function picSrc(v) { v = String(v || ''); return /^(data:|https?:|\/)/.test(v) ? v : '/banks/' + v; }
+function pictureField(d) {
+  const wrap = h('div', { class: 'picfield' });
+  const draw = () => {
+    clear(wrap);
+    wrap.append(h('label', null, 'Picture (optional)'));
+    if (d.image) {
+      const alt = h('input', { type: 'text', value: d.imageAlt || '', placeholder: 'Describe the picture for screen readers, e.g. Venn diagram: A only 5, both 2, B only 3, neither 1', 'aria-label': 'Picture description' });
+      alt.addEventListener('input', () => { d.imageAlt = alt.value; });
+      wrap.append(h('div', { class: 'picrow' },
+        h('img', { class: 'picprev', src: picSrc(d.image), alt: '' }),
+        h('div', { class: 'picops' }, alt,
+          h('div', null, h('label', { class: 'btn small' }, 'Replace', fileIn()), ' ', h('button', { class: 'btn small', onclick: () => { delete d.image; delete d.imageAlt; draw(); } }, 'Remove picture')),
+          h('div', { class: 'tip' }, sizeNote(d.image)))));
+    } else {
+      const link = h('input', { type: 'text', inputmode: 'url', placeholder: 'or paste an https:// link to a picture', 'aria-label': 'Picture link' });
+      link.addEventListener('change', () => { const v = link.value.trim(); if (/^https:\/\//i.test(v)) { d.image = v; draw(); } else if (v) toast('Use a link that starts with https://'); });
+      wrap.append(h('div', { class: 'picadd' }, h('label', { class: 'btn' }, '🖼 Add a picture', fileIn()), link),
+        h('div', { class: 'tip' }, 'A diagram, table, graph or spinner shown under the question. You can also paste a screenshot (Ctrl + V) anywhere in this box. Students can tap it to enlarge.'));
+    }
+  };
+  const fileIn = () => h('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp,image/svg+xml', style: { display: 'none' }, onchange: async e => { const f = e.target.files[0]; if (f) await take(f); } });
+  const take = async f => {
+    try { d.image = await shrinkPicture(f); draw(); toast('Picture added'); }
+    catch (err) { toast(err.message || 'That picture could not be used.'); }
+  };
+  pictureField.take = take;
+  draw();
+  return wrap;
+}
+function sizeNote(v) {
+  if (!/^data:/.test(v)) return /^https:/.test(v) ? 'Linked picture: students\' devices load it from that site.' : 'School bank picture.';
+  const kb = Math.round(v.length * 0.75 / 1024);
+  return `Saved with the set in this browser (${kb} KB).`;
+}
+// Scale big pictures down to 1000 px wide and keep each one small, so a set with many pictures still fits in the browser.
+async function shrinkPicture(file) {
+  if (!/^image\//.test(file.type)) throw new Error('That file is not a picture.');
+  const asData = () => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error('Could not read that picture.')); r.readAsDataURL(file); });
+  if (file.type === 'image/svg+xml') { if (file.size > 300 * 1024) throw new Error('That SVG is over 300 KB.'); return asData(); }
+  if (file.type === 'image/gif' && file.size < 400 * 1024) return asData();
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('That picture could not be opened.')); i.src = url; });
+    const scale = Math.min(1, 1000 / img.naturalWidth, 900 / img.naturalHeight);
+    const w = Math.max(1, Math.round(img.naturalWidth * scale)), hgt = Math.max(1, Math.round(img.naturalHeight * scale));
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = hgt;
+    const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, hgt); cx.drawImage(img, 0, 0, w, hgt);
+    // Diagrams and screenshots stay sharp as PNG; photos (or big PNGs) become JPEG.
+    let out = cv.toDataURL('image/png');
+    if (out.length > 260 * 1024) out = cv.toDataURL('image/jpeg', 0.86);
+    if (out.length > 400 * 1024) out = cv.toDataURL('image/jpeg', 0.7);
+    if (out.length > 1.4 * 1024 * 1024) throw new Error('That picture is too big even after shrinking.');
+    return out;
+  } finally { URL.revokeObjectURL(url); }
+}
+
 function needsAnswer(q) { return q.type === 'mc' ? !(q.options && q.options.length > 1 && q.options[q.correct]) : !(q.answers && q.answers.length); }
 
 // ------------------------------------------------------------------ import
@@ -620,6 +686,7 @@ function fixQ(q) {
   const text = q.q || q.question; if (!text) return null;
   const out = { type: q.type === 'text' || q.type === 'typed' ? 'text' : (q.options ? 'mc' : 'text'), q: text, skill: q.skill || '' };
   if (q.hint) out.hint = q.hint; if (q.solution) out.solution = q.solution;
+  if (q.image) { out.image = q.image; if (q.imageAlt) out.imageAlt = q.imageAlt; }
   if (out.type === 'mc') { out.options = q.options; out.correct = typeof q.correct === 'number' ? q.correct : Math.max(0, q.options.indexOf(q.correct)); }
   else out.answers = Array.isArray(q.answers) ? q.answers : q.answer != null ? [String(q.answer)] : [];
   return out;

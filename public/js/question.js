@@ -26,6 +26,7 @@ export class QuestionPanel {
     if (q.type === 'text' && !this.useKeypad) setTimeout(() => this.input && this.input.focus(), 30);
   }
   close(silent) {
+    closeZoom();
     this.el.classList.remove('show', 'correct', 'wrong', 'compact', 'peek');
     document.body.classList.remove('q-open');
     if (!silent && this.hd.onClose) this.hd.onClose();
@@ -48,6 +49,7 @@ export class QuestionPanel {
     const body = h('div', { class: 'qbody' });
     const text = h('div', { class: 'qtext' }); setMath(text, q.text);
     body.appendChild(text);
+    if (q.image) body.appendChild(qPicture(q));
     if (q.skill) body.prepend(h('div', { class: 'qskill' }, q.skill + (q.track === 'modified' ? '' : '')));
     if (q.type === 'mc') {
       const grid = h('div', { class: 'qopts' + (q.options.length > 4 ? ' many' : '') });
@@ -147,6 +149,7 @@ export class QuestionPanel {
     const body = card.querySelector('.qbody');
     clear(body);
     const text = h('div', { class: 'qtext small' }); setMath(text, this.q.text);
+    const pic = this.q.image ? qPicture(this.q, true) : null;
     const fb = h('div', { class: 'qfeedback' },
       res.missed ? h('div', { class: 'fbmiss' }, 'Missed! Your turn is used up.') : null,
       res.result ? h('div', { class: 'fbmiss' }, res.result) : null,
@@ -162,7 +165,7 @@ export class QuestionPanel {
     if (wait > 0) { again.textContent = `${lab} (${left})`; const iv = setInterval(() => { left--; if (left <= 0) { clearInterval(iv); again.disabled = false; again.textContent = lab; again.focus(); } else again.textContent = `${lab} (${left})`; }, 1000); }
     else { again.disabled = false; setTimeout(() => again.focus(), 30); }
     again.addEventListener('click', () => { if (again.disabled) return; if (res.closeOnly) this.close(); else this.hd.onNext(); });
-    body.append(text, fb, h('div', { class: 'fbrow' }, again, this.meta.noSwitch || res.closeOnly ? null : h('button', { class: 'linkbtn', onclick: () => { this.hd.onDrop && this.hd.onDrop(); this.close(); } }, 'Choose a different action')));
+    body.append(text, pic || '', fb, h('div', { class: 'fbrow' }, again, this.meta.noSwitch || res.closeOnly ? null : h('button', { class: 'linkbtn', onclick: () => { this.hd.onDrop && this.hd.onDrop(); this.close(); } }, 'Choose a different action')));
   }
   flashMsg(msg) {
     let m = this.el.querySelector('.qmsg');
@@ -171,7 +174,7 @@ export class QuestionPanel {
   }
   key(e) {
     if (!this.isOpen || !this.q) return;
-    if (e.key === 'Escape') { e.preventDefault(); this.close(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); if (closeZoom()) return; this.close(); return; }
     if (this.mode === 'feedback' && e.key === 'Enter') { const b = this.el.querySelector('.again'); if (b && !b.disabled) { e.preventDefault(); b.click(); } return; }
     if (this.mode !== 'ask') return;
     if (this.q.type === 'mc') {
@@ -180,6 +183,25 @@ export class QuestionPanel {
     } else if (e.key === 'Enter') { e.preventDefault(); this.submit(this.input.value); }
   }
 }
+
+// The question's picture (diagram, table, spinner…). Tap or click it to see it full screen.
+export function qPicture(q, small) {
+  const img = h('img', { src: q.image, alt: q.imageAlt || 'Diagram for the question', draggable: 'false', decoding: 'async' });
+  img.addEventListener('error', () => { fig.classList.add('broken'); fig.textContent = 'The picture for this question did not load.'; });
+  const fig = h('figure', { class: 'qimg' + (small ? ' small' : ''), title: 'Tap to enlarge', role: 'button', tabindex: '0', 'aria-label': 'Enlarge the picture' }, img);
+  const open = e => { e.preventDefault(); e.stopPropagation(); zoom(q); };
+  fig.addEventListener('click', open);
+  fig.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') open(e); });
+  return fig;
+}
+let zoomEl = null;
+function zoom(q) {
+  closeZoom();
+  zoomEl = h('div', { class: 'qzoom', role: 'dialog', 'aria-label': 'Picture' }, h('img', { src: q.image, alt: q.imageAlt || '' }), h('button', { class: 'qzoom-x', 'aria-label': 'Close picture' }, '×'));
+  zoomEl.addEventListener('click', e => { e.stopPropagation(); closeZoom(); });
+  document.body.appendChild(zoomEl);
+}
+function closeZoom() { if (!zoomEl) return false; zoomEl.remove(); zoomEl = null; return true; }
 
 function asMath(t) {
   t = String(t == null ? '' : t);

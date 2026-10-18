@@ -1,6 +1,7 @@
 // Question sets, selection (adaptive, no quick repeats, shuffled options) and marking.
 const { mark } = require('../shared/answers');
 const G = require('../shared/generators');
+const { resolveImage } = require('./qimages');
 
 const TIPS = [
   [/identif|like term/i, 'Like terms have exactly the same letters and powers. The number in front can be different: $xy$ and $yx$ are like terms, $x$ and $x^{2}$ are not.'],
@@ -29,6 +30,9 @@ function normaliseQuestion(raw) {
   const skill = clip(raw.skill || '', 80).trim();
   const hint = clip(raw.hint || '', 400).trim();
   const solution = clip(raw.solution || raw.worked || '', 800).trim();
+  const image = resolveImage(raw.image || raw.img || '');
+  const imageAlt = image ? clip(raw.imageAlt || raw.alt || '', 300).trim() : '';
+  const pic = image ? { image, imageAlt } : {};
   let type = raw.type === 'text' || raw.type === 'typed' ? 'text' : raw.type === 'mc' ? 'mc' : (Array.isArray(raw.options) && raw.options.length > 1 ? 'mc' : 'text');
   if (type === 'mc') {
     const options = (Array.isArray(raw.options) ? raw.options : []).map(o => clip(o, 200).trim()).filter(Boolean).slice(0, 6);
@@ -36,13 +40,13 @@ function normaliseQuestion(raw) {
     if (typeof correct === 'string' && !/^\d+$/.test(correct)) correct = options.indexOf(correct.trim());
     correct = parseInt(correct, 10);
     if (options.length < 2 || !(correct >= 0 && correct < options.length)) return null;
-    return { type, q, options, correct, skill, hint, solution };
+    return { type, q, options, correct, skill, hint, solution, ...pic };
   }
   let answers = raw.answers != null ? raw.answers : raw.answer;
   if (!Array.isArray(answers)) answers = answers == null ? [] : String(answers).split('|');
   answers = answers.map(a => clip(a, 120).trim()).filter(Boolean).slice(0, 8);
   if (!answers.length) return null;
-  return { type, q, answers, skill, hint, solution };
+  return { type, q, answers, skill, hint, solution, ...pic };
 }
 
 function normaliseSet(raw) {
@@ -118,6 +122,7 @@ class QuestionService {
     }
     const qid = `q${++this.seq}${Math.random().toString(36).slice(2, 6)}`;
     const pub = { qid, kind, type: q.type, text: q.q, skill: q.skill || '', track };
+    if (q.image) { pub.image = q.image; pub.imageAlt = q.imageAlt || ''; }
     const priv = { qid, key: item.key, q, type: q.type, track, servedAt: Date.now() };
     if (q.type === 'mc') {
       const order = q.options.map((_, i) => i);

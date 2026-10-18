@@ -589,9 +589,9 @@ class Session {
     const sk = priv.q.skill || 'General';
     s.bySkill[sk] = s.bySkill[sk] || { a: 0, c: 0 };
     s.bySkill[sk].a++; if (correct) s.bySkill[sk].c++;
-    if (!correct && s.wrong.length < 60) s.wrong.push({ q: priv.q.q, given: priv.type === 'mc' ? (p.pending.pub.options[parseInt(given, 10)] || '') : String(given).slice(0, 60), correct: priv.correctText, solution: priv.q.solution || '' });
+    if (!correct && s.wrong.length < 60) s.wrong.push({ q: priv.q.q, given: priv.type === 'mc' ? (p.pending.pub.options[parseInt(given, 10)] || '') : String(given).slice(0, 60), correct: priv.correctText, solution: priv.q.solution || '', image: priv.q.image || '' });
     const key = priv.key.startsWith('g:') ? priv.key + ':' + priv.q.q : priv.key;
-    const qs = this.qstats[key] || (this.qstats[key] = { text: priv.q.q, skill: sk, track: priv.track, asked: 0, correct: 0, gen: priv.key.startsWith('g:') });
+    const qs = this.qstats[key] || (this.qstats[key] = { text: priv.q.q, image: priv.q.image || '', skill: sk, track: priv.track, asked: 0, correct: 0, gen: priv.key.startsWith('g:') });
     qs.asked++; if (correct) qs.correct++;
     // adaptive difficulty
     if (correct) { p.wrongRow = 0; p.rightRow++; if (p.boost > 0 && p.rightRow >= 2) p.boost = 0; }

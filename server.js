@@ -8,11 +8,12 @@ const QRCode = require('qrcode');
 const { attach, sessions } = require('./server/session');
 const { normaliseSet } = require('./server/questions');
 const G = require('./shared/generators');
+const qimages = require('./server/qimages');
 
 const PORT = process.env.PORT || 3000;
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { pingInterval: 10000, pingTimeout: 20000, maxHttpBufferSize: 2e6 });
+const io = new Server(server, { pingInterval: 10000, pingTimeout: 20000, maxHttpBufferSize: 12e6 });
 
 // ---- School question bank: every .json file in /banks ----
 function loadBanks() {
@@ -58,6 +59,16 @@ function stamped(file) {
 }
 app.get(['/', '/index.html'], stamped('index.html'));
 app.get(['/host', '/host.html'], stamped('host.html'));
+// Question pictures: school bank pictures (banks/img) and pictures teachers uploaded with their own sets.
+// Served as images only (sandboxed), so an uploaded SVG can't run script if opened directly.
+const imgHeaders = res => { res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox"); res.setHeader('X-Content-Type-Options', 'nosniff'); };
+app.use('/banks/img', express.static(path.join(__dirname, 'banks', 'img'), { maxAge: '1d', setHeaders: imgHeaders }));
+app.get('/qimg/:id', (req, res) => {
+  const e = qimages.get(String(req.params.id));
+  if (!e) return res.status(404).end();
+  imgHeaders(res); res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+  res.type(e.type).send(e.buf);
+});
 app.use('/shared', express.static(path.join(__dirname, 'shared'), fresh));
 app.use(express.static(path.join(__dirname, 'public'), { ...fresh, extensions: ['html'] }));
 

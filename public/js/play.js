@@ -978,7 +978,7 @@ function showEnded() {
     if (y.wrong && y.wrong.length) {
       rep.append(h('h3', null, 'Questions to look at again'));
       const wl = h('div', { class: 'wrongs' });
-      for (const w of y.wrong.slice(0, 12)) wl.appendChild(h('div', { class: 'w' }, h('div', { html: mathHTML(w.q) }), h('div', { class: 'a', html: 'Answer: ' + mathHTML(/\$/.test(w.correct) ? w.correct : '$' + w.correct + '$') }), w.solution ? h('div', { class: 's', html: mathHTML(w.solution) }) : null));
+      for (const w of y.wrong.slice(0, 12)) wl.appendChild(h('div', { class: 'w' }, h('div', { html: mathHTML(w.q) }), w.image ? h('img', { class: 'wimg', src: w.image, alt: '' }) : null, h('div', { class: 'a', html: 'Answer: ' + mathHTML(/\$/.test(w.correct) ? w.correct : '$' + w.correct + '$') }), w.solution ? h('div', { class: 's', html: mathHTML(w.solution) }) : null));
       rep.append(wl);
     }
     wrap.append(rep);

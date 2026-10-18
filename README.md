@@ -53,6 +53,8 @@ While playing, the teacher's **live view** opens with **the tower**: a drawn sto
 
 Every `.json` file in the `banks/` folder appears under **School bank** for every teacher. This is the "agreed upon" bank: add or change a file, redeploy, and everyone sees it. `banks/year-7-algebra-core-skills.json` is included: 48 questions plus 30 supported questions on like terms, collecting like terms, coefficients and constants, substitution and equivalent expressions, each with a worked solution.
 
+`banks/year-10-probability-mix.json` (*Year 10 Probability + Algebra warm-up*) has 62 Year 10 probability questions (Cambridge Essential Maths 10/10A, 8A–8F: basics, experimental probability, set notation, Venn diagrams, two-way tables, the addition rule, conditional probability, two-step tables and tree diagrams), 37 of them with a diagram, mixed with the 48 Year 7 algebra questions. Every question is a short step or answered by inspection, or a rule to recall or complete. No supported list. The diagrams are SVGs in `banks/img/y10-probability/`, drawn by `node tools/build_prob_images.js`; the set itself is built by `node tools/build_y10_prob_bank.js` (it copies in the algebra questions and checks every picture exists).
+
 ### My sets
 
 Teachers' own sets are saved in their browser. **New set** opens the editor:
@@ -60,6 +62,7 @@ Teachers' own sets are saved in their browser. **New set** opens the editor:
 - Write maths between dollar signs: `$3x + 5x$`, `$\frac{1}{2}$`, `$x^{2}$`. The preview shows exactly what students see.
 - *Pick from options* (correct answer plus up to three wrong ones; options are shuffled per student) or *Type the answer* (with a **Test it** box to check what will be marked right).
 - Optional skill (for the results page), hint and worked solution.
+- **Picture (optional):** a diagram, table, graph or spinner shown under the question. **Add a picture** picks a file (PNG, JPEG, GIF, WebP or SVG), or paste a screenshot with Ctrl + V anywhere in the question box, or paste an `https://` link. Big pictures are shrunk to 1000 px wide (about 50–250 KB each) and saved with the set in your browser, so a set with many pictures can fill the browser's storage; **Export** keeps a copy. Add a short description for screen readers.
 - Every set has a **main list** and a **supported list**. Drag questions between them, or use ⇄ to copy.
 - **Paste a list**: one question per line, parts separated by `|` or a tab: `question | correct | wrong… | skill`. With only a correct answer it becomes a typed question.
 - **Import a file**: Mathfall or **Flurry Fight** `.json` exports, `.csv` or a text list.
@@ -95,7 +98,9 @@ Marked wrong on purpose: unsimplified answers (`3k + 5k` for `8k`), brackets lef
 }
 ```
 
-`hint` and `solution` are optional. Flurry Fight exports use the same shape.
+`hint`, `solution` and `image` are optional. `image` is a path inside `banks/` (`"img/y10-probability/venn-5-2-6-3.svg"`), an `https://` link, or a `data:image/…` picture (what the editor saves); add `imageAlt` to describe it. Flurry Fight exports use the same shape.
+
+**Question pictures.** Students see the picture under the question (and again, smaller, with the worked answer after a miss); tapping it opens it full screen. Uploaded pictures are sent to the server once when the game is created and served to students as a short `/qimg/…` link (kept in memory, sandboxed so an SVG can't run script); school bank pictures are served from `/banks/img/`. The teacher's results page and each student's report show the picture beside the question. `test/images.test.js` checks the rules and that every bank picture exists.
 
 ## Run it on your own computer
 
@@ -256,7 +261,7 @@ Runs 65 answer-marking cases, then starts a test server and has bot students pla
 - **Balance.** Bots won comfortably; real students will be slower and less accurate. Expect to tune enemy health and damage (`shared/content.js`, `server/combat.js`) after the first lessons.
 - **Phones.** Laptops, Chromebooks and iPads (both orientations) are the target. Phones work in landscape but are cramped.
 
-**Not built yet:** pictures or diagrams in questions; a live-editable shared bank (needs a database; for now the school bank is the `banks/` folder); saved results history (download the CSV); music.
+**Not built yet:** a live-editable shared bank (needs a database; for now the school bank is the `banks/` folder); saved results history (download the CSV); music.
 
 ## Files
 
@@ -266,6 +271,7 @@ server/session.js    games, players, teams, runs, all socket handlers
 server/combat.js     rounds, hero actions, enemy intents, statuses, the boss
 server/run.js        maps, rooms, loot
 server/questions.js  question sets, adaptive selection, marking, hints
+server/qimages.js    question pictures (bank paths, links, uploaded pictures served at /qimg)
 shared/content.js    heroes, skills, enemies (shared by server and browser)
 shared/answers.js    typed-answer marking (shared by server and the editor's Test it box)
 shared/generators.js skill-based question generators

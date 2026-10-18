@@ -241,3 +241,13 @@ main { max-width: 1320px; margin: 0 auto; padding: 22px 24px 60px; }
 .test-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
 .test-inv { display: flex; align-items: center; gap: 6px; font-size: 15px; }
 .test-tip { margin: 6px 0 0; font-size: 13px; }
+
+/* ---- Question pictures ---- */
+.picfield { margin-top: 10px; }
+.picadd { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.picadd input { flex: 1; min-width: 200px; }
+.picrow { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; }
+.picprev { max-width: 240px; max-height: 160px; background: #fff; border-radius: 6px; padding: 4px; }
+.picops { display: grid; gap: 6px; }
+.qthumb { display: block; max-width: 160px; max-height: 90px; background: #fff; border-radius: 4px; padding: 2px; margin: 4px 0; }
+.pvimg { display: inline-block; vertical-align: middle; max-width: 90px; max-height: 50px; background: #fff; border-radius: 3px; padding: 1px; margin: 0 4px; }

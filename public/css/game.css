@@ -664,3 +664,19 @@ body.portrait .qpanel.compact { align-items: flex-end; }
 @media (prefers-reduced-motion: reduce) { .node .pointer { animation: none; } }
 /* phones and iPads: no big raid-boss health/timer panel and no round/timer pill (the boss's own bar under it stays) */
 @media (hover: none) and (pointer: coarse) { #raidBar.show, #roundBox.show { display: none; } }
+
+/* ---- Question pictures ---- */
+.qimg { margin: -6px 0 16px; display: flex; justify-content: center; cursor: zoom-in; }
+.qimg img { display: block; max-width: 100%; max-height: min(34vh, 300px); width: auto; height: auto; background: #fff; border-radius: 8px; padding: 6px; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12); }
+.qimg.small { margin: 0 0 10px; }
+.qimg.small img { max-height: min(20vh, 170px); }
+.qimg.broken { cursor: default; color: var(--muted, #aaa); font-size: 14px; font-style: italic; }
+.qimg:focus-visible img { outline: 3px solid var(--brass, #ffd27a); outline-offset: 2px; }
+.qpanel.compact .qimg img { max-height: 18vh; }
+.qpanel.peek .qimg.small img { max-height: 14vh; }
+body.portrait .qimg img { max-height: 22vh; }
+@media (max-height: 560px) { .qimg img { max-height: 30vh; } .qimg { margin-bottom: 8px; } }
+.qzoom { position: fixed; inset: 0; z-index: 9999; background: rgba(5, 6, 16, 0.92); display: flex; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; animation: popIn 0.15s ease-out; }
+.qzoom img { max-width: 100%; max-height: 100%; background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 20px 80px rgba(0, 0, 0, 0.7); }
+.qzoom-x { position: absolute; top: max(10px, env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(0, 0, 0, 0.5); color: #fff; font-size: 28px; line-height: 1; }
+.wrongs .w .wimg { display: block; max-width: 220px; max-height: 120px; background: #fff; border-radius: 6px; padding: 4px; margin: 6px 0 2px; }
