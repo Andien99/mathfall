@@ -369,6 +369,7 @@ function renderTower() {
   scene.append(tw);
   box.append(scene);
 }
+$('#reportBtn').addEventListener('click', downloadReport);
 $('#raidBtn').addEventListener('click', () => { if (confirm('Start the raid now? Every team stops where they are and fights the raid boss together.')) socket.emit('host:raid', {}, r => { if (!r.ok) toast(r.msg || 'Could not start the raid.'); }); });
 
 // ------------------------------------------------------------------ spectate
@@ -403,7 +404,7 @@ $('#watchClose').addEventListener('click', () => { $('#watch').classList.remove(
 function renderResults() {
   const r = hs.results; const box = $('#results'); clear(box);
   if (!r) return;
-  const head = h('div', { class: 'card res-head' }, h('h1', null, 'Results'), h('div', null, h('button', { class: 'btn primary', onclick: () => download(`mathfall-results-${new Date().toISOString().slice(0, 10)}.csv`, toCSV(r), 'text/csv') }, 'Download results (CSV)'), ' ', h('button', { class: 'btn', onclick: newGame }, 'New game')));
+  const head = h('div', { class: 'card res-head' }, h('h1', null, 'Results'), h('div', null, h('button', { class: 'btn primary', onclick: () => download(`mathfall-results-${new Date().toISOString().slice(0, 10)}.csv`, toCSV(r), 'text/csv') }, 'Download results (CSV)'), ' ', h('button', { class: 'btn', onclick: downloadReport, title: 'How the game ran: server, network and every student\'s device. Send it to Claude for feedback.' }, 'Download session report'), ' ', h('button', { class: 'btn', onclick: newGame }, 'New game')));
   const teams = r.teams.slice().sort((a, b) => (b.bossKills - a.bossKills) || ((b.ascNow * 100 + b.floorNow) - (a.ascNow * 100 + a.floorNow)) || (b.bestFloor - a.bestFloor));
   const stand = h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Team standings')), h('div', { class: 'standings' }, ...teams.map((t, i) => h('div', { class: 'stand', style: { '--tc': t.color } }, h('span', { class: 'place' }, i + 1), h('div', null, h('b', null, t.name), h('div', { class: 'tip', style: { margin: 0 } }, t.members.join(', '))), h('div', null, `${t.bossKills} boss win${t.bossKills === 1 ? '' : 's'} · best floor ${t.bestFloor} · ${t.wipes} fall${t.wipes === 1 ? '' : 's'}`)))));
   const skills = Object.entries(r.skills).map(([k, v]) => ({ k, pct: Math.round(100 * v.c / v.a), a: v.a })).sort((a, b) => a.pct - b.pct);
@@ -627,6 +628,17 @@ function fixQ(q) {
 // ------------------------------------------------------------------ utils
 function uid() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'set'; }
+// Session report (how the game ran). It lives in the server's memory, so download it before leaving this page.
+async function downloadReport() {
+  if (!session) return toast('No game to report on.');
+  try {
+    const r = await fetch(`/api/report/${encodeURIComponent(session.code)}?k=${encodeURIComponent(session.hostToken)}`, { cache: 'no-store' });
+    if (!r.ok) return toast('That game is no longer on the server, so there is no report.');
+    const text = await r.text();
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+    download(`mathfall-session-${stamp}.json`, text, 'application/json');
+  } catch (e) { toast('Could not download the report. Check the connection.'); }
+}
 function download(name, text, type) { const a = h('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name }); document.body.append(a); a.click(); a.remove(); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#editor').classList.contains('show')) closeEditor(); });
 

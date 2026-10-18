@@ -4,6 +4,7 @@ const { QuestionService } = require('./questions');
 const CB = require('./combat');
 const RUN = require('./run');
 const C = require('../shared/content');
+const TEL = require('./telemetry');
 
 const TEAM_STYLES = [
   { name: 'Ember', color: '#ff8a3d' }, { name: 'Frost', color: '#62c8ff' }, { name: 'Thorn', color: '#7fd65b' },
@@ -70,6 +71,7 @@ class Session {
     this.hostDirty = true;
     this.watchers = new Map(); // host socket id -> team id
     this.raid = null;
+    this.tel = new TEL.Telemetry(this);
   }
 
   room(teamId) { return `${this.code}:${teamId}`; }
@@ -491,6 +493,7 @@ class Session {
 
   // ------------------------------------------------------------ raid boss
   startRaid() {
+    this.tel.event('raidStart', {});
     if (this.raid || this.state !== 'playing') return;
     for (const t of this.teams) if (t.members.length && !t.run) this.startRun(t, 0);
     const teams = this.teams.filter(t => t.run && t.members.length);
@@ -516,6 +519,7 @@ class Session {
     }
   }
   endRaid(won) {
+    this.tel.event('raidEnd', { won: !!won });
     const raid = this.raid; if (!raid || raid.over) return;
     raid.over = true; raid.won = won; raid.endAt = now() + T(9000);
     this.endsAt = 0;
@@ -723,6 +727,7 @@ class Session {
     if (this.state === 'ended') return;
     this.state = 'ended';
     this.results = this.buildResults();
+    this.tel.event('end', {}); this.tel.final();
     for (const p of this.players.values()) {
       if (!p.socket) continue;
       const mine = this.results.players.find(r => r.id === p.id);
@@ -800,12 +805,15 @@ function attach(io, banks) {
   setInterval(() => {
     const t = now();
     for (const [code, s] of sessions) {
-      try { s.tick(t); s.emitHost(false); } catch (e) { console.error('tick error', code, e); }
+      const t1 = process.hrtime.bigint();
+      try { s.tick(t); s.emitHost(false); } catch (e) { console.error('tick error', code, e); s.tel.event('serverError', { msg: String(e && e.message || e).slice(0, 200) }); }
+      s.tel.tickTime(Number(process.hrtime.bigint() - t1) / 1e6);
       const anyone = s.hostSockets.size || [...s.players.values()].some(p => p.connected);
       if (anyone) s.lastActive = t;
       if (t - s.lastActive > 3 * 3600 * 1000) sessions.delete(code);
     }
   }, 200);
+  TEL.start(sessions);
   // Host summary refresh for timers (cheap): once a second
   setInterval(() => { for (const s of sessions.values()) if (s.state === 'playing') s.hostDirty = true; }, 1000);
 
@@ -823,14 +831,14 @@ function attach(io, banks) {
       const s = new Session(io, data && data.settings, qconfig);
       if (data && data.test) s.test = { invincible: !!data.test.invincible };
       sessions.set(s.code, s);
-      s.hostSockets.add(socket.id); hosting = s;
+      s.hostSockets.add(socket.id); hosting = s; s.tel.track(socket, null);
       reply(cb, { ok: true, code: s.code, hostToken: s.hostToken });
       s.emitHost(true);
     }));
     socket.on('host:resume', guard((data, cb) => {
       const s = getSession(data && data.code);
       if (!s || s.hostToken !== data.hostToken) return reply(cb, { ok: false });
-      s.hostSockets.add(socket.id); hosting = s;
+      s.hostSockets.add(socket.id); hosting = s; s.tel.track(socket, null);
       reply(cb, { ok: true, code: s.code });
       s.emitHost(true);
     }));
@@ -864,7 +872,7 @@ function attach(io, banks) {
       const p = s.players.get(d.pid); if (!p) return reply(cb, { ok: false });
       const t = s.team(p.teamId);
       if (t) { t.members = t.members.filter(id => id !== p.id); if (t.run) delete t.run.heroes[p.id]; }
-      s.players.delete(p.id);
+      s.players.delete(p.id); s.tel.event('kick', { name: p.name });
       if (p.socket) { p.socket.emit('kicked', {}); p.socket.leave(s.room(p.teamId)); }
       s.pruneEmptyTeams();
       if (t) { s.flush(t); if (t.run) { s.checkRoundDone(t); s.checkRoomReady(t); s.tallyVotes(t); } }
@@ -876,6 +884,7 @@ function attach(io, banks) {
       const t = s.team(p.teamId); if (t) s.flush(t);
     }));
     const startGame = s => {
+      s.tel.startedAt = Date.now(); s.tel.event('start', { players: s.players.size });
       s.pruneEmptyTeams();
       s.state = 'playing';
       s.endsAt = s.settings.timeLimit ? now() + s.settings.timeLimit * 60000 : 0;
@@ -890,6 +899,7 @@ function attach(io, banks) {
     socket.on('host:pause', hostOnly((s, d, cb) => {
       const want = !!d.paused;
       if (want === s.paused) return reply(cb, { ok: true });
+      s.tel.event(want ? 'pause' : 'resume', {});
       if (want) { s.paused = true; s.pausedAt = now(); }
       else { s.shiftDeadlines(now() - s.pausedAt); s.paused = false; }
       s.flushAll(); reply(cb, { ok: true });
@@ -922,7 +932,7 @@ function attach(io, banks) {
       const s = getSession(data && data.code);
       if (!s) return reply(cb, { ok: false, msg: 'No game has that code. Check the number on the board.' });
       if (s.state === 'ended') return reply(cb, { ok: false, msg: 'That game has finished.' });
-      let p = null;
+      let p = null, rejoin = false;
       if (data.token) p = [...s.players.values()].find(x => x.token === data.token) || null;
       const name = clean(data.name, 18);
       if (!p) {
@@ -935,10 +945,11 @@ function attach(io, banks) {
         if (s.state !== 'lobby' && !s.settings.lateJoin) return reply(cb, { ok: false, msg: 'This game has started and your teacher has locked it.' });
         if (s.players.size >= MAX_PLAYERS) return reply(cb, { ok: false, msg: 'This game is full.' });
         p = s.addPlayer(name);
-      }
+      } else rejoin = true;
       if (p.socket && p.socket.id !== socket.id) { try { p.socket.emit('replaced', {}); p.socket.disconnect(true); } catch (e) { /* ignore */ } }
       p.socket = socket; p.connected = true;
       me = { s, p };
+      s.tel.joined(p, socket, rejoin);
       if (p.teamId) socket.join(s.room(p.teamId));
       if (data.cls && C.HEROES[data.cls] && !p.cls) p.cls = data.cls;
       if ((data.gender === 'm' || data.gender === 'f') && !p.gender) p.gender = data.gender;
@@ -1236,12 +1247,16 @@ function attach(io, banks) {
       }));
     }
 
-    socket.on('disconnect', () => {
+    // Device report for the session report: frame rate, ping, reply times, errors. The ack lets the client time a round trip.
+    socket.on('tel', (d, cb) => { try { if (me && me.s.players.has(me.p.id)) me.s.tel.device(me.p, d); } catch (e) { /* never break the game for this */ } if (typeof cb === 'function') cb(1); });
+
+    socket.on('disconnect', reason => {
       if (hosting) { hosting.hostSockets.delete(socket.id); hosting.watchers.delete(socket.id); }
       if (me) {
         const { s, p } = me;
         if (p.socket === socket) {
           p.connected = false;
+          s.tel.left(p, reason);
           const t = s.team(p.teamId);
           if (t) { s.flush(t); if (t.run) { s.checkRoundDone(t); s.checkRoomReady(t); if (t.run.phase === 'map') s.tallyVotes(t); } }
           s.hostDirty = true;

@@ -226,6 +226,17 @@ PixelLab paints its own magic into many frames; `tools/assemble_moves.py` keeps 
 
 **The knight is hand-made.** `public/art/knight.png` is built from Andy's knight (`tools/art-src/knight_base.png`, 64×55, facing left) by `python3 tools/build_knight.py` (needs Pillow). The script cuts out the sword and re-angles it around the grip (RotSprite-style, so the blade stays crisp), leans and shifts the body for each pose, makes the kneeling knocked-out pose, and recolours the cape for the second and third knight in a team (blue, crimson, emerald). To change the knight, replace the base image and re-run the script. `/dev/sprites.html` shows every frame; `/dev/scene.html` previews the battle scene.
 
+## Session report (for feedback after a lesson)
+
+**Session report** on the live view, and **Download session report** on the results page, save a `.json` file describing how the game ran. Send it to Claude with the results CSV and a few lines of notes ("lag around minute 6", "two iPads dropped out") for feedback.
+
+- **Server, every 10 s:** players connected, CPU (% of one core for the whole server; Render's free plan gives about 10%), memory, event-loop lag (the clearest sign the server is struggling), the slowest 200 ms game tick, data sent and received, how many devices are on WebSocket vs long-polling (polling usually means the school network is interfering), and what each team is doing.
+- **Each student device, every 10 s:** frame rate, ping, how long each Attack, answer and quick-time reply took to come back, whether the battle dropped to lower detail, time spent on another tab, browser errors, and the device (browser, screen size, cores).
+- **Events:** joins, rejoins, disconnects (with the reason), kicks, pause, raid start and end, server errors.
+- **Summary:** peaks and averages of all of the above, the five slowest devices and the five highest pings.
+
+The report lives in the server's memory with the game, so download it before closing the results page; a restart or redeploy loses it. As a backup the server writes a one-line summary to its log every minute and a final summary when the game ends (`[mf-telemetry]` lines in Render's logs). The report is behind the game's host token, so only the teacher's page can download it. Recording costs almost nothing: one small message per device every 10 s. Built in `server/telemetry.js` and `public/js/telemetry.js`; `test/bots.test.js` checks the report.
+
 ## Tests
 
 ```

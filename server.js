@@ -80,6 +80,15 @@ app.get('/api/qr', async (req, res) => {
     res.type('image/svg+xml').send(svg);
   } catch (e) { res.status(500).end(); }
 });
+// Session report for the teacher (how the game ran): only with that game's host token.
+app.get('/api/report/:code', (req, res) => {
+  const s = sessions.get(String(req.params.code));
+  if (!s || !req.query.k || req.query.k !== s.hostToken) return res.status(404).json({ error: 'No game with that code is still on the server.' });
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  res.setHeader('Content-Disposition', `attachment; filename="mathfall-session-${stamp}.json"`);
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/json').send(JSON.stringify(s.tel.report(), null, 1));
+});
 app.get('/healthz', (req, res) => res.json({ ok: true, games: sessions.size }));
 
 attach(io, banks);

@@ -59,6 +59,8 @@ async function main() {
     if (!j.ok) throw new Error('join failed ' + j.msg);
     bot.id = j.playerId; bot.token = j.token;
     await emit(s, 'pickHero', { cls: classes[i % 4] });
+    // device reports, like a real browser sends for the session report
+    bot.tel = setInterval(() => { const t = Date.now(); bot.s.emit('tel', { fps: 50 + (i % 10), rtt: bot.rtt, transport: 'websocket', hidden: false, lowPower: i === 1, lat: [{ ev: 'answer', ms: 40 + i }], errors: i === 2 && !bot.errSent ? ['test error'] : [], info: { ua: 'bot', screen: '1366x768', dpr: 1, cores: 4 } }, () => { bot.rtt = Date.now() - t; }); bot.errSent = true; }, 2000);
     s.on('state', st => {
       if (STRESS) { const n = JSON.stringify(st).length; M.bytesStudent += n; M.msgsStudent++; if (n > M.biggestState) M.biggestState = n; }   // as sent
       if (st.run && !st.run.map && bot.state && bot.state.run) st.run.map = bot.state.run.map;   // the server skips an unchanged map
@@ -116,13 +118,29 @@ async function main() {
   const res = await emit(host, 'host:end', {});
   await sleep(400);
   const r = hostState && hostState.results;
+  // session report
+  const rep = await fetch(`${URL}/api/report/${code}?k=${created.hostToken}`).then(x => x.json()).catch(e => ({ error: String(e) }));
+  const bad = await fetch(`${URL}/api/report/${code}?k=wrong`).then(x => x.status);
+  if (bad !== 404) stats.errors.push('report not protected by the host token');
+  if (rep.format !== 'mathfall-session-report') stats.errors.push('no session report: ' + JSON.stringify(rep).slice(0, 200));
+  else {
+    if (rep.devices.length !== PLAYERS) stats.errors.push('report devices ' + rep.devices.length);
+    if (!rep.timeline.length) stats.errors.push('report has no timeline');
+    if (!rep.summary.disconnects || !rep.summary.rejoins) stats.errors.push('report missed the reconnect');
+    if (!rep.summary.lowPowerDevices.includes('Bot1')) stats.errors.push('report missed low power');
+    if (!rep.summary.clientErrors) stats.errors.push('report missed client errors');
+    if (!rep.devices.some(d => d.fps && d.pingMs && d.replyMs)) stats.errors.push('report missing device stats');
+    if (!rep.events.some(e => e.kind === 'raidStart') || !rep.events.some(e => e.kind === 'end')) stats.errors.push('report missing game events');
+    console.log('REPORT summary ' + JSON.stringify(rep.summary));
+    if (process.env.REPORT_OUT) require('fs').writeFileSync(process.env.REPORT_OUT, JSON.stringify(rep, null, 1));
+  }
   console.log(JSON.stringify({ ...stats, finished: done.size, players: PLAYERS, resultsPlayers: r ? r.players.length : 0, teams: r ? r.teams : null }, null, 1));
   if (!r || r.players.length !== PLAYERS) stats.errors.push('results missing players');
   if (stats.answered < PLAYERS * 3) stats.errors.push('too few answers');
   if (!stats.whiffs) stats.errors.push('no whiffs seen');
   if (!stats.free) stats.errors.push('no free actions used');
   if (!stats.statPicks) stats.errors.push('no stat upgrades picked');
-  host.close(); bots.forEach(b => b.s.close());
+  host.close(); bots.forEach(b => { clearInterval(b.tel); b.s.close(); });
   srv.kill();
   if (stats.errors.length || srvErr.includes('Error')) { console.error('FAILED', stats.errors); process.exit(1); }
   console.log('bot test passed');

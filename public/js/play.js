@@ -5,6 +5,7 @@ import { MapView } from './mapview.js';
 import { QuestionPanel } from './question.js';
 import * as SP from './sprites.js';
 import { sfx, setSound, soundOn, unlockAudio } from './audio.js';
+import { startTelemetry, timed } from './telemetry.js';
 
 const C = window.MF_Content;
 const socket = io({ transports: ['websocket', 'polling'] });
@@ -28,6 +29,7 @@ const scene = new BattleScene($('#scene'), {
   onAfter: () => renderParty(true)
 });
 window.__mfScene = scene;
+startTelemetry(socket, scene);
 scene.onLowPower = () => { console.info('Mathfall: lower detail mode for smoother play'); fit(); };
 // Portrait phones and tablets: the question docks to the bottom of the screen and the battle stays visible above it.
 // PORTRAIT_VIEW 'top' keeps the fighters in the upper part of the screen all the time; 'pan' leaves them where they
@@ -94,11 +96,11 @@ const qpanel = new QuestionPanel($('#qLayer'), {
   onSubmit: (qid, value) => {
     // Hold this round's animations until the card closes, so the student sees their own hero act.
     scene.hold(1500);
-    socket.emit('answer', { qid, value }, res => {
+    socket.emit('answer', { qid, value }, timed('answer', res => {
       if (!res || !res.ok || !res.correct) scene.release();
       qpanel.result(res);
       if (res && res.ok) renderActions();
-    });
+    }));
   },
   onClosed: res => {
     scene.release();
@@ -432,11 +434,11 @@ function act(action) {
   let target = scene.target;
   if (action === 'defend') target = scene.allyTarget || null;
   if (action.startsWith('skill')) { const info = actionInfo(hero, action); if (info.target === 'ally') target = scene.allyTarget || null; else if (info.target === 'self' || info.target === 'party') target = null; }
-  socket.emit('act', { action, target }, res => {
+  socket.emit('act', { action, target }, timed('act', res => {
     if (!res || !res.ok) { if (res && res.msg) toast(res.msg); return; }
     if (res.free) { sfx('correct'); banner(res.queued ? 'Free action ready for next round!' : 'Free action!', 'free'); renderActions(); return; }
     qpanel.open(res.q, metaFor(res.q.intent));
-  });
+  }));
 }
 document.addEventListener('keydown', e => {
   if (qpanel.isOpen || !state || !state.run || state.run.phase !== 'combat') return;
@@ -915,7 +917,7 @@ function renderQTE() {
     const input = h('input', { class: 'qte-input', inputmode: 'numeric', autocomplete: 'off', 'aria-label': 'Answer' });
     const send = () => {
       const v = input.value.trim(); if (!v) return;
-      socket.emit('qte', { value: v }, r => { if (r && r.ok) sfx(r.correct ? 'correct' : 'wrong'); });
+      socket.emit('qte', { value: v }, timed('qte', r => { if (r && r.ok) sfx(r.correct ? 'correct' : 'wrong'); }));
     };
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); send(); } });
     card.append(h('div', { class: 'qte-q' }, q.q + ' = ?'), h('div', { class: 'qte-row' }, input, h('button', { class: 'qgo', onclick: send }, 'Dodge!')));
