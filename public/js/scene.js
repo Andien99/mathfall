@@ -5,6 +5,7 @@ import { Sprite, Mask } from './pixel.js';
 import { sfx } from './audio.js';
 
 const C = window.MF_Content;
+const WORLD_SCALE = 0.7;   // heroes, enemies and the room are drawn at 70% of their original on-screen size
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const ease = t => 1 - Math.pow(1 - t, 3);
@@ -148,9 +149,16 @@ export class BattleScene {
 
   // ------------------------------------------------------------ layout
   resize(cssW, cssH, stageCss) {
-    const dpr = Math.min(window.devicePixelRatio || 1, this.lowPower ? 1.25 : 2);
+    // The pixel world is drawn at WORLD_SCALE (70%) of its old on-screen size, so heroes and enemies take less room.
+    // The old size was an integer pixel scale at up to 2x device pixels; to keep pixels whole we pick an integer
+    // scale s and render the canvas at whatever resolution (dpr) makes s pixels come out at exactly 70% of that.
+    const dev = window.devicePixelRatio || 1, d0 = Math.min(dev, 2);
+    const base = Math.max(1, Math.floor(Math.min(Math.round(cssH * d0) / 206, Math.round(cssW * d0) / 340))) / d0;   // old CSS px per world px
+    const want = base * WORLD_SCALE, cap = this.lowPower ? 1.5 : 3;
+    let s = Math.max(this.lowPower ? 1 : 2, Math.round(want * Math.min(dev, cap)));
+    if (s / want > cap) s = Math.max(1, Math.floor(want * cap));
+    const dpr = s / want;
     const Wd = Math.max(1, Math.round(cssW * dpr)), Hd = Math.max(1, Math.round(cssH * dpr));
-    const s = Math.max(1, Math.floor(Math.min(Hd / 206, Wd / 340)));
     this.dpr = dpr; this.s = s;
     this.W = Math.ceil(Wd / s); this.H = Math.ceil(Hd / s);
     this.cv.width = Wd; this.cv.height = Hd;

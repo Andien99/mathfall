@@ -662,3 +662,5 @@ body.portrait .qpanel.compact { align-items: flex-end; }
 @keyframes pointR { from { transform: translateX(5px); } to { transform: translateX(0); } }
 @media (max-width: 520px) { .node .pointer { width: 30px; height: 18px; margin-top: -9px; } }
 @media (prefers-reduced-motion: reduce) { .node .pointer { animation: none; } }
+/* phones and iPads: no big raid-boss health/timer panel and no round/timer pill (the boss's own bar under it stays) */
+@media (hover: none) and (pointer: coarse) { #raidBar.show, #roundBox.show { display: none; } }
