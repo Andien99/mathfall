@@ -17,6 +17,28 @@ const ACTS = { quick: 'The Crumbling Spire', standard: 'The Crystal Tower', long
 const ROW_H = 74;      // pixels between floors
 const PAD_TOP = 92, PAD_BOTTOM = 46;
 
+// Pixel-art pointing glove (points right), drawn as crisp SVG rects.
+// k outline, w glove, g shading, d thumb
+const HAND = [
+  '.....kkkkk........',
+  '...kkwwwwwkkkkkkk.',
+  '..kwwwwwwwwwwwwwwk',
+  '.kwwwwwwwwwwwwwggk',
+  '.kwwwwwwwkkkkkkkk.',
+  'kwwwwwwwgk........',
+  'kwgwwwwwgkdk......',
+  'kwgwwwwgkdddk.....',
+  '.kggwwwgkdddk.....',
+  '.kkgggggkkk.......',
+  '...kkkkkk.........'
+];
+const HAND_COL = { k: '#1a120c', w: '#f4f1ea', g: '#b9b4ab', d: '#5a554e' };
+const HAND_SVG = (() => {
+  let r = '';
+  HAND.forEach((row, y) => [...row].forEach((c, x) => { if (HAND_COL[c]) r += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${HAND_COL[c]}"/>`; }));
+  return `<svg viewBox="0 0 18 11" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
+})();
+
 function svgIcon(type) { return `<svg viewBox="0 0 40 40" aria-hidden="true">${ICONS[type] || ICONS.unknown}</svg>`; }
 
 let paperURL = null;
@@ -114,6 +136,12 @@ export class MapView {
       } else btn.innerHTML = svgIcon(n.type);
       if (n.visited && !here) btn.appendChild(h('span', { class: 'cross' }));
       if (isOpt) { btn.addEventListener('click', () => this.onVote(n.id)); focusY = focusY == null ? y : Math.min(focusY, y); }
+      // pointing hand beside each room you can pick (left of it, or right of it near the left edge)
+      if (isOpt && !run.map.goNode) {
+        const side = x < 50 ? 'r' : 'l';
+        const dim = votes[myId] && votes[myId] !== n.id ? ' dim' : '';
+        btn.appendChild(h('span', { class: 'pointer ' + side + dim, html: HAND_SVG }));
+      }
       const voters = Object.entries(votes).filter(([, v]) => v === n.id).map(([pid]) => heroes[pid]).filter(Boolean);
       if (voters.length) {
         const vs = h('div', { class: 'voters' });
@@ -134,12 +162,24 @@ export class MapView {
     scroll.append(title, tower, legend, this.status);
     this.el.append(h('div', { class: 'scroll-col' }, h('div', { class: 'rod t' }), scroll, h('div', { class: 'rod b' })));
     // Scroll: keep the reader's place, but bring the next choices into view when the team moves.
-    requestAnimationFrame(() => {
-      if (!fresh && !moved && this.scrollTop != null) { tower.scrollTop = this.scrollTop; return; }
+    // A new map (start of a run or act) opens at the very bottom. The map can be rendered
+    // before it's laid out (hero select still showing), so keep trying until it has a size.
+    if (fresh || moved) this.needFocus = { bottom: fresh || !run.map.pos, tries: 0 };
+    const place = () => {
+      if (!tower.isConnected) return;
+      const nf = this.needFocus;
+      if (!nf) { if (this.scrollTop != null) tower.scrollTop = this.scrollTop; return; }
+      if (!tower.clientHeight || tower.scrollHeight <= tower.clientHeight && H > tower.clientHeight) {
+        if (++nf.tries < 120) requestAnimationFrame(place);
+        return;
+      }
+      const max = tower.scrollHeight - tower.clientHeight;
       const target = focusY != null ? focusY : H;
-      tower.scrollTop = Math.max(0, target - tower.clientHeight * 0.62);
+      tower.scrollTop = nf.bottom ? max : Math.max(0, Math.min(max, target - tower.clientHeight * 0.62));
       this.scrollTop = tower.scrollTop;
-    });
+      this.needFocus = null;
+    };
+    requestAnimationFrame(place);
     this.deadline = run.map.voteDeadline;
     this.serverSkew = Date.now() - state.now;
   }

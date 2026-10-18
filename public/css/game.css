@@ -648,3 +648,17 @@ body.portrait .qpanel.compact { align-items: flex-end; }
   .skcard.small p { min-height: 0; font-size: 13.5px; }
   .room .row .vs { display: none; }
 }
+
+/* pointing hand beside each room the team can vote for */
+.node .pointer { position: absolute; top: 50%; width: 36px; height: 22px; margin-top: -11px; pointer-events: none; z-index: 3; filter: drop-shadow(0 2px 0 rgba(40, 20, 10, 0.35)); }
+.node .pointer svg { display: block; width: 100%; height: 100%; }
+.node .pointer.l { right: 100%; margin-right: 4px; animation: pointL 0.8s steps(2, jump-none) infinite alternate; }
+.node .pointer.r { left: 100%; margin-left: 4px; animation: pointR 0.8s steps(2, jump-none) infinite alternate; }
+.node .pointer.r svg { transform: scaleX(-1); }
+.node .pointer.dim { opacity: 0.35; }
+.node.myvote .pointer { filter: drop-shadow(0 0 4px rgba(168, 36, 31, 0.8)); }
+.node.boss .pointer { width: 44px; height: 27px; margin-top: -13px; }
+@keyframes pointL { from { transform: translateX(-5px); } to { transform: translateX(0); } }
+@keyframes pointR { from { transform: translateX(5px); } to { transform: translateX(0); } }
+@media (max-width: 520px) { .node .pointer { width: 30px; height: 18px; margin-top: -9px; } }
+@media (prefers-reduced-motion: reduce) { .node .pointer { animation: none; } }
