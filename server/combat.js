@@ -553,7 +553,10 @@ function enemyTurn(run) {
   const boss = c.enemies.find(e => e.tier === 'boss');
   if (boss && boss.dead) for (const e of c.enemies) if (e.tier === 'minion' && !e.dead) { e.dead = true; e.hp = 0; }
 
-  for (const e of c.enemies) {
+  // the enemy whose quick-time move was just answered strikes first, straight out of its frozen wind-up
+  const qa = c.qteActor; c.qteActor = null;
+  const order = qa ? [...c.enemies].sort((a, b) => (b.id === qa) - (a.id === qa)) : c.enemies;
+  for (const e of order) {
     if (e.dead || !e.intent) continue;
     if (!heroesAlive().length) break;
     const it = e.intent;

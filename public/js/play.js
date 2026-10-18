@@ -903,6 +903,10 @@ function renderQTE() {
   const q = state && state.you && state.you.qte;
   if (!qteEl) { qteEl = h('div', { id: 'qteLayer' }); document.body.appendChild(qteEl); }
   if (!q) { qteEl.classList.remove('show'); qteKey = null; return; }
+  // the prompt waits while the camera closes in on the enemy, frozen in its wind-up
+  const wait = (q.showAt || 0) - (Date.now() - skew);
+  clearTimeout(renderQTE._t);
+  if (wait > 30 && !q.answered) { qteEl.classList.remove('show'); renderQTE._t = setTimeout(renderQTE, wait); return; }
   qteEl.classList.add('show');
   if (q.key === qteKey && !(q.answered && !qteEl.querySelector('.qte-done'))) return;
   qteKey = q.key;

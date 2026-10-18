@@ -355,6 +355,10 @@ export class BattleScene {
     });
     for (const [id, a] of this.actors) if (!seen.has(id)) { this.actors.delete(id); this.needLayout = true; }
     if (this.needLayout) { this.needLayout = false; this.layout(); }
+    if (this._qteE && !this.actors.has(this._qteE.id)) this.qteRelease(true);   // left the fight mid-hold
+    else if (!this._qteE && combat && combat.phase === 'qte' && combat.qte && combat.qte.enemy && !this.playing) {   // joined or refreshed mid quick-time
+      const E = this.actors.get(combat.qte.enemy); if (E && !E.gone) this.qteFocus(E, combat.qte.act);
+    }
   }
   setRoom(room) {
     const prev = this.room;
@@ -409,6 +413,7 @@ export class BattleScene {
   }
   pose(a, p, ms) { if (a.anim && p !== 'hurt') return; a.pose = p; a.poseUntil = now() + ms; }   // a hand-animated move owns the sprite while it plays
   _die(a) {
+    if (a === this._qteE) this.qteRelease();
     a.dying = now();
     // pixel dissolve: sample the current frame
     try {
@@ -433,7 +438,7 @@ export class BattleScene {
   _animate(ev, sp) {
     const T = ms => ms / sp;
     if (ev.kind === 'system') { this.onBanner(ev.text, ev.battle ? 'battle' : 'info'); return T(ev.battle ? 900 : 300); }
-    if (ev.kind === 'round') { this.onBanner('Round ' + ev.round, 'round'); return T(450); }
+    if (ev.kind === 'round') { this.qteRelease(); this.onBanner('Round ' + ev.round, 'round'); return T(450); }
     if (ev.kind === 'focus') {
       const p = this.pos(ev.actor); if (p) { this.burst(p.x, p.y - 26, '#9fb6ff', 14, 22); this.glows.push({ x: p.x, y: p.y - 22, r: 30, color: '#8fa6ff', t: 0, life: 0.5, a: 0.6 }); this.number(p.x, p.y - 40, 'Focus ' + '✦'.repeat(ev.focus), '#b8c8ff', 0.8); sfx('focus'); }
       if (p && ev.energy != null) { const a = this.actors.get(ev.actor); if (a) a.energy = ev.energy; }
@@ -462,8 +467,8 @@ export class BattleScene {
     if (ev.kind === 'qte') {
       const E = this.actors.get(ev.actor);
       this.onBanner('Quick time! ' + (ev.total > 1 ? ev.total + ' strikes incoming' : ev.name), 'warn');
-      if (E) { this.pose(E, 'windup', 1600); this.glows.push({ x: E.x, y: E.y - 30, r: 90, color: '#ff4a2a', t: 0, life: 1.4, a: 0.6 }); }
-      this.shake = 3; this.shakeT = now(); sfx('charge');
+      if (E) this.qteFocus(E, ev.act);
+      sfx('charge');
       return T(300);
     }
     if (ev.kind === 'qteResult') {
@@ -3088,8 +3093,44 @@ export class BattleScene {
     return T(900);
   }
 
+  // Quick-time lead-in: the camera closes in on the enemy, which freezes on the frame its attack starts from
+  // (the prompt opens once the shot has settled). It stays frozen while the team answers, then qteRelease()
+  // hands it back to the attack animation.
+  _qtePose(E, act) {
+    if (E.kind === 'minotaur' && act === 'tailstorm' && SP.enemySeqLen('minotaur', 'run')) return 'attack';   // head down, ready to charge
+    if (E.kind === 'minotaur' && act === 'breath') return 'windup';
+    return (E.kind === 'wyrm' || E.kind === 'minotaur' || E.kind === 'voidmaw') ? 'roar' : 'windup';
+  }
+  qteFocus(E, act) {
+    if (this._qteE === E && E.qteHold) { if (act) E.qteHold.pose = this._qtePose(E, act); return; }
+    this.qteRelease(true);
+    E.tween = null; E.ox = 0; E.oy = 0; E.seq = null; E.pose = null; E.poseUntil = 0;
+    E.qteHold = { pose: this._qtePose(E, act), t0: now() };
+    this._qteE = E;
+    const info = SP.enemyInfo(E.kind), hgt = (info && info.ay) || 40;
+    this.cam = { x: E.x, y: E.y - hgt * 0.5, t0: now(), dur: 1e9, z: E.size === 'xl' ? 1.12 : 1.2, ein: 520, vig: 0.7, qte: true };
+    this.glows.push({ x: E.x, y: E.y - hgt * 0.5, r: 90, color: '#ff4a2a', t: 0, life: 1.4, a: 0.6 });
+    this.shake = 3; this.shakeT = now();
+    clearInterval(this._qteGlowT);
+    this._qteGlowT = setInterval(() => {   // a slow red pulse while it waits to strike
+      if (!E.qteHold || E.gone) return this.qteRelease();
+      this.glows.push({ x: E.x, y: E.y - hgt * 0.5, r: 70 + Math.random() * 20, color: '#ff3a1a', t: 0, life: 0.9, a: 0.35 });
+    }, 700);
+    clearTimeout(this._qteSafeT);
+    this._qteSafeT = setTimeout(() => this.qteRelease(), 60000);   // never stuck frozen if the attack never arrives
+  }
+  qteRelease(quiet) {
+    clearInterval(this._qteGlowT); clearTimeout(this._qteSafeT); this._qteGlowT = this._qteSafeT = null;
+    const E = this._qteE; this._qteE = null;
+    if (E) E.qteHold = null;
+    if (this.cam && this.cam.qte) {
+      if (quiet) this.cam = null;
+      else { const el = now() - this.cam.t0; this.cam.dur = el + 420; this.cam.ein = Math.min(this.cam.ein, el); }
+    }
+  }
   _enemyAnim(ev, T) {
     const E = this.actors.get(ev.actor); if (!E) { this._applyAfter(ev); return 0; }
+    if (E.qteHold) this.qteRelease();   // the frozen wind-up turns into the real attack
     if (ev.act === 'frozen') {
       const stun = ev.fx === 'stun', col = stun ? '#ffe08a' : '#dff8ff';
       this.burst(E.x, E.y - 16, col, 24, 30); this.number(E.x, E.y - 40, stun ? 'Stunned' : 'Frozen', col, 1); sfx(stun ? 'twinkle' : 'ice');
@@ -3577,6 +3618,7 @@ export class BattleScene {
       if (a.downed && p !== 'hurt') p = 'down';
       return white ? SP.heroWhite(a.skin || a.cls, a.variant, p) : SP.heroFrame(a.skin || a.cls, a.variant, p);
     }
+    if (a.qteHold && !a.dying) return SP.enemyFrame(a.kind, a.qteHold.pose, white);   // frozen on the frame before its big move
     if (!p && a.seq) {   // a hand-animated move (slam, run): plays once and holds the last frame, or loops
       if (t >= a.seq.until) a.seq = null;
       else { const i = Math.max(0, Math.floor((t - a.seq.t0) / a.seq.ms)); p = a.seq.name + (a.seq.loop ? i % a.seq.n : Math.min(i, a.seq.n - 1)); }
@@ -3944,7 +3986,8 @@ export class BattleScene {
     const el = t - c.t0;
     if (el >= c.dur) { this.cam = null; return; }
     const ease = x => x * x * (3 - 2 * x);
-    const k = el < 200 ? ease(el / 200) : el > c.dur - 260 ? ease(Math.max(0, (c.dur - el) / 260)) : 1;
+    const ein = c.ein || 200;
+    const k = el < ein ? ease(el / ein) : el > c.dur - 260 ? ease(Math.max(0, (c.dur - el) / 260)) : 1;
     const Wd = this.cv.width, Hd = this.cv.height, s = this.s;
     const cn = c.hold ? this._camNow(c, t) : c.fn ? c.fn(t) : c;   // fn: a camera path (Hero's Resolve follows the knight from his charge to the enemies and back)
     const z = 1 + (cn.z - 1) * k, cxp = c.fn ? cn.x : c.x, cyp = c.fn ? cn.y : c.y;

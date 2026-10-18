@@ -19,6 +19,7 @@ const SPEED = process.env.MATHFALL_FAST === '1' ? 0.12 : 1;
 const T = ms => Math.round(ms * SPEED);
 const QTE_MS = 10000;          // time to answer a quick-time prompt
 const QTE_GRACE = 700;         // network slack on top
+const QTE_LEAD = 1300;         // the camera closes in on the enemy, frozen in its wind-up, before the first prompt opens
 const tok = () => crypto.randomBytes(12).toString('hex');
 const clean = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
 
@@ -388,11 +389,11 @@ class Session {
   startQTE(team, e) {
     const run = team.run; const c = run.combat;
     c.phase = 'qte'; c.roundEndsAt = 0;
-    c.qte = { enemy: e.id, name: e.intent.label, total: e.intent.qte || 1, i: 0, res: {}, per: {}, endsAt: 0 };
-    this.event(team, { kind: 'qte', actor: e.id, name: e.intent.label, total: c.qte.total });
-    this.newQTEPrompt(team);
+    c.qte = { enemy: e.id, act: e.intent.move, name: e.intent.label, total: e.intent.qte || 1, i: 0, res: {}, per: {}, endsAt: 0, showAt: 0 };
+    this.event(team, { kind: 'qte', actor: e.id, act: e.intent.move, name: e.intent.label, total: c.qte.total });
+    this.newQTEPrompt(team, T(QTE_LEAD));
   }
-  newQTEPrompt(team) {
+  newQTEPrompt(team, lead = 0) {
     const run = team.run; const c = run.combat; const q = c.qte;
     q.per = {};
     for (const h of CB.aliveHeroes(run)) {
@@ -401,8 +402,9 @@ class Session {
       const g = C.qteQuestion(run.raidMode ? 2 : 1);
       q.per[h.id] = { q: g.q, a: g.a, answered: false, ok: false, value: '' };
     }
-    q.endsAt = now() + T(QTE_MS + QTE_GRACE);
-    if (!Object.keys(q.per).length) q.endsAt = now();
+    q.showAt = now() + lead;   // the prompt stays hidden until then (the focus shot plays)
+    q.endsAt = q.showAt + T(QTE_MS + QTE_GRACE);
+    if (!Object.keys(q.per).length) q.endsAt = q.showAt = now();
   }
   answerQTE(team, p, value) {
     const run = team && team.run; const c = run && run.combat; const q = c && c.qte;
@@ -426,8 +428,8 @@ class Session {
     }
     this.event(team, { kind: 'qteResult', i: q.i, total: q.total, results });
     q.i++;
-    if (q.i < q.total) { this.newQTEPrompt(team); q.endsAt += T(900); this.flush(team); return; }
-    c.qteRes = q.res; c.qte = null; c.qteDone = true; c.phase = 'player';
+    if (q.i < q.total) { this.newQTEPrompt(team, T(900)); this.flush(team); return; }
+    c.qteRes = q.res; c.qteActor = q.enemy; c.qte = null; c.qteDone = true; c.phase = 'player';
     run.next = { time: now() + T(700), fn: 'enemyTurn' };
     this.flush(team);
   }
@@ -615,7 +617,7 @@ class Session {
           connected: !!(p && p.connected), busy: p && p.pending && !p.pending.answered ? (p.pending.intent.action || p.pending.intent.kind) : null };
       }),
       waiting: run.pendingJoin,
-      combat: run.combat ? { round: run.combat.round, phase: run.combat.phase, roundEndsAt: run.combat.roundEndsAt, type: run.combat.type, enemies: run.combat.enemies.map(CB.publicEnemy), qte: run.combat.qte ? { total: run.combat.qte.total, i: run.combat.qte.i, endsAt: run.combat.qte.endsAt, name: run.combat.qte.name } : null } : null,
+      combat: run.combat ? { round: run.combat.round, phase: run.combat.phase, roundEndsAt: run.combat.roundEndsAt, type: run.combat.type, enemies: run.combat.enemies.map(CB.publicEnemy), qte: run.combat.qte ? { total: run.combat.qte.total, i: run.combat.qte.i, endsAt: run.combat.qte.endsAt, showAt: run.combat.qte.showAt || 0, enemy: run.combat.qte.enemy, act: run.combat.qte.act, name: run.combat.qte.name } : null } : null,
       raidMode: !!run.raidMode,
       room: run.room ? this.publicRoom(run.room) : null
     };
@@ -641,7 +643,7 @@ class Session {
     const c = run && run.combat;
     if (c && c.phase === 'qte' && c.qte && c.qte.per[p.id]) {
       const me = c.qte.per[p.id];
-      you.qte = { key: c.qte.enemy + ':' + c.round + ':' + c.qte.i, q: me.q, i: c.qte.i, total: c.qte.total, endsAt: c.qte.endsAt, answered: me.answered, ok: me.ok, name: c.qte.name };
+      you.qte = { key: c.qte.enemy + ':' + c.round + ':' + c.qte.i, q: me.q, i: c.qte.i, total: c.qte.total, endsAt: c.qte.endsAt, showAt: c.qte.showAt || 0, answered: me.answered, ok: me.ok, name: c.qte.name };
       if (process.env.MATHFALL_TEST === '1') you.qte._answer = me.a;
     }
     return you;
@@ -792,7 +794,7 @@ class Session {
       if (run.voteDeadline) run.voteDeadline += ms;
       if (run.goAt) run.goAt += ms;
       if (run.room && run.room.deadline) run.room.deadline += ms;
-      if (run.combat && run.combat.qte) run.combat.qte.endsAt += ms;
+      if (run.combat && run.combat.qte) { run.combat.qte.endsAt += ms; if (run.combat.qte.showAt) run.combat.qte.showAt += ms; }
     }
     if (this.raid) { this.raid.endsAt += ms; if (this.raid.endAt) this.raid.endAt += ms; }
   }

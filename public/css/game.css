@@ -506,7 +506,7 @@ body.screen-lobby #lobby { display: grid; grid-template-columns: 1fr 280px; grid
 @media (max-width: 560px) { .camp-cards { gap: 6px; } .camp-card span { display: none; } .camp-card .cc-art img { width: 44px; height: 44px; } }
 
 /* ---------------- quick-time events ---------------- */
-#qteLayer { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 50%, rgba(80, 10, 10, 0.35), rgba(10, 0, 0, 0.75)); }
+#qteLayer { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 50%, rgba(80, 10, 10, 0.18), rgba(10, 0, 0, 0.55)); }
 #qteLayer.show { display: flex; animation: fadeIn 0.12s; }
 .qte-card { width: min(460px, 94vw); background: linear-gradient(180deg, #3a1218, #1a0810); border: 2px solid #ff7a5a; border-radius: 12px; padding: 16px 18px; text-align: center; box-shadow: 0 0 60px rgba(255, 80, 40, 0.45); animation: qtePop 0.25s cubic-bezier(.2, 1.6, .4, 1); }
 @keyframes qtePop { from { transform: scale(0.7); } }
