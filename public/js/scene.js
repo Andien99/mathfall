@@ -12,12 +12,12 @@ const easeIn = t => t * t * t;
 const now = () => performance.now();
 
 const STATUS_COL = { burn: '#ff8a3c', poison: '#8fe05a', weak: '#c7a2ff', vuln: '#ff6b8a', chill: '#8fe3ff', freeze: '#dff8ff', str: '#ff9a7a', taunt: '#ffd36b',
-  mark: '#ff6b6b', stun: '#ffe08a', regen: '#9dffb0', steady: '#c8d4e8', thorns: '#ffe08a', frost: '#a8f0ff', unbreak: '#ffd36b', divine: '#fff6c8', surge: '#9fd8ff' };
+  mark: '#ff6b6b', stun: '#ffe08a', regen: '#9dffb0', steady: '#c8d4e8', thorns: '#ffe08a', frost: '#a8f0ff', divine: '#fff6c8', surge: '#9fd8ff' };
 // short labels for the status chips under health bars
-const STATUS_SHORT = { burn: 'B', poison: 'P', str: 'S', mark: 'Mk', regen: '+', thorns: 'Th', weak: 'We', vuln: 'Vu', chill: 'Ch', freeze: 'Fr', taunt: 'Ta', stun: 'St', steady: 'Ir', frost: 'Fa', unbreak: 'Ub', divine: 'Dv', surge: 'Su' };
+const STATUS_SHORT = { burn: 'B', poison: 'P', str: 'S', mark: 'Mk', regen: '+', thorns: 'Th', weak: 'We', vuln: 'Vu', chill: 'Ch', freeze: 'Fr', taunt: 'Ta', stun: 'St', steady: 'Ir', frost: 'Fa', divine: 'Dv', surge: 'Su' };
 // colour of the glow and numbers for each support effect
 const SUP_COL = { heal: '#9dffb0', heal_party: '#9dffb0', revive: '#9dffb0', revive_party: '#ffe27a', bless_party: '#ffe9a0', buff_party: '#ff9a7a', empower: '#ff9a7a', rally_party: '#ffc08a',
-  taunt: '#ffd36b', counter: '#ffe08a', unbreakable: '#ffd36b', surge: '#9fd8ff', shield_ice: '#a8f0ff', smoke: '#c8c4d8', ward: '#ffe9a0', divine: '#fff6c8', shield_self: '#c8d4e8' };
+  taunt: '#ffd36b', counter: '#ffe08a', surge: '#9fd8ff', shield_ice: '#a8f0ff', smoke: '#c8c4d8', ward: '#ffe9a0', divine: '#fff6c8', shield_self: '#c8d4e8' };
 const SUPPORT = ['defend', 'shield_party', ...Object.keys(SUP_COL)];
 // Champion's Combo cross-slash impacts: the blades' directions (degrees) for the 1st, 2nd and 3rd slash
 const CROSS_ANGLES = [[38, -58], [-36, 62], [-4, 52, -72]];
@@ -101,7 +101,7 @@ const PFX = {
 const TS_TIP = { 'mage:f': [-4, -82], 'mage:m': [-11, -92] };
 const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') !== 'code'; } catch (e) { return true; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
-  mark: 'Marked', stun: 'Stunned', regen: 'Mending', steady: 'Iron Skin', thorns: 'Riposte', frost: 'Frost Armour', unbreak: 'Unbreakable', divine: 'Shielded', surge: 'Mana Surge' };
+  mark: 'Marked', stun: 'Stunned', regen: 'Mending', steady: 'Iron Skin', thorns: 'Riposte', frost: 'Frost Armour', divine: 'Shielded', surge: 'Mana Surge' };
 
 export class BattleScene {
   constructor(canvas, opts = {}) {
@@ -127,6 +127,7 @@ export class BattleScene {
     this.trails = []; this.cam = null; this.stars = []; this.rings = []; this.ribbons = []; this.auras = [];
     this.zaps = []; this.ripples = []; this.residue = []; this.xhits = []; this.slivers = []; this.bigArcs = [];   // Champion's Combo: blade aura, ground ripples, leftover crackle
     this.pixelFx = PIXEL_FX;
+    this.rarcs = []; this.rpillar = []; this.rrocks = []; this.rbeam = null; this.rbloom = null;   // Hero's Resolve: curved cuts, the column of light, lifted rocks, the blade's pillar, the ball of light
     this.mets = [];   // Meteor: hand flame, spark, the rock, its explosion and the fire it leaves
     this.cracks = []; this.spikes = []; this.ghosts = [];
     this.slowmo = 1;   // <1 plays everything in slow motion (used by the /dev/lab.html animation lab)
@@ -522,6 +523,7 @@ export class BattleScene {
     if (fx === 'starfall' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'volley'); if (own && own.charge != null) return this._starfallAnim(A, ev, T, own); }
     if (ev.skill === 'dragons_wrath' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'cast'); if (own && own.muzzle) return this._dragonAnim(A, ev, T, own); }
     if (fx === 'timestop' && this.pixelFx) { const own = SP.heroAnim(A.skin || A.cls, 'channel'); if (own) return this._timeStopAnim(A, ev, T, own); }
+    if (fx === 'resolve') return this._resolveAnim(A, ev, T, SP.heroAnim(A.skin || A.cls, 'resolve'));
     if (!ev._pre) {
       const nm = this._preAnimName(A, fx), pre = nm && SP.heroAnim(A.skin || A.cls, nm);
       if (pre) {   // play the move, then run the usual effects from its hit frame
@@ -550,7 +552,7 @@ export class BattleScene {
     const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
 
     if (support) {
-      this.pose(A, ['defend', 'taunt', 'counter', 'unbreakable', 'shield_self', 'shield_ice'].includes(fx) ? 'defend' : 'cast0', T(650));
+      this.pose(A, ['defend', 'taunt', 'counter', 'shield_self', 'shield_ice'].includes(fx) ? 'defend' : 'cast0', T(650));
       sfx(fx.includes('heal') || fx.includes('revive') || fx === 'bless_party' ? 'heal' : fx === 'surge' ? 'cast' : 'shield');
       const colr = SUP_COL[fx] || '#7fc8ff';
       this.glows.push({ x: A.x, y: A.y - 20, r: 40, color: colr, t: 0, life: 0.6, a: 0.6 });
@@ -1000,6 +1002,134 @@ export class BattleScene {
         const hx = b.cx + Math.cos(head) * b.Rx, hy = b.cy + Math.sin(head) * b.Ry, tang = head - Math.PI / 2, v = 60 + Math.random() * 120;
         this.particles.push({ x: hx, y: hy, vx: Math.cos(tang) * v * 0.6 + (Math.random() - 0.5) * 60, vy: Math.sin(tang) * v * 0.6 + (Math.random() - 0.5) * 60, g: 60, life: 0.35 + Math.random() * 0.35, t: 0, c: Math.random() < 0.5 ? '#ffffff' : '#9fe8ff', streak: 3, drag: 0.92 });
       }
+    }
+  }
+
+  // Hero's Resolve, drawn at display resolution over everything: the ball of light in the middle of the slash storm,
+  // the curved cuts round it, the blade's pillar of light (and its sweep), the column of light that crashes down and
+  // the rocks that lift inside it.
+  drawResolve(ctx, t, sx, sy) {
+    if (!this.rbloom && !this.rarcs.length && !this.rbeam && !this.rpillar.length && !this.rrocks.length) return;
+    const s = this.s, TAU = Math.PI * 2;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    // the ball of light: swells while the slashes land, bursts, fades
+    const B = this.rbloom;
+    if (B) {
+      if (t > B.t2) this.rbloom = null;
+      else if (t > B.t0) {
+        const k = t < B.t1 ? (t - B.t0) / (B.t1 - B.t0) : 1, out = t > B.t1 ? 1 - (t - B.t1) / (B.t2 - B.t1) : 1;
+        const a = (0.12 + 0.5 * k) * out * (0.85 + 0.15 * Math.sin(t / 30));
+        const X = B.x * s + sx, Y = B.y * s + sy, r = B.r * (0.55 + 0.45 * k) * s * (t > B.t1 ? 1 + 0.25 * (1 - out) : 1);
+        const g = ctx.createRadialGradient(X, Y, 0, X, Y, r);
+        g.addColorStop(0, `rgba(255,255,255,${a})`); g.addColorStop(0.18, `rgba(220,244,255,${a * 0.85})`); g.addColorStop(0.5, `rgba(90,160,255,${a * 0.35})`); g.addColorStop(1, 'rgba(30,60,200,0)');
+        ctx.fillStyle = g; ctx.fillRect(X - r, Y - r, r * 2, r * 2);
+      }
+    }
+    // the curved cuts: crescents along tilted ellipses, the head racing round, the tail following it in
+    const thick = u => Math.pow(Math.max(0, Math.sin(Math.PI * u)), 0.6);
+    for (let i = this.rarcs.length - 1; i >= 0; i--) {
+      const c = this.rarcs[i], k = (t - c.t0) / c.life;
+      if (k >= 1) { this.rarcs.splice(i, 1); continue; }
+      if (k < 0) continue;
+      const hk = 1 - Math.pow(1 - Math.min(1, k / 0.2), 3), tk = k < 0.3 ? 0 : Math.pow((k - 0.3) / 0.7, 2);
+      const h = c.a0 + c.sweep * hk, tl = c.a0 + c.sweep * tk;
+      if (Math.abs(h - tl) < 0.02) continue;
+      const fade = k < 0.45 ? 1 : 1 - (k - 0.45) / 0.55;
+      const cr = Math.cos(c.rot), sr = Math.sin(c.rot), X = c.cx * s + sx, Y = c.cy * s + sy, N = 30;
+      const pt = (ang, inset) => { const ex = (c.rx - inset) * Math.cos(ang), ey = (c.ry - inset * c.ry / c.rx) * Math.sin(ang); return [X + (ex * cr - ey * sr) * s, Y + (ex * sr + ey * cr) * s]; };
+      const shape = wk => {
+        ctx.beginPath();
+        for (let j = 0; j <= N; j++) { const u = j / N, p = pt(lerp(tl, h, u), -c.w * wk * thick(u) * 0.35); j ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }
+        for (let j = N; j >= 0; j--) { const u = j / N, p = pt(lerp(tl, h, u), c.w * wk * thick(u) * 0.65); ctx.lineTo(p[0], p[1]); }
+        ctx.closePath();
+      };
+      ctx.shadowColor = '#4aa8ff'; ctx.shadowBlur = this.lowPower ? 0 : 10 * s * fade;   // (blur is the costly part on slow devices)
+      shape(2.2); ctx.fillStyle = `rgba(42,106,255,${0.32 * fade})`; ctx.fill();
+      ctx.shadowBlur = 0;
+      shape(1.2); ctx.fillStyle = `rgba(127,200,255,${0.75 * fade})`; ctx.fill();
+      shape(0.42); ctx.fillStyle = `rgba(255,255,255,${fade})`; ctx.fill();
+    }
+    // the blade's pillar of light: grows up off the sword, holds (motes of light round it), then sweeps over and down
+    const b = this.rbeam;
+    if (b) {
+      if (t > b.end) this.rbeam = null;
+      else {
+        const A = b.A, lift = this._liftOf(A, t), ox = A.x + A.ox, oy = A.y + A.oy - lift;
+        const blade = Math.hypot(b.tip[0] - b.guard[0], b.tip[1] - b.guard[1]);
+        const sk = t < b.swing0 ? 0 : Math.min(1, (t - b.swing0) / b.swingMs);
+        const gx = ox + lerp(b.guard[0], b.guard2[0], sk), gy = oy + lerp(b.guard[1], b.guard2[1], sk);   // the hands come down with the swing
+        const ang = -Math.PI / 2 - Math.PI * sk;   // up, then over the front and down (anticlockwise on screen), in step with the swing frames
+        const grow = Math.min(1, (t - b.t0) / b.grow), len = blade + 4 + (1 - Math.pow(1 - grow, 3)) * 440;
+        const env = t > b.end - 90 ? Math.max(0, (b.end - t) / 90) : 1;
+        const X = gx * s + sx, Y = gy * s + sy;
+        // the sweep leaves a fan of light behind the blade
+        if (sk > 0 && ctx.createConicGradient) {   // a streak of light trailing the blade through the sweep (behind it, fading)
+          const span = Math.min(Math.PI * sk, 1.3), R2 = len * s, g = ctx.createConicGradient(ang, X, Y);
+          g.addColorStop(0, `rgba(255,255,255,${0.55 * env})`); g.addColorStop(span / TAU * 0.35, `rgba(170,225,255,${0.3 * env})`); g.addColorStop(span / TAU, 'rgba(60,120,255,0)'); g.addColorStop(1, 'rgba(60,120,255,0)');
+          ctx.beginPath(); ctx.moveTo(X, Y); ctx.arc(X, Y, R2, ang, ang + span); ctx.closePath(); ctx.fillStyle = g; ctx.fill();
+        }
+        ctx.save(); ctx.translate(X, Y); ctx.rotate(ang);
+        const pulse = 1 + 0.08 * Math.sin(t / 45) + (t < b.t0 + b.grow ? 0.25 * (1 - grow) : 0);
+        const layer = (w, stops) => { const g = ctx.createLinearGradient(0, -w * s / 2, 0, w * s / 2); for (const [o, c] of stops) g.addColorStop(o, c); ctx.fillStyle = g; ctx.fillRect(-2 * s, -w * s / 2, len * s, w * s); };
+        layer(30 * pulse, [[0, 'rgba(40,90,255,0)'], [0.35, `rgba(70,140,255,${0.22 * env})`], [0.5, `rgba(150,215,255,${0.35 * env})`], [0.65, `rgba(70,140,255,${0.22 * env})`], [1, 'rgba(40,90,255,0)']]);
+        layer(11 * pulse, [[0, 'rgba(90,170,255,0)'], [0.25, `rgba(120,200,255,${0.8 * env})`], [0.5, `rgba(235,250,255,${env})`], [0.75, `rgba(120,200,255,${0.8 * env})`], [1, 'rgba(90,170,255,0)']]);
+        layer(3.6, [[0, 'rgba(255,255,255,0)'], [0.3, `rgba(255,255,255,${env})`], [0.7, `rgba(255,255,255,${env})`], [1, 'rgba(255,255,255,0)']]);
+        // shimmer: thin bright lines running along the edges
+        for (let q = 0; q < 3; q++) { const off = (Math.random() - 0.5) * 9 * s, x0 = Math.random() * len * s * 0.6; ctx.fillStyle = `rgba(220,245,255,${0.5 * env})`; ctx.fillRect(x0, off, len * s * (0.2 + Math.random() * 0.3), Math.max(1, s * 0.6)); }
+        // the growing end: a bright flare
+        if (grow < 1) { const fx = len * s, r = 18 * s; const g = ctx.createRadialGradient(fx, 0, 0, fx, 0, r); g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(120,200,255,0)'); ctx.fillStyle = g; ctx.fillRect(fx - r, -r, r * 2, r * 2); }
+        ctx.restore();
+        // motes of light drifting round the pillar while it is held
+        if (sk === 0 && grow > 0.3) {
+          const reach = Math.min(len - blade, Math.max(30, gy + 10));
+          for (let q = 0; q < (this.lowPower ? 2 : 4); q++) {
+            const d = blade + Math.random() * reach, side = (Math.random() - 0.5) * 2;
+            const px = gx + Math.cos(ang) * d - Math.sin(ang) * side * (7 + Math.random() * 14), py = gy + Math.sin(ang) * d + Math.cos(ang) * side * (7 + Math.random() * 14);
+            this.particles.push({ x: px, y: py, vx: side * 10, vy: -15 - Math.random() * 35, g: 0, life: 0.5 + Math.random() * 0.6, t: 0, c: Math.random() < 0.5 ? '#ffffff' : '#bfe6ff', plus: Math.random() < 0.4, blob: Math.random() < 0.3 ? 0.6 : 0, fade: true });
+          }
+          // a ring of light now and then, rising up the pillar
+          if (!b.ringAt || t - b.ringAt > 140) { b.ringAt = t; b.rings = (b.rings || []).concat([{ t0: t, d: blade + 4 }]); }
+        }
+        for (const r of b.rings || []) {
+          const age = (t - r.t0) / 700; if (age >= 1) continue;
+          const d = (r.d + age * 160) * s, rr = (7 + age * 5) * s;
+          ctx.save(); ctx.translate(X + Math.cos(ang) * d, Y + Math.sin(ang) * d); ctx.rotate(ang + Math.PI / 2);
+          ctx.strokeStyle = `rgba(200,240,255,${0.55 * (1 - age) * env})`; ctx.lineWidth = Math.max(1, s * 0.8);
+          ctx.beginPath(); ctx.ellipse(0, 0, rr, rr * 0.3, 0, 0, TAU); ctx.stroke(); ctx.restore();
+        }
+        if (b.rings && b.rings.length > 8) b.rings = b.rings.filter(r => t - r.t0 < 700);
+      }
+    }
+    // the column of light: from the sky to the floor over the whole enemy side, white-hot in the middle
+    for (let i = this.rpillar.length - 1; i >= 0; i--) {
+      const p = this.rpillar[i], k = (t - p.t0) / p.life;
+      if (k >= 1) { this.rpillar.splice(i, 1); continue; }
+      if (k < 0) continue;
+      const env = k < 0.05 ? k / 0.05 : k < 0.42 ? 1 : 1 - (k - 0.42) / 0.58;
+      const w = p.w * s * (k < 0.42 ? 1 + 0.06 * Math.sin(t / 35) + (k < 0.08 ? 0.5 * (1 - k / 0.08) : 0) : lerp(1, 0.2, (k - 0.42) / 0.58));
+      const X = p.x * s + sx, bottom = (p.floor + 3) * s + sy;
+      const col = (half, stops) => { const g = ctx.createLinearGradient(X - half, 0, X + half, 0); for (const [o, c] of stops) g.addColorStop(o, c); ctx.fillStyle = g; ctx.fillRect(X - half, -10, half * 2, bottom + 10); };
+      col(w * 2.4, [[0, 'rgba(40,90,255,0)'], [0.3, `rgba(70,140,255,${0.16 * env})`], [0.5, `rgba(200,235,255,${0.3 * env})`], [0.7, `rgba(70,140,255,${0.16 * env})`], [1, 'rgba(40,90,255,0)']]);
+      col(w, [[0, 'rgba(40,110,255,0)'], [0.14, `rgba(50,120,255,${0.45 * env})`], [0.3, `rgba(150,215,255,${0.9 * env})`], [0.42, `rgba(255,255,255,${env})`], [0.58, `rgba(255,255,255,${env})`], [0.7, `rgba(150,215,255,${0.9 * env})`], [0.86, `rgba(50,120,255,${0.45 * env})`], [1, 'rgba(40,110,255,0)']]);
+      // streaks of light rushing down inside it
+      for (let q = 0; q < 6; q++) { const lx = X + (Math.random() - 0.5) * w * 1.4, ly = Math.random() * bottom, lh = (20 + Math.random() * 60) * s; ctx.fillStyle = `rgba(255,255,255,${0.35 * env})`; ctx.fillRect(lx, ly, Math.max(1, s * 0.7), lh); }
+      // where it meets the floor: a pool of light
+      const rx = w * 1.5, ry = w * 0.36, g = ctx.createRadialGradient(X, bottom, 0, X, bottom, rx);
+      g.addColorStop(0, `rgba(255,255,255,${env})`); g.addColorStop(0.35, `rgba(190,230,255,${0.6 * env})`); g.addColorStop(1, 'rgba(60,120,255,0)');
+      ctx.save(); ctx.translate(X, bottom); ctx.scale(1, ry / rx); ctx.translate(-X, -bottom); ctx.fillStyle = g; ctx.fillRect(X - rx, bottom - rx, rx * 2, rx * 2); ctx.restore();
+    }
+    ctx.restore();
+    // rocks torn up off the floor, lifting slowly inside the light (drawn as chunky pixels, not added light)
+    for (let i = this.rrocks.length - 1; i >= 0; i--) {
+      const r = this.rrocks[i], age = (t - r.t0) / 1000, k = (t - r.t0) / r.life;
+      if (k >= 1) { this.rrocks.splice(i, 1); continue; }
+      if (k < 0) continue;
+      const x = r.x + r.vx * age, y = r.y + r.vy * age + 18 * age * age, X = Math.round(x) * s + sx, Y = Math.round(y) * s + sy, z = Math.round(r.sz) * s;
+      ctx.save(); ctx.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1; ctx.translate(X, Y); ctx.rotate(Math.round((r.rot + r.spin * age) / (Math.PI / 8)) * (Math.PI / 8));
+      ctx.fillStyle = '#5a6680'; ctx.fillRect(-z / 2, -z / 2, z, z);
+      ctx.fillStyle = '#c4cee0'; ctx.fillRect(-z / 2, -z / 2, z - s, z - s);
+      ctx.fillStyle = '#eef4ff'; ctx.fillRect(-z / 2, -z / 2, Math.max(s, z / 2 - s), s);
+      ctx.restore();
     }
   }
 
@@ -2684,6 +2814,225 @@ export class BattleScene {
     return T(end + 500);
   }
 
+  // Hero's Resolve with its PixelLab poses (anims.resolve, tools/assemble_resolve.py), in six beats:
+  // 1. Charge: the knight crouches and powers up; light gathers into him and his outline glows blue-white.
+  // 2. Barrage: he vanishes in a flash and a storm of slashes tears through the enemies, one hit per slash record:
+  //    long straight cuts at many angles (some doubled, some crossed), curved cuts that wrap round the circumference of
+  //    the attack (ellipses of different sizes, tilts, sweeps and thickness) and round single enemies, his blue
+  //    after-image flickering in and out beside each target, while a ball of light swells in the middle and bursts.
+  // 3. He reappears in the air above the enemies, sword raised, falling in from above as after-images.
+  // 4. The blade extends upward into a long pillar of light with motes of light round it, held for a moment.
+  // 5. The downward strike: the pillar sweeps over and down onto the enemies and becomes a massive column of light
+  //    from the sky to the floor (the finisher on every enemy), with shockwaves, cracks and rocks lifting inside it.
+  // 6. He flashes back to his place, drops in and lands, then returns to idle.
+  _resolveAnim(A, ev, T, anim) {
+    const R = anim && anim.resolve;
+    const isEnemy = id => { const a = this.actors.get(id); return !!a && a.type === 'enemy'; };
+    const tgt = ev.targets.filter(t => !t.shatter && isEnemy(t.id) && t.dmg != null);
+    const ens = [...new Set(tgt.map(t => t.id))].map(id => this.actors.get(id)).filter(Boolean);
+    const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
+    if (ev.name) this.onBanner(ev.name, 'skill', ev.rarity);
+    if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    if (!ens.length) { this._applyAfter(ev); return T(600); }
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const slashes = tgt.filter(t => !t.finisher), fin = tgt.filter(t => t.finisher);
+    const last = {}; tgt.forEach((t, i) => { last[t.id] = i; });
+    const skin = A.skin || A.cls, combo = SP.heroAnim(skin, 'combo');
+    // the battlefield: the middle of the enemies (at body height for the slashes, on the floor for the pillar)
+    const xs = ens.map(e => e.x), avg = a => a.reduce((p, q) => p + q, 0) / a.length;
+    const cx = avg(xs), gy = avg(ens.map(e => e.y)), cy = avg(ens.map(e => this._hitPoint(e).y));
+    const spread = Math.max(30, (Math.max(...xs) - Math.min(...xs)) / 2 + 24);
+    const RAD = clamp(spread + 22, 54, 112);
+    const home = { x: A.x, y: A.y };
+    // where he hangs in the air: above the middle of the enemies, as high as keeps his head on screen
+    // just above the tallest enemy's head, but low enough that his head stays on screen (the raised sword reaches 100px
+    // above his feet; the blade can go off the top, it becomes a pillar of light anyway)
+    const topY = Math.min(...ens.map(e => e.y - SP.enemyInfo(e.kind).ay * 0.85));
+    const air = { x: cx + 4, y: clamp(Math.min(gy - 30, topY - 4), 76, gy - 30) }, L = gy - air.y;
+    // ---- timeline (ms)
+    const CH = 900, B0 = CH + 160, n = Math.max(1, slashes.length);
+    const hitAt = []; let tt = B0; for (let i = 0; i < n; i++) { hitAt.push(tt); tt += lerp(170, 88, n > 1 ? i / (n - 1) : 1); }
+    const B1 = hitAt[n - 1] + 130, AP = B1 + 270, EX = AP + 380, HOLD = 760, SW = EX + 320 + HOLD, SWMS = 180;
+    const HIT = SW + SWMS, BACK = HIT + 640, DROP = BACK + 170, LAND = DROP + 300, END = LAND + 430;
+    // ---- the sprite: stance, the charge crouch, then (hidden) the raised pose, the airborne hover, the swing, the strike, the landing
+    let tl = null;
+    if (R) {
+      tl = [[0, 80]];
+      const cf = []; for (let f = R.charge[0]; f <= R.charge[1]; f++) cf.push(f);
+      for (const f of cf) tl.push([f, (CH - 80) / cf.length]);
+      tl.push([R.up, AP - CH]);
+      for (let ms = AP; ms < SW; ms += 170) tl.push([(Math.round((ms - AP) / 170) % 2) ? R.hover : R.up, Math.min(170, SW - ms)]);
+      const sw = R.swing || [];
+      if (sw.length) for (const f of sw) tl.push([f, SWMS / sw.length]); else tl.push([R.up, SWMS]);
+      tl.push([R.down, LAND - HIT], [R.land, END - LAND]);
+      const d = Object.assign({}, anim, { timeline: tl });
+      const at = []; let acc = 0; for (const [, ms] of tl) { at.push(acc); acc += ms; }
+      A.anim = { d, t0: now(), speed: T(1000) / 1000, at, total: acc };
+    } else this.pose(A, 'windup', T(CH));
+    const t0 = now();
+    const when = (ms, fn) => setTimeout(fn, T(ms));
+    // ---- the camera: on the knight while he charges, the field for the barrage, up to frame him in the air, back home
+    const K = [[0, home.x - 20, home.y - 40, 1.12], [CH, home.x - 30, home.y - 40, 1.12], [B0 + 120, cx, cy, 1.07], [B1, cx, cy, 1.07],
+      [AP + 120, air.x, air.y - 30, 1.03], [SW, air.x, air.y - 46, 1.06], [HIT + 60, cx, gy - 40, 1.0], [BACK + 200, (cx + home.x) / 2, gy - 40, 1.0], [LAND, home.x - 20, home.y - 36, 1.06], [END, home.x - 20, home.y - 36, 1.06]];
+    this.cam = { x: home.x, y: home.y - 40, t0, dur: T(END + 300), z: 1.1, fn: tn => {
+      const el = (tn - t0) / (T(1000) / 1000);
+      let i = 0; while (i + 1 < K.length && el >= K[i + 1][0]) i++;
+      const a = K[i], b = K[Math.min(i + 1, K.length - 1)], k = b[0] > a[0] ? clamp((el - a[0]) / (b[0] - a[0]), 0, 1) : 1, e = k * k * (3 - 2 * k);
+      return { x: lerp(a[1], b[1], e), y: lerp(a[2], b[2], e), z: lerp(a[3], b[3], e) };
+    } };
+    // ---- 1. charge: light motes stream into him, his outline glows, a ring of light on the floor
+    A.chronoRim = { t0, until: t0 + T(CH + 60), color: '#7fc8ff', inner: '#dff4ff' };
+    sfx('charge');
+    this.glows.push({ x: A.x, y: A.y - 1, r: 12, grow: 26, color: '#9fd8ff', t: 0, life: CH / 1000, a: 0.7, rune: true });   // (glows run on game time: plain seconds)
+    for (let ms = 0; ms < CH - 60; ms += 45) when(ms, () => {
+      const k = ms / CH, px = A.x + A.ox, py = A.y + A.oy - 24;
+      for (let j = 0; j < 2 + Math.round(k * 3); j++) {
+        const a = rnd(0, Math.PI * 2), d = rnd(26, 46);
+        this.particles.push({ x: px + Math.cos(a) * d, y: py + Math.sin(a) * d * 0.8, vx: -Math.cos(a) * d * 3.4, vy: -Math.sin(a) * d * 2.8, g: 0, life: 0.28, t: 0, c: Math.random() < 0.4 ? '#ffffff' : '#9fd8ff', plus: Math.random() < 0.3, fade: true });
+      }
+      if (Math.random() < 0.5) this.particles.push({ x: px + rnd(-14, 14), y: A.y + A.oy - rnd(0, 6), vx: 0, vy: -rnd(20, 50), g: 0, life: rnd(0.4, 0.7), t: 0, c: '#bfe6ff', blob: 0.5, fade: true });
+    });
+    // a wind of light rising round him, two rings of light closing in on him, a star of light on the sword's point
+    for (let ms = 120; ms < CH - 40; ms += 40) when(ms, () => {
+      const k = ms / CH, px = A.x + A.ox, py = A.y + A.oy;
+      for (let j = 0; j < 1 + Math.round(k * 2); j++) this.particles.push({ x: px + rnd(-16, 16) * (1 + k * 0.5), y: py - rnd(0, 10), vx: rnd(-6, 6), vy: -rnd(70, 130), g: 0, life: rnd(0.25, 0.45), t: 0, c: Math.random() < 0.5 ? '#ffffff' : '#9fd8ff', streak: 4 + Math.round(k * 4), drag: 0.97 });
+    });
+    [0, 330].forEach(ms => when(ms, () => this.glows.push({ x: A.x, y: A.y - 1, r: 60, grow: -52, color: '#9fd8ff', t: 0, life: 0.52, a: 0.75, ring: true })));
+    for (let ms = 0; ms < CH; ms += 150) when(ms, () => this.glows.push({ x: A.x - 4, y: A.y - 24, r: 26 + ms / CH * 34, color: '#7fc8ff', t: 0, life: 0.3, a: 0.25 + 0.4 * ms / CH }));
+    const tipC = R && R.tipCharge;
+    if (tipC) when(200, () => this.stars.push({ kind: 'star', x: A.x + tipC[0], y: A.y + tipC[1], t0: now(), grow: T(CH - 260), color: '#dff4ff' }));
+    when(CH - 260, () => { this.glows.push({ x: A.x - 10, y: A.y - 30, r: 34, color: '#bfe6ff', t: 0, life: 0.3, a: 0.9 }); sfx('twinkle'); });
+    when(CH - 10, () => { for (const st of this.stars) if (st.color === '#dff4ff') st.done = true; });
+    // ---- 2. vanish: a white flash, light shards off his body, a streak of light to the enemies
+    when(CH, () => {
+      const px = A.x + A.ox, py = A.y + A.oy - 26;
+      const v = (A.variant || 0) % (anim ? anim.whites.length : 1), wh = R && anim.whites[v][R.charge[1]];   // the crouch he vanished from
+      if (wh) this.ghosts.push({ img: this.tinted(wh, '#dff4ff'), x: Math.round(px - anim.ax), y: Math.round(A.y + A.oy - anim.ay), t0: now(), life: T(300), a: 0.9, add: true });
+      A.alpha = 0; A.hideHud = true;   // (his bar would follow him over the enemies' bars)
+      for (let j = 0; j < 26; j++) { const a = rnd(0, Math.PI * 2), v = rnd(40, 130); this.particles.push({ x: px + rnd(-6, 6), y: py + rnd(-14, 14), vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, g: 40, life: rnd(0.3, 0.6), t: 0, c: j % 3 ? '#9fd8ff' : '#ffffff', streak: 3, drag: 0.88 }); }
+      this.glows.push({ x: px, y: py, r: 46, color: '#cfeeff', t: 0, life: 0.3, a: 1 });
+      const a = Math.atan2(cy - py, cx - px);
+      this.xhits.push({ kind: 'blade', x: px, y: py, a, l1: Math.hypot(cx - px, cy - py), l2: 6, w: 3.2, t0: now(), life: T(300) });
+      sfx('whoosh');
+    });
+    // ---- the ball of light that swells while the slashes land
+    this.rbloom = { x: cx, y: cy, r: RAD * 1.25, t0: t0 + T(B0 - 60), t1: t0 + T(B1), t2: t0 + T(B1 + 420) };
+    const ANG = [-34, 26, -66, 78, -10, 52, -82, 14, -46, 64, -24, 40];
+    slashes.forEach((rec, i) => when(hitAt[i], () => {
+      const e = this.actors.get(rec.id); if (!e) return;
+      const hp = this._hitPoint(e), T0 = now();
+      const deg = ANG[i % ANG.length] + rnd(-9, 9), a = deg * Math.PI / 180;
+      const px = hp.x + rnd(-6, 6), py = hp.y + rnd(-6, 6);
+      // the cut through the target: long and thin, shooting out fast and thinning away
+      const l1 = rnd(62, 104), l2 = rnd(48, 88), w = rnd(3.4, 5);
+      this.xhits.push({ kind: 'blade', x: px, y: py, a, l1, l2, w, t0: T0, life: T(rnd(380, 520)) });
+      if (i % 3 === 1) {   // a doubled cut: a thinner twin beside it
+        const nx = -Math.sin(a) * 5, ny = Math.cos(a) * 5;
+        this.xhits.push({ kind: 'blade', x: px + nx, y: py + ny, a, l1: l1 * 0.8, l2: l2 * 0.8, w: w * 0.5, t0: T0 + T(25), life: T(360) });
+      }
+      if (i % 4 === 3) this.xhits.push({ kind: 'blade', x: px, y: py, a: a + Math.PI / 2 + rnd(-0.3, 0.3), l1: l1 * 0.75, l2: l2 * 0.75, w: w * 0.8, t0: T0 + T(40), life: T(400) });   // a cross
+      // a curved cut wrapping round the circumference of the attack (every size, tilt, sweep and thickness differs);
+      // every third one wraps round the target itself instead
+      const round = i % 3 === 2;
+      const rx = round ? rnd(18, 30) : RAD * rnd(0.7, 1.25), ry = rx * rnd(0.5, 1);
+      this.rarcs.push({ cx: round ? hp.x : cx + rnd(-10, 10), cy: round ? hp.y : cy + rnd(-8, 8), rx, ry, rot: rnd(-0.7, 0.7), a0: rnd(0, Math.PI * 2),
+        sweep: (Math.random() < 0.5 ? -1 : 1) * rnd(round ? 2.6 : 1.3, round ? 4.4 : 3.6), w: rnd(round ? 2.5 : 3.5, round ? 4.5 : 8.5), t0: T0, life: T(rnd(480, 780)) });
+      if (i > 2 && Math.random() < 0.6) this.rarcs.push({ cx: cx + rnd(-12, 12), cy: cy + rnd(-10, 10), rx: RAD * rnd(0.9, 1.35), ry: RAD * rnd(0.5, 0.9), rot: rnd(-0.5, 0.5), a0: rnd(0, Math.PI * 2),
+        sweep: (Math.random() < 0.5 ? -1 : 1) * rnd(0.9, 2.2), w: rnd(1.6, 3), t0: T0 + T(50), life: T(rnd(400, 600)) });
+      // a stray cut somewhere in the storm (more of them as it builds)
+      for (let k = 0; k < (i < 4 ? 1 : 2); k++) {
+        const q = rnd(0, Math.PI * 2), d = rnd(0, RAD * 0.9);
+        this.xhits.push({ kind: 'blade', x: cx + Math.cos(q) * d, y: cy + Math.sin(q) * d * 0.7, a: rnd(0, Math.PI), l1: rnd(30, 70), l2: rnd(30, 70), w: rnd(1.5, 2.6), t0: T0 + T(rnd(0, 60)), life: T(rnd(260, 380)) });
+      }
+      // his blue after-image beside the target, mid-swing, there and gone
+      if (combo) {
+        const f = [5, 9, 13, 17, 21, 35][i % 6], v = (A.variant || 0) % combo.whites.length, wh = combo.whites[v][f];
+        const side = i % 2 ? -1 : 1, gx = e.x + side * rnd(18, 30), gyy = e.y + rnd(-6, 2);
+        if (wh) this.ghosts.push({ img: this.tinted(wh, '#cfeeff'), x: Math.round(gx - combo.ax), y: Math.round(gyy - combo.ay), t0: T0, life: T(160), a: 0.75, add: true, flip: side < 0 });
+      }
+      // the hit itself, with its number nudged so the stack of hits reads as a flurry
+      const nb0 = this.numbers.length;
+      this.impact(ev, tgt, 'xslash', rc, [rec], true);
+      for (let k = nb0; k < this.numbers.length; k++) { this.numbers[k].x += rnd(-12, 12); this.numbers[k].y += rnd(-14, 8); }
+      if (last[rec.id] === tgt.indexOf(rec)) this._applyAfter(ev, [rec.id]);
+      for (let k = 0; k < 4; k++) this.particles.push({ x: cx + rnd(-RAD, RAD), y: cy + rnd(-RAD, RAD) * 0.7, vx: rnd(-12, 12), vy: rnd(-16, 4), g: 0, life: rnd(0.5, 1.1), t: 0, c: Math.random() < 0.5 ? '#ffffff' : '#bfe6ff', blob: rnd(0.2, 1), fade: true });
+      this.shake = Math.max(this.shake, 2); this.shakeT = now(); this.freezeUntil = now() + 35;
+      sfx('slash'); if (i % 3 === 0) sfx('zap');
+    }));
+    // the storm ends in a burst: a flash, a ring of light and sparks flung out
+    when(B1, () => {
+      this.glows.push({ x: cx, y: cy, r: 20, grow: RAD * 1.4, color: '#bfe6ff', t: 0, life: 0.5, a: 0.9, ring: true });
+      this.glows.push({ x: cx, y: cy, r: RAD * 1.2, color: '#e8f8ff', t: 0, life: 0.35, a: 1 });
+      for (let k = 0; k < 30; k++) { const a = rnd(0, Math.PI * 2), v = rnd(110, 260); this.slivers.push({ x: cx + Math.cos(a) * 8, y: cy + Math.sin(a) * 8, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.8, len: rnd(8, 20), t0: now(), last: now(), life: T(rnd(500, 1000)) }); }
+      this.flash = Math.max(this.flash || 0, 0.22); this.flashC = '225,242,255';
+      this.shake = Math.max(this.shake, 6); this.shakeT = now();
+      sfx('hitBig');
+    });
+    // ---- 3. reappear in the air above the enemies, falling in from above as after-images
+    when(AP - 30, () => { this.move(A, air.x - home.x, gy - home.y, 1); A.lift = L; A.liftT = null; A.zb = 1000; });
+    when(AP, () => {
+      A.alpha = null; A.fadeIn = { t0: now(), ms: T(200) }; A.flashUntil = now() + T(150);
+      A.chronoRim = { t0: now(), until: now() + T(HIT - AP + 120), color: '#7fc8ff', inner: '#dff4ff' };
+      const fr = this._animAt(A, now());
+      if (fr) [36, 24, 12].forEach((dy, j) => setTimeout(() => this.ghosts.push({ img: this.tinted(fr.wh, '#9fd8ff'), x: Math.round(air.x - fr.ax), y: Math.round(air.y - dy - fr.ay), t0: now(), life: T(200), a: 0.5 - j * 0.1, add: true }), T(j * 35)));
+      for (let k = 0; k < 7; k++) this.xhits.push({ kind: 'blade', x: air.x + rnd(-34, 34), y: air.y - rnd(30, 60), a: Math.PI / 2, l1: rnd(30, 60), l2: rnd(20, 50), w: rnd(1.2, 2.2), t0: now() + T(k * 20), life: T(240) });
+      this.glows.push({ x: air.x, y: air.y - 30, r: 10, grow: 46, color: '#bfe6ff', t: 0, life: 0.4, a: 0.9, ring: true });
+      this.glows.push({ x: air.x, y: air.y - 30, r: 40, color: '#dff4ff', t: 0, life: 0.3, a: 0.8 });
+      sfx('whoosh'); sfx('twinkle');
+    });
+    // ---- 4. the blade extends upward into a long pillar of light, held for a moment
+    const P = R || { tipUp: [-33, -100], guardUp: [-33, -61], tipDown: [-33, -15], guardDown: [-33, -51] };
+    when(EX, () => {
+      this.rbeam = { A, t0: now(), grow: T(320), swing0: t0 + T(SW), swingMs: T(SWMS), end: t0 + T(HIT + 90), guard: P.guardUp, tip: P.tipUp, guard2: P.guardDown };
+      const tip = { x: air.x + P.tipUp[0], y: air.y + P.tipUp[1] };
+      this.glows.push({ x: tip.x, y: tip.y, r: 8, grow: 30, color: '#dff4ff', t: 0, life: 0.45, a: 1, ring: true });
+      this.glows.push({ x: tip.x, y: tip.y, r: 30, color: '#ffffff', t: 0, life: 0.3, a: 1 });
+      sfx('charge'); sfx('rise');
+    });
+    when(EX + 320, () => sfx('twinkle'));
+    // ---- 5. the downward strike: the pillar sweeps over and down and crashes onto the enemies as a column of light
+    when(SW, () => { sfx('heavy'); sfx('whoosh'); });
+    when(HIT, () => {
+      const W = Math.max(46, spread * 1.7 + 16);
+      this.rpillar.push({ x: cx, w: W, floor: gy, t0: now(), life: T(1150) });
+      for (let j = 0; j < 3; j++) this.ripples.push({ x: cx, y: gy + 1, t0: performance.now() + T(j * 140), life: T(900), r0: W * 0.4, r1: W * 1.1 + j * 18 });
+      for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2 + rnd(0, 0.5), Lc = W * rnd(0.6, 1.1); this._crack(Math.round(cx), Math.round(gy + 1), Math.round(cx + Math.cos(a) * Lc), Math.round(gy + 1 + Math.sin(a) * Lc * 0.25), T(180), T(1700), '#9fd8ff'); }
+      const lp = this.lowPower ? 0.5 : 1;
+      for (let k = 0; k < 16 * lp; k++) this.rrocks.push({ x: cx + rnd(-W * 0.55, W * 0.55), y: gy - rnd(0, 6), vy: -rnd(30, 95), vx: rnd(-8, 8), sz: rnd(2.5, 6.5), rot: rnd(0, 6), spin: rnd(-3, 3), t0: now() + T(rnd(0, 140)), life: T(rnd(1000, 1500)) });
+      for (let k = 0; k < 40 * lp; k++) { const a = -Math.PI * rnd(0.05, 0.95), v = rnd(60, 200); this.particles.push({ x: cx + rnd(-W / 2, W / 2), y: gy - 2, vx: Math.cos(a) * v * 1.3, vy: Math.sin(a) * v, g: 120, life: rnd(0.5, 1), t: 0, c: ['#ffffff', '#dff4ff', '#9fd8ff', '#5aa8ff'][k % 4], streak: 3 + (k % 3), drag: 0.9 }); }
+      for (let k = 0; k < 24 * lp; k++) this.particles.push({ x: cx + rnd(-W, W), y: gy - rnd(0, 20), vx: rnd(-20, 20), vy: -rnd(8, 30), g: -6, life: rnd(1, 1.8), t: 0, c: Math.random() < 0.5 ? '#c8d0e0' : '#8a94aa', blob: rnd(1, 2.5), fade: true });
+      this.flash = Math.max(this.flash || 0, 0.78); this.flashC = '232,246,255';
+      this.shake = Math.max(this.shake, 15); this.shakeT = now(); this.freezeUntil = now() + 170;
+      if (fin.length) this.impact(ev, tgt, 'xslash', rc, fin, true);
+      for (const r of fin) if (last[r.id] === tgt.indexOf(r)) this._applyAfter(ev, [r.id]);
+      sfx('boom'); sfx('hitBig');
+    });
+    // ---- 6. he flashes back to his place, drops in and lands
+    when(BACK, () => {
+      const px = A.x + A.ox, py = A.y + A.oy - this._liftOf(A) - 30;
+      A.alpha = 0; A.chronoRim = null;
+      for (let j = 0; j < 18; j++) { const a = rnd(0, Math.PI * 2), v = rnd(30, 90); this.particles.push({ x: px + rnd(-6, 6), y: py + rnd(-14, 14), vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, g: 20, life: rnd(0.3, 0.6), t: 0, c: j % 3 ? '#9fd8ff' : '#ffffff', fade: true }); }
+      const to = { x: home.x - 4, y: home.y - 66 }, a = Math.atan2(to.y - py, to.x - px);
+      this.xhits.push({ kind: 'blade', x: px, y: py, a, l1: Math.hypot(to.x - px, to.y - py), l2: 4, w: 2.6, t0: now(), life: T(260) });
+      sfx('whoosh');
+    });
+    when(DROP, () => {
+      this.move(A, 0, 0, 1); A.lift = 46; A.liftT = null; A.zb = 0; A.hideHud = false; this.setLift(A, 0, T(LAND - DROP), 'in');
+      A.alpha = null; A.fadeIn = { t0: now(), ms: T(120) }; A.flashUntil = now() + T(110);
+      for (let k = 0; k < 5; k++) this.xhits.push({ kind: 'blade', x: home.x + rnd(-18, 18), y: home.y - rnd(40, 70), a: Math.PI / 2, l1: rnd(20, 40), l2: rnd(20, 40), w: rnd(1, 1.8), t0: now() + T(k * 25), life: T(220) });
+    });
+    when(LAND, () => {
+      this.burst(home.x, home.y - 2, '#c8d8e8', 16, 40, 30); this.glows.push({ x: home.x, y: home.y - 2, r: 8, grow: 30, color: '#bfe6ff', t: 0, life: 0.35, a: 0.8, ring: true });
+      this.shake = Math.max(this.shake, 3); this.shakeT = now(); sfx('stomp');
+    });
+    when(END, () => {
+      if (A.anim && A.anim.d && A.anim.d.resolve) A.anim = null;
+      A.alpha = null; A.lift = 0; A.liftT = null; A.zb = 0; A.hideHud = false; A.chronoRim = null; this.move(A, 0, 0, 1);
+      this._applyAfter(ev);
+    });
+    return T(END + 380);
+  }
+
   // Divine Shield's dome round a hero: it forms (frames 0-5) when the skill's light reaches them, shimmers brightly while
   // the move plays, then stays up dimmer for as long as the Divine Shield status lasts. A blocked hit makes it flare.
   _drawDome(n, a, t, kx) {
@@ -2866,7 +3215,7 @@ export class BattleScene {
     this._applyAfter(ev, [h.id, E.id]);
   }
   // a jagged crack in the floor from (x0,y0) to (x1,y1), growing over grow ms, with a couple of side branches
-  _crack(x0, y0, x1, y1, grow, life) {
+  _crack(x0, y0, x1, y1, grow, life, glow) {   // glow: the light deep inside the fissure (molten orange unless given)
     const pts = [[x0, y0]]; const len = Math.hypot(x1 - x0, y1 - y0), n = Math.max(3, Math.round(len / 5));
     for (let i = 1; i < n; i++) { const k = i / n; pts.push([Math.round(x0 + (x1 - x0) * k + (Math.random() - 0.5) * 3), Math.round(y0 + (y1 - y0) * k + (i % 2 ? 1 : -1) * (1 + Math.random() * 3))]); }   // zig-zag
     pts.push([x1, y1]);
@@ -2878,7 +3227,7 @@ export class BattleScene {
       branches.push({ at: at / pts.length, pts: bp });
     }
     const rubble = pts.filter((_, i) => i % 3 === 1).map(([x, y]) => [x + Math.round((Math.random() - 0.5) * 4), y + (Math.random() < 0.5 ? -2 : 2), Math.random() < 0.5 ? 2 : 1]);
-    this.cracks.push({ pts, branches, rubble, t0: now(), grow, life });
+    this.cracks.push({ pts, branches, rubble, t0: now(), grow, life, glow });
   }
   // ------------------------------------------------------------ the raid cavern (theme 'inferno')
   inLava(a) { return !!(this.infernoOn && a && a.kind === 'voidmaw'); }
@@ -2993,7 +3342,7 @@ export class BattleScene {
       const g = Math.min(1, el / c.grow), upto = Math.ceil(g * (c.pts.length - 1));
       n.globalAlpha = el > c.life - 500 ? Math.max(0, (c.life - el) / 500) : 1;
       line(c.pts, upto, '#3a2a22', -1, 1); line(c.pts, upto, '#0a0503', 0, 2);   // a broken lip, then the deep dark fissure
-      line(c.pts, upto, '#ff7a2a', 0, 1, 2);                                        // molten light deep inside, in places
+      line(c.pts, upto, c.glow || '#ff7a2a', 0, 1, 2);                              // molten light deep inside, in places (Hero's Resolve: holy light)
       for (const b of c.branches) if (g >= b.at) { line(b.pts, b.pts.length, '#0a0503', 0, 1); }
       n.fillStyle = '#5a463a';
       for (const [x, y, sz] of c.rubble) if (upto >= 2) n.fillRect(x, y, sz, sz);
@@ -3324,12 +3673,13 @@ export class BattleScene {
       if (k >= 1) { this.ghosts.splice(i, 1); continue; }
       n.globalAlpha = (g.a || 0.38) * (1 - k); if (g.add) n.globalCompositeOperation = 'lighter';
       if (g.rot) { n.save(); n.translate(g.px, g.py); n.rotate(g.rot); n.translate(-g.px, -g.py); n.drawImage(g.img, g.x, g.y); n.restore(); }
+      else if (g.flip) { const m = g.x + g.img.width / 2; n.save(); n.translate(m, 0); n.scale(-1, 1); n.translate(-m, 0); n.drawImage(g.img, g.x, g.y); n.restore(); }   // Hero's Resolve: after-images facing the other way
       else n.drawImage(g.img, g.x, g.y);
       n.globalAlpha = 1; n.globalCompositeOperation = 'source-over';
     }
     if (this.pixelFx) this.drawBehindFx(n, t);   // Dragon's Wrath: the eyes and the dragon while it is still behind the mage
     // actors sorted by depth
-    const list = [...this.actors.values()].filter(a => !a.gone).sort((a, b) => (a.y + (a.type === 'enemy' ? -0.5 : 0)) - (b.y));
+    const list = [...this.actors.values()].filter(a => !a.gone).sort((a, b) => (a.y + (a.zb || 0) + (a.type === 'enemy' ? -0.5 : 0)) - (b.y + (b.zb || 0)));   // zb: drawn in front (Hero's Resolve, in the air)
     for (const a of list) {
       if (a.tween) {
         const k = clamp((t - a.tween.t0) / a.tween.ms, 0, 1); const e = a.tween.linear ? k : ease(k);
@@ -3355,6 +3705,7 @@ export class BattleScene {
       let alpha = a.alpha == null ? 1 : a.alpha;
       if (a.spawnAt) { alpha = clamp((t - a.spawnAt) / 500, 0, 1); a.alpha = alpha; if (alpha >= 1) a.spawnAt = 0; }
       if (a.dying) alpha = Math.max(0, 1 - (t - a.dying) / 300);
+      if (a.fadeIn) { const k = clamp((t - a.fadeIn.t0) / a.fadeIn.ms, 0, 1); alpha *= k; if (k >= 1) a.fadeIn = null; }   // Hero's Resolve: materialising out of light
       if (a.ghost && t < a.ghost.until) alpha *= lerp(1, a.ghost.a, Math.min(1, (t - a.ghost.t0) / 300));   // Resurrection: the fallen body turns translucent
       if (a.type === 'hero' && !a.connected && !this.victory) alpha *= 0.55;   // everyone celebrates at full colour
       n.globalAlpha = alpha;
@@ -3394,7 +3745,7 @@ export class BattleScene {
         n.globalAlpha = alpha * env * (0.7 + 0.3 * Math.sin(t / 70)); const rim = this.tinted(wf, a.chronoRim.color || '#4aa8ff');   // Deadeye uses it in emerald
         for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) n.drawImage(rim, x + ox, y + oy);
         n.globalAlpha = alpha; n.drawImage(fr, x, y);
-        n.globalAlpha = alpha * env * 0.12; n.drawImage(this.tinted(wf, a.chronoRim.color ? '#c8fff0' : '#bfe6ff'), x, y); n.globalAlpha = alpha;
+        n.globalAlpha = alpha * env * 0.12; n.drawImage(this.tinted(wf, a.chronoRim.inner || (a.chronoRim.color ? '#c8fff0' : '#bfe6ff')), x, y); n.globalAlpha = alpha;
       }
       if (a.tstop && t >= a.tstop.t0 && t < a.tstop.until) {   // Time Stop: frozen mid-move and turned to blue crystal
         const wf = this.frameFor(a, true), el = t - a.tstop.t0, k = Math.min(1, el / 160);
@@ -3539,6 +3890,7 @@ export class BattleScene {
     this.drawTrails(ctx, t, sx, sy);
     this.drawXHits(ctx, t, sx, sy);
     this.drawBigArcs(ctx, t, sx, sy);
+    this.drawResolve(ctx, t, sx, sy);
     this.drawMeteors(ctx, t, sx, sy);
     this.drawOverlays(ctx, t, sx, sy);
     this.applyCam(ctx, t);
@@ -3594,9 +3946,9 @@ export class BattleScene {
     const ease = x => x * x * (3 - 2 * x);
     const k = el < 200 ? ease(el / 200) : el > c.dur - 260 ? ease(Math.max(0, (c.dur - el) / 260)) : 1;
     const Wd = this.cv.width, Hd = this.cv.height, s = this.s;
-    const cn = c.hold ? this._camNow(c, t) : c;
-    const z = 1 + (cn.z - 1) * k;
-    let fx = Math.max(Wd * 0.2, Math.min(Wd * 0.8, c.x * s)), fy = Math.max(Hd * 0.25, Math.min(Hd * 0.75, c.y * s));
+    const cn = c.hold ? this._camNow(c, t) : c.fn ? c.fn(t) : c;   // fn: a camera path (Hero's Resolve follows the knight from his charge to the enemies and back)
+    const z = 1 + (cn.z - 1) * k, cxp = c.fn ? cn.x : c.x, cyp = c.fn ? cn.y : c.y;
+    let fx = Math.max(Wd * 0.2, Math.min(Wd * 0.8, cxp * s)), fy = Math.max(Hd * 0.25, Math.min(Hd * 0.75, cyp * s));
     let ox = fx, oy = fy;   // where the focus point lands on screen (moves to tx/ty for a held framing)
     if (c.hold) { fx = c.x * s; fy = c.y * s; ox = fx + (cn.tx * Wd - fx) * k; oy = fy + (cn.ty * Hd - fy) * k; }
     if (!this._zc || this._zc.width !== Wd || this._zc.height !== Hd) { this._zc = document.createElement('canvas'); this._zc.width = Wd; this._zc.height = Hd; }
@@ -3902,7 +4254,7 @@ export class BattleScene {
           ctx.strokeStyle = '#3a2a10'; ctx.lineWidth = fs(1.5); ctx.stroke();
         }
       }
-      if (a.type === 'hero') {
+      if (a.type === 'hero' && !a.hideHud) {   // (Hero's Resolve hides the knight's bar while he flies over the enemies)
         const w = fs(46);
         const by = yFoot + fs(4);
         this.bar(ctx, x - w / 2, by, w, fs(4), a.hp / a.maxHp, a.downed ? '#6a6a7a' : '#5ae08a', '#b8ffd0', a.block);

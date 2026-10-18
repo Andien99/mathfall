@@ -41,7 +41,7 @@ function lowestHero(run, includeDowned) {
 // Damage from hero to enemy (or enemy to hero).
 function hitEnemy(src, e, base, opts = {}) {
   let d = base + (opts.noStr ? 0 : (src && src.st.str ? src.st.str.v : 0));
-  if (src && e.st.mark) d += e.st.mark.v;   // Hunter's Mark: every hero hit lands harder
+  if (src && e.st.mark && !opts.noMark) d += e.st.mark.v;   // Hunter's Mark: every hero hit lands harder
   if (src && src.lv && src.lv.atk) d *= 1 + C.STAT_STEP.atk * src.lv.atk;
   if (src && src.st.weak) d *= 0.75;
   if (e.st.vuln) d *= 1.5;
@@ -61,7 +61,6 @@ function hitHero(e, h, base, opts = {}) {
   if (opts.chilled) d *= 0.5;
   if (h.st.vuln) d *= 1.5;
   if (h.lv && h.lv.def) d *= 1 - Math.min(C.STAT_STEP.defCutMax, C.STAT_STEP.defCut * h.lv.def);
-  if (h.st.unbreak) d *= 0.5;
   d = Math.max(0, Math.round(d));
   const r = { id: h.id, dmg: 0, blocked: 0, downed: false };
   if (h.st.divine) { r.shielded = true; d = 0; }   // Divine Shield
@@ -70,7 +69,6 @@ function hitHero(e, h, base, opts = {}) {
   const dmg = d - blocked;
   r.dmg = dmg; r.blocked = blocked;
   if (!h.invincible) h.hp = Math.max(0, h.hp - dmg);   // teacher test games can make heroes invincible
-  if (h.st.unbreak && h.hp < 1) h.hp = 1;
   if (h.hp <= 0 && !h.downed) {
     if (has(h, 'phoenix_plume') && !h.plumeUsed) { h.plumeUsed = true; h.hp = Math.round(h.maxHp * 0.5); r.plume = h.hp; }
     else { h.downed = true; h.block = 0; h.st = {}; r.downed = true; h.focus = 0; }
@@ -321,7 +319,12 @@ const SKILL_FX = {
   battle_cry(X, p) { for (const h of X.heroes()) X.status(h, 'str', { v: X.n(p.str), t: p.strT }); },
   shield_slam(X, p) { const r = X.hit(X.enemy(), p.dmg + X.hero.block); r.slam = X.hero.block; },
   riposte(X, p) { X.block(X.hero, p.block); X.status(X.hero, 'thorns', { v: X.n(p.thorns), t: 1 }); },
-  unbreakable(X, p) { X.block(X.hero, p.block); X.status(X.hero, 'taunt', { t: 1 }); X.status(X.hero, 'unbreak', { t: 1 }); },
+  // Hero's Resolve: the slashes go round the living enemies in turn (a fallen one drops out), then the finisher hits them all
+  heros_resolve(X, p) {
+    // (Strength and Hunter's Mark add to the finisher only: twelve flat bonuses would dwarf the skill)
+    for (let i = 0; i < p.hitsN; i++) { const list = X.enemies(); if (!list.length) break; const r = X.hit(list[i % list.length], p.dmg, { noStr: true, noMark: true }); r.hit = i; }
+    for (const e of X.enemies()) X.hit(e, p.finisher).finisher = true;
+  },
   earthshatter(X, p) { for (const e of X.enemies()) X.status(e, 'weak', { t: p.weakT }, X.hit(e, p.dmg)); },
   champions_combo(X, p) {
     let e = X.enemy();

@@ -114,6 +114,15 @@ EXTRA = {
                           leap=dict(jumpAt=2, aim=6, loose=7, redraw=8, fallAt=10, landAt=12, aimDeg=27, height=34)),
     'ranger:f/leap': dict(base='ranger:f', ms=[50, 90, 60, 50, 50, 50, 600, 40, 40, 70, 70, 80, 70, 90, 200], hit=6, charge=6, release=7, muzzle=[-62, -36],
                           leap=dict(jumpAt=2, aim=6, loose=7, redraw=8, fallAt=10, landAt=12, aimDeg=28, height=34)),
+    # Hero's Resolve (tools/assemble_resolve.py): stance, the Power Strike crouch held while he charges ('charge': first and
+    # last crouch frame), then he vanishes for the slash barrage; he reappears in the air above the enemies with the sword
+    # raised ('up', and 'hover' = the same lifted 1px for the held pause), swings ('swing': optional in-betweens) into the
+    # airborne downward strike ('down') and lands in the low finish ('land'). The game builds the timing itself; these ms
+    # are only the fallback. Sword points (px from the feet): tip and crossguard in the raised and the lowered pose.
+    'knight:m/resolve': dict(base='knight:m', ms=[80, 120, 120, 120, 120, 120, 120, 300, 300, 60, 60, 60, 300, 400], hit=12, cast=False,
+                             resolve=dict(charge=[1, 6], up=7, hover=8, swing=[9, 10, 11], down=12, land=13, tipCharge=[-39, -15], tipUp=[-33, -100], guardUp=[-33, -61], tipDown=[-33, -15], guardDown=[-33, -51])),
+    'knight:f/resolve': dict(base='knight:f', ms=[80, 120, 120, 120, 120, 120, 120, 300, 300, 60, 60, 60, 300, 400], hit=12, cast=False,
+                             resolve=dict(charge=[1, 6], up=7, hover=8, swing=[9, 10, 11], down=12, land=13, tipCharge=[-28, -30], tipUp=[-28, -100], guardUp=[-28, -62], tipDown=[-32, -1], guardDown=[-32, -40])),
     'knight:m/power': dict(base='knight:m', ms=[60, 70, 90, 110, 120, 130, 140, 110, 90, 380], hit=9, aura=[1, 7], dashAt=7, dashFrames=8, upswing=9, dash=10, cast=False),
     'knight:f/power': dict(base='knight:f', ms=[60, 70, 110, 120, 130, 140, 110, 90, 380], hit=8, aura=[1, 6], dashAt=6, dashFrames=7, upswing=8, dash=10, cast=False),
 }
@@ -147,7 +156,7 @@ def build(skin):
         'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m.get('hit'), 'loop': m.get('loop'), 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
         'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom'),
         'tips': tips, 'chargeTo': m.get('chargeTo'), 'swing': m.get('swing'), 'aura': m.get('aura'), 'ring': m.get('ring'), 'upswing': m.get('upswing'), 'dashAt': m.get('dashAt'),
-        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor'), 'quake': m.get('quake'), 'leap': m.get('leap')}
+        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor'), 'quake': m.get('quake'), 'leap': m.get('leap'), 'resolve': m.get('resolve')}
     json.dump(man, open(path, 'w'), indent=1)
     print('wrote', name, n, 'frames', sum(m['ms']), 'ms')
 

@@ -4004,6 +4004,137 @@
       "spinAt": 8,
       "blade": 39
      }
+    },
+    "resolve": {
+     "sheet": "knight_resolve.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 14,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       80
+      ],
+      [
+       1,
+       120
+      ],
+      [
+       2,
+       120
+      ],
+      [
+       3,
+       120
+      ],
+      [
+       4,
+       120
+      ],
+      [
+       5,
+       120
+      ],
+      [
+       6,
+       120
+      ],
+      [
+       7,
+       300
+      ],
+      [
+       8,
+       300
+      ],
+      [
+       9,
+       60
+      ],
+      [
+       10,
+       60
+      ],
+      [
+       11,
+       60
+      ],
+      [
+       12,
+       300
+      ],
+      [
+       13,
+       400
+      ]
+     ],
+     "hit": 12,
+     "loop": null,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": false,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null,
+     "slashAt": null,
+     "holdAt": null,
+     "arcAt": null,
+     "blade": null,
+     "meteor": null,
+     "quake": null,
+     "leap": null,
+     "resolve": {
+      "charge": [
+       1,
+       6
+      ],
+      "up": 7,
+      "hover": 8,
+      "swing": [
+       9,
+       10,
+       11
+      ],
+      "down": 12,
+      "land": 13,
+      "tipCharge": [
+       -39,
+       -15
+      ],
+      "tipUp": [
+       -33,
+       -100
+      ],
+      "guardUp": [
+       -33,
+       -61
+      ],
+      "tipDown": [
+       -33,
+       -15
+      ],
+      "guardDown": [
+       -33,
+       -51
+      ]
+     }
     }
    }
   },
@@ -4940,6 +5071,137 @@
       ],
       "spinAt": 8,
       "blade": 37
+     }
+    },
+    "resolve": {
+     "sheet": "knight_f_resolve.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 14,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       80
+      ],
+      [
+       1,
+       120
+      ],
+      [
+       2,
+       120
+      ],
+      [
+       3,
+       120
+      ],
+      [
+       4,
+       120
+      ],
+      [
+       5,
+       120
+      ],
+      [
+       6,
+       120
+      ],
+      [
+       7,
+       300
+      ],
+      [
+       8,
+       300
+      ],
+      [
+       9,
+       60
+      ],
+      [
+       10,
+       60
+      ],
+      [
+       11,
+       60
+      ],
+      [
+       12,
+       300
+      ],
+      [
+       13,
+       400
+      ]
+     ],
+     "hit": 12,
+     "loop": null,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": false,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null,
+     "slashAt": null,
+     "holdAt": null,
+     "arcAt": null,
+     "blade": null,
+     "meteor": null,
+     "quake": null,
+     "leap": null,
+     "resolve": {
+      "charge": [
+       1,
+       6
+      ],
+      "up": 7,
+      "hover": 8,
+      "swing": [
+       9,
+       10,
+       11
+      ],
+      "down": 12,
+      "land": 13,
+      "tipCharge": [
+       -28,
+       -30
+      ],
+      "tipUp": [
+       -28,
+       -100
+      ],
+      "guardUp": [
+       -28,
+       -62
+      ],
+      "tipDown": [
+       -32,
+       -1
+      ],
+      "guardDown": [
+       -32,
+       -40
+      ]
      }
     }
    }

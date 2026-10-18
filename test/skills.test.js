@@ -78,13 +78,18 @@ check('Riposte hits the attacker back', () => {
   const back = evs.filter(e => e.kind === 'enemy').map(e => e.targets[0].thorns);
   assert.deepStrictEqual(back, [6, 6, 6]);
 });
-check('Unbreakable: taunts, halves damage, cannot fall', () => {
-  const run = fight('knight'); const { h } = cast(run, 'unbreakable', null);
-  h.hp = 5; h.block = 0;
-  run.combat.enemies.forEach(e => { e.intent = { move: 'stab', type: 'attack', dmg: 20, target: 'h2' }; });
-  const evs = CB.enemyTurn(run);
-  assert.ok(evs.filter(e => e.kind === 'enemy').every(e => e.targets[0].id === 'h1'), 'all hit the knight');
-  assert.strictEqual(h.hp, 1); assert.ok(!h.downed);
+check("Hero's Resolve: 12 slashes of 2 shared out, then 10 to every enemy", () => {
+  const { ev } = cast(fight('knight'), 'heros_resolve', null);
+  const sl = ev.targets.filter(t => !t.finisher), fin = ev.targets.filter(t => t.finisher);
+  assert.strictEqual(sl.length, 12); assert.ok(sl.every(t => t.dmg === 2));
+  assert.deepStrictEqual(['e1', 'e2', 'e3'].map(id => sl.filter(t => t.id === id).length), [4, 4, 4]);
+  assert.deepStrictEqual(fin.map(t => [t.id, t.dmg]), [['e1', 10], ['e2', 10], ['e3', 10]]);
+});
+check("Hero's Resolve: slashes skip a fallen enemy; Strength only adds to the finisher", () => {
+  const { ev } = cast(fight('knight'), 'heros_resolve', null, r => { r.combat.enemies[0].hp = 3; r.heroes.h1.st.str = { v: 3, t: 2 }; });
+  const sl = ev.targets.filter(t => !t.finisher);
+  assert.strictEqual(sl.filter(t => t.id === 'e1').length, 2); assert.ok(sl.every(t => t.dmg === 2));
+  assert.deepStrictEqual(ev.targets.filter(t => t.finisher).map(t => [t.id, t.dmg]), [['e2', 13], ['e3', 13]]);
 });
 check('Earthshatter: 16 to all and Weak', () => { const { ev, e } = cast(fight('knight'), 'earthshatter', null); assert.strictEqual(dmgTo(ev, 'e3'), 16); assert.ok(e.every(x => x.st.weak)); });
 check('Arcane Missiles: 3 x 4', () => { const { ev } = cast(fight('mage'), 'arcane_missiles', null); assert.deepStrictEqual(ev.targets.map(t => t.dmg), [4, 4, 4]); });

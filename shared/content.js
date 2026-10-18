@@ -82,8 +82,8 @@
       p: { dmg: 6 }, desc: p => `Deal ${p.dmg} damage plus your current block.` },
     riposte: { cls: 'knight', name: 'Riposte', rarity: 'rare', cost: 5, target: 'self', icon: 'riposte', fx: 'counter', color: '#ffe08a',
       p: { block: 10, thorns: 6 }, desc: p => `Gain ${p.block} block. Enemies that hit you this round take ${p.thorns} damage back.` },
-    unbreakable: { cls: 'knight', name: 'Unbreakable', rarity: 'legendary', cost: 8, target: 'self', icon: 'unbreakable', fx: 'unbreakable', color: '#ffd36b',
-      p: { block: 10 }, desc: p => `Gain ${p.block} block. Every enemy attack targets you this round at half damage, and you can't fall.` },
+    heros_resolve: { cls: 'knight', name: "Hero's Resolve", rarity: 'legendary', cost: 9, target: 'allEnemies', icon: 'resolve', fx: 'resolve', color: '#bfe6ff',
+      p: { dmg: 2, hitsN: 12, finisher: 10 }, desc: p => `Vanish into a storm of ${p.hitsN} slashes (${p.dmg} each, spread across the enemies), then strike down with a pillar of light: ${p.finisher} damage to every enemy.` },
     earthshatter: { cls: 'knight', name: 'Earthshatter', rarity: 'legendary', cost: 8, target: 'allEnemies', icon: 'earthshatter', fx: 'quake', color: '#e0a060',
       p: { dmg: 16, weakT: 2 }, desc: p => `Smash the ground: ${p.dmg} damage to every enemy, and they are Weak for ${p.weakT} rounds.` },
     champions_combo: { cls: 'knight', name: "Champion's Combo", rarity: 'legendary', cost: 9, target: 'enemy', icon: 'combo', fx: 'combo', color: '#ffb347',
@@ -270,7 +270,6 @@
     steady: { name: 'Iron Skin', color: '#c8d4e8', desc: 'Block does not fade next round.' },
     thorns: { name: 'Riposte', color: '#ffe08a', desc: 'Enemies that hit this hero take damage back.' },
     frost:  { name: 'Frost Armour', color: '#a8f0ff', desc: 'Enemies that hit this hero are Chilled.' },
-    unbreak:{ name: 'Unbreakable', color: '#ffd36b', desc: 'Takes half damage and cannot fall this round.' },
     divine: { name: 'Divine Shield', color: '#fff6c8', desc: 'Takes no damage from enemies this round.' },
     surge:  { name: 'Mana Surge', color: '#9fd8ff', desc: 'The next skill costs no energy.' }
   };
