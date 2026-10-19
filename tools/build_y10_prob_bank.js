@@ -1,5 +1,5 @@
-// Builds banks/year-10-probability-mix.json: Year 10 Probability (Cambridge 10/10A, 8A–8F) mixed about 50/50
-// with the Year 7 Algebra core skills, so the set is a bit lighter and more fun.
+// Builds banks/year-10-probability-mix.json: Year 10 Probability (Cambridge 10/10A, 8A–8F), with extra
+// practice on the addition rule and conditional probability. (The file id is kept so teachers' selections still work.)
 // Diagrams come from tools/build_prob_images.js. Run both after changing anything:
 //   node tools/build_prob_images.js && node tools/build_y10_prob_bank.js
 const fs = require('fs');
@@ -147,18 +147,58 @@ const prob = [
     { solution: 'Putting it back means the second pick has the same probabilities as the first, so the picks are independent.' })
 ];
 
-const alg = require(path.join(__dirname, '..', 'banks', 'year-7-algebra-core-skills.json')).questions;
+// ---------------- extra: addition rule
+const VP = { image: I('venn-p-3-2-4-1.svg'), imageAlt: 'Venn diagram of probabilities: A only 0.3, A and B 0.2, B only 0.4, neither 0.1' };
+const V8 = { image: I('venn-8-4-6-2.svg'), imageAlt: 'Venn diagram: A only 8, A and B 4, B only 6, neither 2' };
+const T3 = { image: I('twoway-3-9-6-2.svg'), imageAlt: "Two-way table. Row B: 3, 9, total 12. Row B': 6, 2, total 8. Totals: A 9, A' 11, 20." };
+prob.push(
+  ty(ADD, 'The Venn diagram shows probabilities. Find $\\Pr(A \\cup B)$.', '0.9', { ...VP, hint: 'Add everything inside the circles.', solution: '$0.3 + 0.2 + 0.4 = 0.9$ (or $1 - 0.1$).' }),
+  ty(ADD, 'The Venn diagram shows probabilities. Find $\\Pr(A)$.', '0.5', { ...VP, solution: 'All of circle $A$: $0.3 + 0.2 = 0.5$.' }),
+  ty(ADD, 'If $\\Pr(A) = 0.6$, $\\Pr(B) = 0.3$ and $\\Pr(A \\cap B) = 0.2$, find $\\Pr(A \\cup B)$.', '0.7', { solution: '$0.6 + 0.3 - 0.2 = 0.7$' }),
+  ty(ADD, 'If $\\Pr(A \\cup B) = 0.8$, $\\Pr(A) = 0.5$ and $\\Pr(A \\cap B) = 0.1$, find $\\Pr(B)$.', '0.4', { hint: '$0.8 = 0.5 + \\Pr(B) - 0.1$', solution: '$0.8 = 0.4 + \\Pr(B)$, so $\\Pr(B) = 0.4$.' }),
+  ty(ADD, '$n(A) = 12$, $n(B) = 10$ and $n(A \\cap B) = 4$. Find $n(A \\cup B)$.', '18', { ...V8, solution: '$12 + 10 - 4 = 18$. Check on the diagram: $8 + 4 + 6 = 18$.' }),
+  ty(ADD, 'Find $\\Pr(A \\cup B)$.', '9/10', { ...T3, hint: 'Every cell that is in A or in B (or both).', solution: '$3 + 9 + 6 = 18$ out of $20$: $\\frac{18}{20} = \\frac{9}{10}$.' }),
+  ty(ADD, 'A die is rolled. What is the probability of an even number or a number greater than $4$?', '2/3', { hint: 'Even: 2, 4, 6. Greater than 4: 5, 6. Don\'t count 6 twice.', solution: '$\\{2, 4, 5, 6\\}$: $\\frac{4}{6} = \\frac{2}{3}$. Or $\\frac{3}{6} + \\frac{2}{6} - \\frac{1}{6}$.' }),
+  mc(ADD, 'A card is drawn from a standard deck of $52$. What is the probability it is red or an ace?', [fr(7, 13), fr(15, 26), fr(1, 26), fr(4, 13)],
+    { hint: '26 red cards, 4 aces, 2 red aces.', solution: '$\\frac{26}{52} + \\frac{4}{52} - \\frac{2}{52} = \\frac{28}{52} = \\frac{7}{13}$' }),
+  mc(ADD, 'A die is rolled. Which two events are mutually exclusive?', ['"rolling a 2" and "rolling an odd number"', '"rolling a 2" and "rolling an even number"', '"rolling a 5" and "rolling more than 3"', '"rolling an even number" and "rolling more than 4"'],
+    { solution: '$2$ is not odd, so both can\'t happen at once. The others share an outcome ($2$, $5$ or $6$).' }),
+  mc(ADD, 'For mutually exclusive events, the addition rule becomes $\\Pr(A \\cup B) = $', ['$\\Pr(A) + \\Pr(B)$', '$\\Pr(A) \\times \\Pr(B)$', '$\\Pr(A) + \\Pr(B) - 1$', '$1 - \\Pr(A \\cap B)$'],
+    { solution: 'Mutually exclusive means $\\Pr(A \\cap B) = 0$, so there is nothing to subtract.' }),
+  mc(ADD, '$\\Pr(A) = 0.4$, $\\Pr(B) = 0.5$ and $\\Pr(A \\cup B) = 0.7$. Are $A$ and $B$ mutually exclusive?', ['No, because $\\Pr(A \\cap B) = 0.2$', 'Yes, because $0.4 + 0.5 < 1$', 'Yes, because $\\Pr(A \\cup B) < 1$', 'No, because $\\Pr(A) < \\Pr(B)$'],
+    { solution: '$0.4 + 0.5 - 0.7 = 0.2$. The overlap isn\'t $0$, so they are not mutually exclusive.' })
+);
 
-// Interleave so previews and the bank list read as a mix (the game shuffles anyway).
-const questions = [];
-for (let i = 0; i < Math.max(prob.length, alg.length); i++) { if (prob[i]) questions.push(prob[i]); if (alg[i]) questions.push(alg[i]); }
+// ---------------- extra: conditional probability
+prob.push(
+  ty(CON, 'The Venn diagram shows probabilities. Find $\\Pr(A \\mid B)$.', '1/3', { ...VP, hint: '$\\Pr(A \\cap B) \\div \\Pr(B)$', solution: '$\\Pr(B) = 0.2 + 0.4 = 0.6$, so $\\frac{0.2}{0.6} = \\frac{1}{3}$.' }),
+  ty(CON, 'The Venn diagram shows probabilities. Find $\\Pr(B \\mid A)$.', '0.4', { ...VP, hint: '$\\Pr(A \\cap B) \\div \\Pr(A)$', solution: '$\\Pr(A) = 0.5$, so $\\frac{0.2}{0.5} = 0.4$.' }),
+  ty(CON, 'If $\\Pr(A \\cap B) = 0.12$ and $\\Pr(B) = 0.4$, find $\\Pr(A \\mid B)$.', '0.3', { solution: '$\\frac{0.12}{0.4} = 0.3$' }),
+  ty(CON, 'If $\\Pr(A \\cap B) = 0.1$ and $\\Pr(A) = 0.5$, find $\\Pr(B \\mid A)$.', '0.2', { solution: 'Given $A$, so divide by $\\Pr(A)$: $\\frac{0.1}{0.5} = 0.2$.' }),
+  ty(CON, 'If $\\Pr(A \\mid B) = 0.5$ and $\\Pr(B) = 0.6$, find $\\Pr(A \\cap B)$.', '0.3', { hint: '$\\Pr(A \\cap B) = \\Pr(A \\mid B) \\times \\Pr(B)$', solution: '$0.5 \\times 0.6 = 0.3$' }),
+  ty(CON, 'Find $\\Pr(A \\mid B)$.', '2/5', { ...V8, hint: 'Only look inside circle B.', solution: '$B$ has $4 + 6 = 10$; $4$ are in $A$: $\\frac{4}{10} = \\frac{2}{5}$.' }),
+  ty(CON, 'Find $\\Pr(B \\mid A)$.', '1/3', { ...V8, hint: 'Only look inside circle A.', solution: '$A$ has $8 + 4 = 12$; $4$ are in $B$: $\\frac{4}{12} = \\frac{1}{3}$.' }),
+  ty(CON, 'Find $\\Pr(A \\mid B)$.', '1/4', { ...T3, hint: 'Only use row B.', solution: 'Row $B$ totals $12$; $3$ are in $A$: $\\frac{3}{12} = \\frac{1}{4}$.' }),
+  ty(CON, 'Find $\\Pr(B \\mid A)$.', '1/3', { ...T3, hint: 'Only use column A.', solution: 'Column $A$ totals $9$; $3$ are in $B$: $\\frac{3}{9} = \\frac{1}{3}$.' }),
+  ty(CON, "Find $\\Pr(B' \\mid A')$.", '2/11', { ...T3, hint: "Only use column A'.", solution: "Column $A'$ totals $11$; $2$ are in $B'$: $\\frac{2}{11}$." }),
+  ty(CON, 'A die is rolled and shows an even number. What is the probability it is a $6$?', '1/3', { hint: 'The even numbers are the new sample space.', solution: 'Given even: $\\{2, 4, 6\\}$. One of them is $6$: $\\frac{1}{3}$.' }),
+  ty(CON, 'A die is rolled and shows a number greater than $3$. What is the probability it is even?', '2/3', { solution: 'Given $> 3$: $\\{4, 5, 6\\}$. Two are even: $\\frac{2}{3}$.' }),
+  ty(CON, 'A card drawn from a standard deck is a heart. What is the probability it is a king?', '1/13', { solution: 'Given a heart: $13$ cards, one is a king: $\\frac{1}{13}$.' }),
+  ty(CON, 'Box B is chosen. What is the probability of a green counter?', '3/4', { image: I('tree-boxes.svg'), imageAlt: 'Tree diagram. Box A 1/2: red 1/2, green 1/2. Box B 1/2: red 1/4, green 3/4.', hint: 'Given box B: just read the branch.', solution: 'The second-stage branches are conditional: $\\Pr(\\text{green} \\mid B) = \\frac{3}{4}$.' }),
+  mc(CON, 'When finding $\\Pr(A \\mid B)$, the sample space is reduced to…', ['$B$', '$A$', '$A \\cap B$', '$A \\cup B$'],
+    { solution: 'We know $B$ happened, so only outcomes in $B$ count.' })
+);
+
+// Order by exercise (8A → 8F) for the preview; the game shuffles anyway.
+const ORDER = [BAS, EXP, SET, VEN, TWT, ADD, CON, ARR, TRE];
+const questions = ORDER.flatMap(sk => prob.filter(q => q.skill === sk));
 
 const out = {
   id: 'year-10-probability-mix',
-  title: 'Year 10 Probability + Algebra warm-up',
+  title: 'Year 10 Probability (8A–8F)',
   year: 10,
-  topic: 'Probability (8A–8F) mixed with Year 7 algebra',
-  description: `${prob.length} probability questions (8A–8F: basics, experimental, set notation, Venn diagrams, two-way tables, addition rule, conditional, arrays, tree diagrams; many with diagrams) mixed with ${alg.length} Year 7 algebra review questions.`,
+  topic: 'Probability',
+  description: `${prob.length} questions from 8A–8F: basics, experimental, set notation, Venn diagrams, two-way tables, the addition rule (${prob.filter(q => q.skill === ADD).length}), conditional probability (${prob.filter(q => q.skill === CON).length}), arrays and tree diagrams. ${prob.filter(q => q.image).length} have diagrams.`,
   questions,
   modified: []
 };
@@ -171,4 +211,5 @@ questions.forEach((q, i) => {
   if (q.type === 'mc' && new Set(q.options).size !== q.options.length) throw new Error('Duplicate option: ' + q.q);
 });
 fs.writeFileSync(path.join(__dirname, '..', 'banks', 'year-10-probability-mix.json'), JSON.stringify(out, null, 1) + '\n');
-console.log(`wrote ${questions.length} questions (${prob.length} probability, ${alg.length} algebra, ${prob.filter(q => q.image).length} with pictures)`);
+const by = {}; questions.forEach(q => { by[q.skill] = (by[q.skill] || 0) + 1; });
+console.log(`wrote ${questions.length} questions, ${questions.filter(q => q.image).length} with pictures`, by);

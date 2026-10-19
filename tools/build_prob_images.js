@@ -207,3 +207,8 @@ pairGrid('dog-without.svg', ['D', 'O', 'G'], false);
 tree('tree-RB-with.svg', [['R', '2/3'], ['B', '1/3']], [[['R', '2/3'], ['B', '1/3']], [['R', '2/3'], ['B', '1/3']]]);
 tree('tree-BW-without.svg', [['B', '5/8'], ['W', '3/8']], [[['B', '4/7'], ['W', '?']], [['B', '5/7'], ['W', '2/7']]]);
 tree('tree-boxes.svg', [['A', '1/2'], ['B', '1/2']], [[['red', '1/2'], ['green', '1/2']], [['red', '1/4'], ['green', '3/4']]], { heads: ['Box', 'Counter'], outcomes: false });
+
+// ---- extra addition-rule / conditional diagrams
+venn('venn-p-3-2-4-1.svg', { counts: { a: '0.3', both: '0.2', b: '0.4', out: '0.1' } });
+venn('venn-8-4-6-2.svg', { counts: { a: 8, both: 4, b: 6, out: 2 } });
+twoWay('twoway-3-9-6-2.svg', [[3, 9, 12], [6, 2, 8], [9, 11, 20]]);

@@ -1,9 +1,9 @@
 {
  "id": "year-10-probability-mix",
- "title": "Year 10 Probability + Algebra warm-up",
+ "title": "Year 10 Probability (8A–8F)",
  "year": 10,
- "topic": "Probability (8A–8F) mixed with Year 7 algebra",
- "description": "62 probability questions (8A–8F: basics, experimental, set notation, Venn diagrams, two-way tables, addition rule, conditional, arrays, tree diagrams; many with diagrams) mixed with 48 Year 7 algebra review questions.",
+ "topic": "Probability",
+ "description": "88 questions from 8A–8F: basics, experimental, set notation, Venn diagrams, two-way tables, the addition rule (17), conditional probability (20), arrays and tree diagrams. 49 have diagrams.",
  "questions": [
   {
    "type": "mc",
@@ -22,19 +22,6 @@
   },
   {
    "type": "mc",
-   "skill": "Identifying like terms",
-   "q": "Which of the following is a pair of like terms?",
-   "options": [
-    "$5xy$ and $2yx$",
-    "$3x$ and $3y$",
-    "$4a$ and $4a^{2}$",
-    "$6m$ and $6$"
-   ],
-   "correct": 0,
-   "solution": "Like terms have exactly the same letters, in any order. $yx = xy$, so $5xy$ and $2yx$ are like terms."
-  },
-  {
-   "type": "mc",
    "skill": "Probability basics",
    "q": "What word best describes the chance marked by the arrow?",
    "options": [
@@ -47,19 +34,6 @@
    "image": "img/y10-probability/scale-likely.svg",
    "imageAlt": "Probability scale from 0 to 1 with an arrow at 0.8",
    "solution": "$0.8$ is closer to 1 (certain) than to $0.5$, so it is likely."
-  },
-  {
-   "type": "mc",
-   "skill": "Identifying like terms",
-   "q": "Which term is a like term to $7k$?",
-   "options": [
-    "$3k$",
-    "$7m$",
-    "$7k^{2}$",
-    "$7km$"
-   ],
-   "correct": 0,
-   "solution": "A like term has the same letter part, $k$. The number in front can change, so $3k$."
   },
   {
    "type": "mc",
@@ -76,19 +50,6 @@
   },
   {
    "type": "mc",
-   "skill": "Identifying like terms",
-   "q": "Which pair are NOT like terms?",
-   "options": [
-    "$2b$ and $2b^{2}$",
-    "$4c$ and $c$",
-    "$3gh$ and $hg$",
-    "$9$ and $1$"
-   ],
-   "correct": 0,
-   "solution": "$b$ and $b^{2}$ are different letter parts, so $2b$ and $2b^{2}$ are not like terms."
-  },
-  {
-   "type": "mc",
    "skill": "Probability basics",
    "q": "Complete the rule for equally likely outcomes: $\\Pr(\\text{event}) = \\dfrac{\\text{number of favourable outcomes}}{\\;?\\;}$",
    "options": [
@@ -99,19 +60,6 @@
    ],
    "correct": 0,
    "solution": "Favourable outcomes out of all the possible outcomes."
-  },
-  {
-   "type": "mc",
-   "skill": "Identifying like terms",
-   "q": "Which of the following is a pair of like terms?",
-   "options": [
-    "$8pq$ and $qp$",
-    "$8p$ and $8q$",
-    "$8pq$ and $8p$",
-    "$p^{2}$ and $2p$"
-   ],
-   "correct": 0,
-   "solution": "$qp$ is the same as $pq$, so $8pq$ and $qp$ are like terms."
   },
   {
    "type": "mc",
@@ -127,19 +75,6 @@
    "solution": "The sample space lists every possible outcome: $1$ to $6$."
   },
   {
-   "type": "mc",
-   "skill": "Identifying like terms",
-   "q": "Which term is a like term to $4a^{2}$?",
-   "options": [
-    "$-a^{2}$",
-    "$4a$",
-    "$2a^{3}$",
-    "$a^{2}b$"
-   ],
-   "correct": 0,
-   "solution": "It needs exactly $a^{2}$. $-a^{2}$ has the same letter part; only the number in front is different."
-  },
-  {
    "type": "text",
    "skill": "Probability basics",
    "q": "The spinner is spun once. What is the probability of spinning a $4$?",
@@ -152,19 +87,6 @@
    "solution": "There are $3$ fours out of $8$ equal sections, so $\\frac{3}{8}$."
   },
   {
-   "type": "mc",
-   "skill": "Identifying like terms",
-   "q": "Which term is a like term to $3mn$?",
-   "options": [
-    "$-5nm$",
-    "$3m$",
-    "$3n$",
-    "$3m^{2}n$"
-   ],
-   "correct": 0,
-   "solution": "$nm$ is the same as $mn$, so $-5nm$ matches $3mn$."
-  },
-  {
    "type": "text",
    "skill": "Probability basics",
    "q": "The spinner is spun once. What is the probability of spinning a $1$?",
@@ -174,19 +96,6 @@
    "image": "img/y10-probability/spinner-5.svg",
    "imageAlt": "Spinner with 5 equal sections labelled 1, 2, 1, 3, 1",
    "solution": "$3$ of the $5$ equal sections show $1$, so $\\frac{3}{5}$."
-  },
-  {
-   "type": "mc",
-   "skill": "Identifying like terms",
-   "q": "In $6x + 2y - 3x + 5$, which term is a like term to $6x$?",
-   "options": [
-    "$-3x$",
-    "$2y$",
-    "$5$",
-    "$6$"
-   ],
-   "correct": 0,
-   "solution": "Both have just $x$. Keep the sign with the term: $-3x$."
   },
   {
    "type": "text",
@@ -201,19 +110,6 @@
    "solution": "$3$ red out of $3 + 5 + 2 = 10$ counters: $\\frac{3}{10}$."
   },
   {
-   "type": "mc",
-   "skill": "Identifying like terms",
-   "q": "Which list contains only like terms?",
-   "options": [
-    "$2t$, $-t$, $9t$",
-    "$2t$, $2s$, $2$",
-    "$t$, $t^{2}$, $t^{3}$",
-    "$3t$, $3ts$, $3s$"
-   ],
-   "correct": 0,
-   "solution": "Every term has exactly $t$, so $2t$, $-t$ and $9t$ are all like terms."
-  },
-  {
    "type": "text",
    "skill": "Probability basics",
    "q": "A counter is taken from the bag without looking. What is the probability it is NOT yellow?",
@@ -226,30 +122,12 @@
   },
   {
    "type": "text",
-   "skill": "Collecting like terms",
-   "q": "Simplify $3x + 5x$.",
-   "answers": [
-    "8x"
-   ],
-   "solution": "Add the numbers in front: $3 + 5 = 8$, so $8x$."
-  },
-  {
-   "type": "text",
    "skill": "Probability basics",
    "q": "A letter is chosen from the word TELEVISION. What is the probability it is an E?",
    "answers": [
     "1/5"
    ],
    "solution": "There are $2$ Es in $10$ letters: $\\frac{2}{10} = \\frac{1}{5}$."
-  },
-  {
-   "type": "text",
-   "skill": "Collecting like terms",
-   "q": "Simplify $9m - 4m$.",
-   "answers": [
-    "5m"
-   ],
-   "solution": "$9 - 4 = 5$, so $5m$."
   },
   {
    "type": "text",
@@ -263,30 +141,12 @@
   },
   {
    "type": "text",
-   "skill": "Collecting like terms",
-   "q": "Simplify $6y + 4y - 2y$.",
-   "answers": [
-    "8y"
-   ],
-   "solution": "$6 + 4 - 2 = 8$, so $8y$."
-  },
-  {
-   "type": "text",
    "skill": "Probability basics",
    "q": "A spinner lands on $4$ with probability $\\frac{1}{3}$. How many $4$s would you expect in $60$ spins?",
    "answers": [
     "20"
    ],
    "solution": "$\\frac{1}{3} \\times 60 = 20$"
-  },
-  {
-   "type": "text",
-   "skill": "Collecting like terms",
-   "q": "Simplify $5k + 8 + 3k - 2$.",
-   "answers": [
-    "8k+6"
-   ],
-   "solution": "Letter terms: $5k + 3k = 8k$. Numbers: $8 - 2 = 6$. Answer: $8k + 6$."
   },
   {
    "type": "text",
@@ -299,19 +159,6 @@
    "image": "img/y10-probability/freq-heads.svg",
    "imageAlt": "Table. Number of heads 0, 1, 2, 3. Frequency 9, 38, 43, 10.",
    "solution": "$2$ heads happened $43$ times out of $100$: $0.43$."
-  },
-  {
-   "type": "mc",
-   "skill": "Collecting like terms",
-   "q": "The expression $7a + 3b - 4a + 2b$ simplifies to:",
-   "options": [
-    "$3a + 5b$",
-    "$11a + 5b$",
-    "$3a + b$",
-    "$8ab$"
-   ],
-   "correct": 0,
-   "solution": "$7a - 4a = 3a$ and $3b + 2b = 5b$, so $3a + 5b$."
   },
   {
    "type": "text",
@@ -327,19 +174,6 @@
    "solution": "$9 + 38 = 47$ out of $100$: $0.47$."
   },
   {
-   "type": "mc",
-   "skill": "Collecting like terms",
-   "q": "The expression $4x + 3y + 2x - y$ simplifies to:",
-   "options": [
-    "$6x + 2y$",
-    "$6x + 4y$",
-    "$8xy$",
-    "$2x + 2y$"
-   ],
-   "correct": 0,
-   "solution": "$4x + 2x = 6x$ and $3y - y = 2y$, so $6x + 2y$."
-  },
-  {
    "type": "text",
    "skill": "Experimental probability",
    "q": "$50$ cars were inspected. What is the experimental probability that a car has no faults?",
@@ -349,15 +183,6 @@
    "image": "img/y10-probability/freq-faults.svg",
    "imageAlt": "Table. Number of faults 0 to 4. Number of cars 30, 12, 4, 3, 1.",
    "solution": "$30$ of $50$ cars: $\\frac{30}{50} = \\frac{3}{5}$."
-  },
-  {
-   "type": "text",
-   "skill": "Collecting like terms",
-   "q": "Simplify $7ab - 3ba$.",
-   "answers": [
-    "4ab"
-   ],
-   "solution": "$ba$ is the same as $ab$, so $7ab - 3ab = 4ab$."
   },
   {
    "type": "mc",
@@ -373,15 +198,6 @@
    "solution": "Experimental probability uses the results: how many times it happened out of how many trials."
   },
   {
-   "type": "text",
-   "skill": "Collecting like terms",
-   "q": "Simplify $4mn + 6m - mn + 3m$.",
-   "answers": [
-    "3mn+9m"
-   ],
-   "solution": "$4mn - mn = 3mn$ and $6m + 3m = 9m$, so $3mn + 9m$."
-  },
-  {
    "type": "mc",
    "skill": "Set notation",
    "q": "Which set is shaded?",
@@ -395,15 +211,6 @@
    "image": "img/y10-probability/venn-shade-AnB.svg",
    "imageAlt": "Venn diagram with only the overlap of A and B shaded",
    "solution": "The overlap is in $A$ and $B$: the intersection $A \\cap B$."
-  },
-  {
-   "type": "text",
-   "skill": "Collecting like terms",
-   "q": "Simplify $5xy + 3y - 2yx + 4 + y$.",
-   "answers": [
-    "3xy+4y+4"
-   ],
-   "solution": "$5xy - 2xy = 3xy$, $3y + y = 4y$, and the $4$ stays: $3xy + 4y + 4$."
   },
   {
    "type": "mc",
@@ -422,19 +229,6 @@
   },
   {
    "type": "mc",
-   "skill": "Collecting like terms",
-   "q": "The expression $9p - 3p + 2$ simplifies to:",
-   "options": [
-    "$6p + 2$",
-    "$8p$",
-    "$12p + 2$",
-    "$6p - 2$"
-   ],
-   "correct": 0,
-   "solution": "$9p - 3p = 6p$. The $2$ has no letter, so it stays: $6p + 2$."
-  },
-  {
-   "type": "mc",
    "skill": "Set notation",
    "q": "Which set is shaded?",
    "options": [
@@ -447,15 +241,6 @@
    "image": "img/y10-probability/venn-shade-Aonly.svg",
    "imageAlt": "Venn diagram with A shaded except the overlap",
    "solution": "This is $A$ only: in $A$ and not in $B$, so $A \\cap B'$."
-  },
-  {
-   "type": "text",
-   "skill": "Collecting like terms",
-   "q": "Simplify $2a + 3b + 4a + b$.",
-   "answers": [
-    "6a+4b"
-   ],
-   "solution": "$2a + 4a = 6a$ and $3b + b = 4b$, so $6a + 4b$."
   },
   {
    "type": "mc",
@@ -474,19 +259,6 @@
   },
   {
    "type": "mc",
-   "skill": "Terms, coefficients and constants",
-   "q": "In the expression $7m + n + 4mn + 9$, the coefficient of $n$ is:",
-   "options": [
-    "1",
-    "0",
-    "4",
-    "9"
-   ],
-   "correct": 0,
-   "solution": "$n$ means $1 \\times n$, so the coefficient of $n$ is 1."
-  },
-  {
-   "type": "mc",
    "skill": "Set notation",
    "q": "Which set is shaded?",
    "options": [
@@ -499,19 +271,6 @@
    "image": "img/y10-probability/venn-shade-neither.svg",
    "imageAlt": "Venn diagram with only the region outside both circles shaded",
    "solution": "Outside both circles is neither $A$ nor $B$: $A' \\cap B'$, which is the same as $(A \\cup B)'$."
-  },
-  {
-   "type": "mc",
-   "skill": "Terms, coefficients and constants",
-   "q": "In $x + 4y$, the coefficient of $x$ is:",
-   "options": [
-    "1",
-    "0",
-    "4",
-    "$x$"
-   ],
-   "correct": 0,
-   "solution": "$x$ means $1 \\times x$, so the coefficient of $x$ is 1."
   },
   {
    "type": "mc",
@@ -529,15 +288,6 @@
    "solution": "Everything not in $A$ is the complement $A'$."
   },
   {
-   "type": "text",
-   "skill": "Terms, coefficients and constants",
-   "q": "In $3a + 6ab + b + 5$, what is the coefficient of $ab$?",
-   "answers": [
-    "6"
-   ],
-   "solution": "The number in front of $ab$ is 6."
-  },
-  {
    "type": "mc",
    "skill": "Set notation",
    "q": "What does the symbol $\\varnothing$ mean?",
@@ -549,15 +299,6 @@
    ],
    "correct": 0,
    "solution": "$\\varnothing$ (or $\\{\\,\\}$) is the null or empty set: a set with no elements."
-  },
-  {
-   "type": "text",
-   "skill": "Terms, coefficients and constants",
-   "q": "In $2h + 9g + 8$, what is the coefficient of $g$?",
-   "answers": [
-    "9"
-   ],
-   "solution": "The number in front of $g$ is 9."
   },
   {
    "type": "mc",
@@ -574,19 +315,6 @@
   },
   {
    "type": "mc",
-   "skill": "Terms, coefficients and constants",
-   "q": "In $5a - 8b + 2$, the coefficient of $b$ is:",
-   "options": [
-    "$-8$",
-    "$8$",
-    "$2$",
-    "$5$"
-   ],
-   "correct": 0,
-   "solution": "The sign belongs to the term: $-8b$, so the coefficient is $-8$."
-  },
-  {
-   "type": "mc",
    "skill": "Set notation",
    "q": "If $A = \\{1, 3, 5, 7\\}$ and $B = \\{5, 8, 11\\}$, what is $A \\cap B$?",
    "options": [
@@ -597,15 +325,6 @@
    ],
    "correct": 0,
    "solution": "$5$ is the only number in both sets."
-  },
-  {
-   "type": "text",
-   "skill": "Terms, coefficients and constants",
-   "q": "What is the constant term in $4x + 7y + 11$?",
-   "answers": [
-    "11"
-   ],
-   "solution": "The constant is the term with no letter: 11."
   },
   {
    "type": "mc",
@@ -621,19 +340,6 @@
    "solution": "An event and its complement add to $1$."
   },
   {
-   "type": "mc",
-   "skill": "Terms, coefficients and constants",
-   "q": "In the expression $6 + 3k$, the constant term is:",
-   "options": [
-    "6",
-    "3",
-    "$k$",
-    "$3k$"
-   ],
-   "correct": 0,
-   "solution": "$6$ has no letter, so it is the constant term."
-  },
-  {
    "type": "text",
    "skill": "Venn diagrams",
    "q": "Find $n(A)$.",
@@ -644,15 +350,6 @@
    "imageAlt": "Venn diagram: A only 5, A and B 2, B only 6, neither 3",
    "hint": "All of circle A, including the overlap.",
    "solution": "$5 + 2 = 7$"
-  },
-  {
-   "type": "text",
-   "skill": "Terms, coefficients and constants",
-   "q": "What is the constant term in $9 + 2m - n$?",
-   "answers": [
-    "9"
-   ],
-   "solution": "$9$ has no letter, so it is the constant term."
   },
   {
    "type": "text",
@@ -667,15 +364,6 @@
   },
   {
    "type": "text",
-   "skill": "Terms, coefficients and constants",
-   "q": "How many terms are in the expression $5p + 3q + pq + 2$?",
-   "answers": [
-    "4"
-   ],
-   "solution": "Terms are separated by + and − signs: $5p$, $3q$, $pq$, $2$. That's 4 terms."
-  },
-  {
-   "type": "text",
    "skill": "Venn diagrams",
    "q": "How many elements are in the sample space $\\xi$?",
    "answers": [
@@ -684,15 +372,6 @@
    "image": "img/y10-probability/venn-5-2-6-3.svg",
    "imageAlt": "Venn diagram: A only 5, A and B 2, B only 6, neither 3",
    "solution": "$5 + 2 + 6 + 3 = 16$, including the $3$ outside the circles."
-  },
-  {
-   "type": "text",
-   "skill": "Terms, coefficients and constants",
-   "q": "How many terms are in $3x - 2y + 7$?",
-   "answers": [
-    "3"
-   ],
-   "solution": "The terms are $3x$, $-2y$ and $7$: 3 terms."
   },
   {
    "type": "text",
@@ -708,15 +387,6 @@
   },
   {
    "type": "text",
-   "skill": "Substitution",
-   "q": "If $m = 5$, evaluate $4m + 3$.",
-   "answers": [
-    "23"
-   ],
-   "solution": "$4 \\times 5 + 3 = 20 + 3 = 23$."
-  },
-  {
-   "type": "text",
    "skill": "Venn diagrams",
    "q": "Find $\\Pr(B \\text{ only})$.",
    "answers": [
@@ -725,19 +395,6 @@
    "image": "img/y10-probability/venn-6-3-4-2.svg",
    "imageAlt": "Venn diagram: A only 6, A and B 3, B only 4, neither 2",
    "solution": "$4$ out of $15$: $\\frac{4}{15}$."
-  },
-  {
-   "type": "mc",
-   "skill": "Substitution",
-   "q": "If $k = 6$, the value of $2k + 7$ is:",
-   "options": [
-    "19",
-    "33",
-    "15",
-    "26"
-   ],
-   "correct": 0,
-   "solution": "$2 \\times 6 + 7 = 12 + 7 = 19$."
   },
   {
    "type": "text",
@@ -753,15 +410,6 @@
   },
   {
    "type": "text",
-   "skill": "Substitution",
-   "q": "If $x = 4$, evaluate $5x - 6$.",
-   "answers": [
-    "14"
-   ],
-   "solution": "$5 \\times 4 - 6 = 20 - 6 = 14$."
-  },
-  {
-   "type": "text",
    "skill": "Venn diagrams",
    "q": "$20$ dogs: $9$ like fresh meat ($M$), $12$ like dry food ($D$), $7$ like both. How many like neither?",
    "answers": [
@@ -770,15 +418,6 @@
    "image": "img/y10-probability/venn-meat-dry.svg",
    "imageAlt": "Venn diagram: M only 2, M and D 7, D only 5, neither 6",
    "solution": "$2 + 7 + 5 = 14$ like at least one, so $20 - 14 = 6$."
-  },
-  {
-   "type": "text",
-   "skill": "Substitution",
-   "q": "If $n = 8$, evaluate $\\frac{40}{n} + n$.",
-   "answers": [
-    "13"
-   ],
-   "solution": "$40 \\div 8 + 8 = 5 + 8 = 13$."
   },
   {
    "type": "text",
@@ -794,15 +433,6 @@
   },
   {
    "type": "text",
-   "skill": "Substitution",
-   "q": "If $p = 7$, evaluate $p^{2} - 9$.",
-   "answers": [
-    "40"
-   ],
-   "solution": "$7^{2} - 9 = 49 - 9 = 40$."
-  },
-  {
-   "type": "text",
    "skill": "Two-way tables",
    "q": "Find $n(A \\cap B')$.",
    "answers": [
@@ -814,19 +444,6 @@
    "solution": "In $A$ and not in $B$: column $A$, row $B'$, which is $5$."
   },
   {
-   "type": "mc",
-   "skill": "Substitution",
-   "q": "If $a = 3$, the value of $a^{2} + 4$ is:",
-   "options": [
-    "13",
-    "10",
-    "7",
-    "49"
-   ],
-   "correct": 0,
-   "solution": "$3^{2} + 4 = 9 + 4 = 13$."
-  },
-  {
    "type": "text",
    "skill": "Two-way tables",
    "q": "Find $\\Pr(A)$.",
@@ -836,19 +453,6 @@
    "image": "img/y10-probability/twoway-2-6-5-3.svg",
    "imageAlt": "Two-way table. Row B: 2, 6, total 8. Row B': 5, 3, total 8. Totals: A 7, A' 9, 16.",
    "solution": "Column $A$ totals $7$ out of $16$: $\\frac{7}{16}$."
-  },
-  {
-   "type": "mc",
-   "skill": "Substitution",
-   "q": "If $x = 2$ and $y = 7$, the value of $3x^{2} + y$ is:",
-   "options": [
-    "19",
-    "43",
-    "13",
-    "25"
-   ],
-   "correct": 0,
-   "solution": "Square first: $2^{2} = 4$. Then $3 \\times 4 + 7 = 19$."
   },
   {
    "type": "text",
@@ -863,15 +467,6 @@
    "solution": "$6 - 3 = 3$ (check the column: $3 + 4 = 7$)."
   },
   {
-   "type": "text",
-   "skill": "Substitution",
-   "q": "If $a = 6$ and $b = 3$, evaluate $2a + 5b$.",
-   "answers": [
-    "27"
-   ],
-   "solution": "$2 \\times 6 + 5 \\times 3 = 12 + 15 = 27$."
-  },
-  {
    "type": "mc",
    "skill": "Two-way tables",
    "q": "In a two-way table, the number in the bottom-right corner is…",
@@ -883,15 +478,6 @@
    ],
    "correct": 0,
    "solution": "The bottom-right corner is the grand total of everything counted."
-  },
-  {
-   "type": "text",
-   "skill": "Substitution",
-   "q": "If $a = 6$ and $b = 3$, evaluate $ab - a$.",
-   "answers": [
-    "12"
-   ],
-   "solution": "$6 \\times 3 - 6 = 18 - 6 = 12$."
   },
   {
    "type": "mc",
@@ -908,34 +494,12 @@
   },
   {
    "type": "text",
-   "skill": "Substitution",
-   "q": "If $a = 6$ and $b = 3$, evaluate $3(a - b) + b^{2}$.",
-   "answers": [
-    "18"
-   ],
-   "solution": "$3 \\times (6 - 3) + 3^{2} = 3 \\times 3 + 9 = 18$."
-  },
-  {
-   "type": "text",
    "skill": "Addition rule",
    "q": "If $\\Pr(A) = 0.5$, $\\Pr(B) = 0.4$ and $\\Pr(A \\cap B) = 0.1$, find $\\Pr(A \\cup B)$.",
    "answers": [
     "0.8"
    ],
    "solution": "$0.5 + 0.4 - 0.1 = 0.8$"
-  },
-  {
-   "type": "mc",
-   "skill": "Substitution",
-   "q": "If $m = 3$ and $n = 4$, the value of $mn + n$ is:",
-   "options": [
-    "16",
-    "11",
-    "38",
-    "19"
-   ],
-   "correct": 0,
-   "solution": "$3 \\times 4 + 4 = 12 + 4 = 16$."
   },
   {
    "type": "text",
@@ -948,19 +512,6 @@
    "solution": "$0.5 + 0.45 = 0.95$, and $0.95 - 0.9 = 0.05$."
   },
   {
-   "type": "mc",
-   "skill": "Equivalent expressions",
-   "q": "Which expression is equivalent to $6m$?",
-   "options": [
-    "$4m + 2m$",
-    "$m + 6$",
-    "$m^{6}$",
-    "$4m + 2$"
-   ],
-   "correct": 0,
-   "solution": "$4m + 2m = 6m$."
-  },
-  {
    "type": "text",
    "skill": "Addition rule",
    "q": "$A$ and $B$ are mutually exclusive. If $\\Pr(A) = 0.2$ and $\\Pr(B) = 0.3$, find $\\Pr(A \\cup B)$.",
@@ -968,19 +519,6 @@
     "0.5"
    ],
    "solution": "Mutually exclusive means $\\Pr(A \\cap B) = 0$, so just add: $0.2 + 0.3 = 0.5$."
-  },
-  {
-   "type": "mc",
-   "skill": "Equivalent expressions",
-   "q": "Which expression is equivalent to $5a + 2a$?",
-   "options": [
-    "$7a$",
-    "$7a^{2}$",
-    "$10a$",
-    "$5a + 2$"
-   ],
-   "correct": 0,
-   "solution": "Add the numbers in front: $5 + 2 = 7$, so $7a$. Adding never changes the power."
   },
   {
    "type": "text",
@@ -991,19 +529,6 @@
    ],
    "hint": "Neither A nor B is everything outside A ∪ B.",
    "solution": "$\\Pr(A' \\cap B') = 1 - \\Pr(A \\cup B) = 1 - 0.85 = 0.15$"
-  },
-  {
-   "type": "mc",
-   "skill": "Equivalent expressions",
-   "q": "Which expression is equivalent to $x \\times y \\times 3$?",
-   "options": [
-    "$3xy$",
-    "$x + y + 3$",
-    "$3x + y$",
-    "$xy^{3}$"
-   ],
-   "correct": 0,
-   "solution": "Write the number first, then the letters: $3xy$."
   },
   {
    "type": "mc",
@@ -1020,17 +545,132 @@
    "solution": "$\\frac{13}{52} + \\frac{4}{52} - \\frac{1}{52} = \\frac{16}{52} = \\frac{4}{13}$"
   },
   {
+   "type": "text",
+   "skill": "Addition rule",
+   "q": "The Venn diagram shows probabilities. Find $\\Pr(A \\cup B)$.",
+   "answers": [
+    "0.9"
+   ],
+   "image": "img/y10-probability/venn-p-3-2-4-1.svg",
+   "imageAlt": "Venn diagram of probabilities: A only 0.3, A and B 0.2, B only 0.4, neither 0.1",
+   "hint": "Add everything inside the circles.",
+   "solution": "$0.3 + 0.2 + 0.4 = 0.9$ (or $1 - 0.1$)."
+  },
+  {
+   "type": "text",
+   "skill": "Addition rule",
+   "q": "The Venn diagram shows probabilities. Find $\\Pr(A)$.",
+   "answers": [
+    "0.5"
+   ],
+   "image": "img/y10-probability/venn-p-3-2-4-1.svg",
+   "imageAlt": "Venn diagram of probabilities: A only 0.3, A and B 0.2, B only 0.4, neither 0.1",
+   "solution": "All of circle $A$: $0.3 + 0.2 = 0.5$."
+  },
+  {
+   "type": "text",
+   "skill": "Addition rule",
+   "q": "If $\\Pr(A) = 0.6$, $\\Pr(B) = 0.3$ and $\\Pr(A \\cap B) = 0.2$, find $\\Pr(A \\cup B)$.",
+   "answers": [
+    "0.7"
+   ],
+   "solution": "$0.6 + 0.3 - 0.2 = 0.7$"
+  },
+  {
+   "type": "text",
+   "skill": "Addition rule",
+   "q": "If $\\Pr(A \\cup B) = 0.8$, $\\Pr(A) = 0.5$ and $\\Pr(A \\cap B) = 0.1$, find $\\Pr(B)$.",
+   "answers": [
+    "0.4"
+   ],
+   "hint": "$0.8 = 0.5 + \\Pr(B) - 0.1$",
+   "solution": "$0.8 = 0.4 + \\Pr(B)$, so $\\Pr(B) = 0.4$."
+  },
+  {
+   "type": "text",
+   "skill": "Addition rule",
+   "q": "$n(A) = 12$, $n(B) = 10$ and $n(A \\cap B) = 4$. Find $n(A \\cup B)$.",
+   "answers": [
+    "18"
+   ],
+   "image": "img/y10-probability/venn-8-4-6-2.svg",
+   "imageAlt": "Venn diagram: A only 8, A and B 4, B only 6, neither 2",
+   "solution": "$12 + 10 - 4 = 18$. Check on the diagram: $8 + 4 + 6 = 18$."
+  },
+  {
+   "type": "text",
+   "skill": "Addition rule",
+   "q": "Find $\\Pr(A \\cup B)$.",
+   "answers": [
+    "9/10"
+   ],
+   "image": "img/y10-probability/twoway-3-9-6-2.svg",
+   "imageAlt": "Two-way table. Row B: 3, 9, total 12. Row B': 6, 2, total 8. Totals: A 9, A' 11, 20.",
+   "hint": "Every cell that is in A or in B (or both).",
+   "solution": "$3 + 9 + 6 = 18$ out of $20$: $\\frac{18}{20} = \\frac{9}{10}$."
+  },
+  {
+   "type": "text",
+   "skill": "Addition rule",
+   "q": "A die is rolled. What is the probability of an even number or a number greater than $4$?",
+   "answers": [
+    "2/3"
+   ],
+   "hint": "Even: 2, 4, 6. Greater than 4: 5, 6. Don't count 6 twice.",
+   "solution": "$\\{2, 4, 5, 6\\}$: $\\frac{4}{6} = \\frac{2}{3}$. Or $\\frac{3}{6} + \\frac{2}{6} - \\frac{1}{6}$."
+  },
+  {
    "type": "mc",
-   "skill": "Equivalent expressions",
-   "q": "Which expression is NOT equivalent to $4n$?",
+   "skill": "Addition rule",
+   "q": "A card is drawn from a standard deck of $52$. What is the probability it is red or an ace?",
    "options": [
-    "$n + 4$",
-    "$2n + 2n$",
-    "$n \\times 4$",
-    "$5n - n$"
+    "$\\frac{7}{13}$",
+    "$\\frac{15}{26}$",
+    "$\\frac{1}{26}$",
+    "$\\frac{4}{13}$"
    ],
    "correct": 0,
-   "solution": "$n + 4$ adds 4, but $4n$ means $4 \\times n$. They are different."
+   "hint": "26 red cards, 4 aces, 2 red aces.",
+   "solution": "$\\frac{26}{52} + \\frac{4}{52} - \\frac{2}{52} = \\frac{28}{52} = \\frac{7}{13}$"
+  },
+  {
+   "type": "mc",
+   "skill": "Addition rule",
+   "q": "A die is rolled. Which two events are mutually exclusive?",
+   "options": [
+    "\"rolling a 2\" and \"rolling an odd number\"",
+    "\"rolling a 2\" and \"rolling an even number\"",
+    "\"rolling a 5\" and \"rolling more than 3\"",
+    "\"rolling an even number\" and \"rolling more than 4\""
+   ],
+   "correct": 0,
+   "solution": "$2$ is not odd, so both can't happen at once. The others share an outcome ($2$, $5$ or $6$)."
+  },
+  {
+   "type": "mc",
+   "skill": "Addition rule",
+   "q": "For mutually exclusive events, the addition rule becomes $\\Pr(A \\cup B) = $",
+   "options": [
+    "$\\Pr(A) + \\Pr(B)$",
+    "$\\Pr(A) \\times \\Pr(B)$",
+    "$\\Pr(A) + \\Pr(B) - 1$",
+    "$1 - \\Pr(A \\cap B)$"
+   ],
+   "correct": 0,
+   "solution": "Mutually exclusive means $\\Pr(A \\cap B) = 0$, so there is nothing to subtract."
+  },
+  {
+   "type": "mc",
+   "skill": "Addition rule",
+   "q": "$\\Pr(A) = 0.4$, $\\Pr(B) = 0.5$ and $\\Pr(A \\cup B) = 0.7$. Are $A$ and $B$ mutually exclusive?",
+   "options": [
+    "No, because $\\Pr(A \\cap B) = 0.2$",
+    "Yes, because $0.4 + 0.5 < 1$",
+    "Yes, because $\\Pr(A \\cup B) < 1$",
+    "No, because $\\Pr(A) < \\Pr(B)$"
+   ],
+   "correct": 0,
+   "solution": "$0.4 + 0.5 - 0.7 = 0.2$. The overlap isn't $0$, so they are not mutually exclusive."
   },
   {
    "type": "mc",
@@ -1047,19 +687,6 @@
   },
   {
    "type": "mc",
-   "skill": "Equivalent expressions",
-   "q": "Which expression is equivalent to $3(x + 2)$?",
-   "options": [
-    "$3x + 6$",
-    "$3x + 2$",
-    "$x + 6$",
-    "$5x$"
-   ],
-   "correct": 0,
-   "solution": "Multiply both terms by 3: $3 \\times x + 3 \\times 2 = 3x + 6$."
-  },
-  {
-   "type": "mc",
    "skill": "Conditional probability",
    "q": "How is $\\Pr(A \\mid B)$ read?",
    "options": [
@@ -1070,19 +697,6 @@
    ],
    "correct": 0,
    "solution": "The line $\\mid$ means \"given that\"."
-  },
-  {
-   "type": "mc",
-   "skill": "Equivalent expressions",
-   "q": "Which expression is equivalent to $(y + 3) \\times 4$?",
-   "options": [
-    "$4y + 12$",
-    "$4y + 3$",
-    "$y + 12$",
-    "$12y$"
-   ],
-   "correct": 0,
-   "solution": "Multiply both terms by 4: $4 \\times y + 4 \\times 3 = 4y + 12$."
   },
   {
    "type": "text",
@@ -1097,19 +711,6 @@
    "solution": "$B$ has $2 + 4 = 6$ elements, $2$ of them in $A$: $\\frac{2}{6} = \\frac{1}{3}$."
   },
   {
-   "type": "mc",
-   "skill": "Equivalent expressions",
-   "q": "Which expression is equivalent to $2(3m + 1)$?",
-   "options": [
-    "$6m + 2$",
-    "$6m + 1$",
-    "$5m + 2$",
-    "$3m + 2$"
-   ],
-   "correct": 0,
-   "solution": "$2 \\times 3m + 2 \\times 1 = 6m + 2$."
-  },
-  {
    "type": "text",
    "skill": "Conditional probability",
    "q": "Find $\\Pr(B \\mid A)$.",
@@ -1122,19 +723,6 @@
    "solution": "$A$ has $5 + 2 = 7$ elements, $2$ of them in $B$: $\\frac{2}{7}$."
   },
   {
-   "type": "mc",
-   "skill": "Equivalent expressions",
-   "q": "Which two expressions are equivalent?",
-   "options": [
-    "$2x + 8$ and $2(x + 4)$",
-    "$2x + 4$ and $2(x + 4)$",
-    "$x + 4$ and $4x$",
-    "$8x$ and $2x + 8$"
-   ],
-   "correct": 0,
-   "solution": "Expand $2(x + 4)$: $2 \\times x + 2 \\times 4 = 2x + 8$. They match."
-  },
-  {
    "type": "text",
    "skill": "Conditional probability",
    "q": "Find $\\Pr(A \\mid B)$.",
@@ -1145,6 +733,171 @@
    "imageAlt": "Two-way table. Row B: 7, 5, total 12. Row B': 3, 1, total 4. Totals: A 10, A' 6, 16.",
    "hint": "Only use row B.",
    "solution": "Row $B$ has $12$; $7$ of them are in $A$: $\\frac{7}{12}$."
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "The Venn diagram shows probabilities. Find $\\Pr(A \\mid B)$.",
+   "answers": [
+    "1/3"
+   ],
+   "image": "img/y10-probability/venn-p-3-2-4-1.svg",
+   "imageAlt": "Venn diagram of probabilities: A only 0.3, A and B 0.2, B only 0.4, neither 0.1",
+   "hint": "$\\Pr(A \\cap B) \\div \\Pr(B)$",
+   "solution": "$\\Pr(B) = 0.2 + 0.4 = 0.6$, so $\\frac{0.2}{0.6} = \\frac{1}{3}$."
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "The Venn diagram shows probabilities. Find $\\Pr(B \\mid A)$.",
+   "answers": [
+    "0.4"
+   ],
+   "image": "img/y10-probability/venn-p-3-2-4-1.svg",
+   "imageAlt": "Venn diagram of probabilities: A only 0.3, A and B 0.2, B only 0.4, neither 0.1",
+   "hint": "$\\Pr(A \\cap B) \\div \\Pr(A)$",
+   "solution": "$\\Pr(A) = 0.5$, so $\\frac{0.2}{0.5} = 0.4$."
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "If $\\Pr(A \\cap B) = 0.12$ and $\\Pr(B) = 0.4$, find $\\Pr(A \\mid B)$.",
+   "answers": [
+    "0.3"
+   ],
+   "solution": "$\\frac{0.12}{0.4} = 0.3$"
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "If $\\Pr(A \\cap B) = 0.1$ and $\\Pr(A) = 0.5$, find $\\Pr(B \\mid A)$.",
+   "answers": [
+    "0.2"
+   ],
+   "solution": "Given $A$, so divide by $\\Pr(A)$: $\\frac{0.1}{0.5} = 0.2$."
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "If $\\Pr(A \\mid B) = 0.5$ and $\\Pr(B) = 0.6$, find $\\Pr(A \\cap B)$.",
+   "answers": [
+    "0.3"
+   ],
+   "hint": "$\\Pr(A \\cap B) = \\Pr(A \\mid B) \\times \\Pr(B)$",
+   "solution": "$0.5 \\times 0.6 = 0.3$"
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "Find $\\Pr(A \\mid B)$.",
+   "answers": [
+    "2/5"
+   ],
+   "image": "img/y10-probability/venn-8-4-6-2.svg",
+   "imageAlt": "Venn diagram: A only 8, A and B 4, B only 6, neither 2",
+   "hint": "Only look inside circle B.",
+   "solution": "$B$ has $4 + 6 = 10$; $4$ are in $A$: $\\frac{4}{10} = \\frac{2}{5}$."
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "Find $\\Pr(B \\mid A)$.",
+   "answers": [
+    "1/3"
+   ],
+   "image": "img/y10-probability/venn-8-4-6-2.svg",
+   "imageAlt": "Venn diagram: A only 8, A and B 4, B only 6, neither 2",
+   "hint": "Only look inside circle A.",
+   "solution": "$A$ has $8 + 4 = 12$; $4$ are in $B$: $\\frac{4}{12} = \\frac{1}{3}$."
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "Find $\\Pr(A \\mid B)$.",
+   "answers": [
+    "1/4"
+   ],
+   "image": "img/y10-probability/twoway-3-9-6-2.svg",
+   "imageAlt": "Two-way table. Row B: 3, 9, total 12. Row B': 6, 2, total 8. Totals: A 9, A' 11, 20.",
+   "hint": "Only use row B.",
+   "solution": "Row $B$ totals $12$; $3$ are in $A$: $\\frac{3}{12} = \\frac{1}{4}$."
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "Find $\\Pr(B \\mid A)$.",
+   "answers": [
+    "1/3"
+   ],
+   "image": "img/y10-probability/twoway-3-9-6-2.svg",
+   "imageAlt": "Two-way table. Row B: 3, 9, total 12. Row B': 6, 2, total 8. Totals: A 9, A' 11, 20.",
+   "hint": "Only use column A.",
+   "solution": "Column $A$ totals $9$; $3$ are in $B$: $\\frac{3}{9} = \\frac{1}{3}$."
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "Find $\\Pr(B' \\mid A')$.",
+   "answers": [
+    "2/11"
+   ],
+   "image": "img/y10-probability/twoway-3-9-6-2.svg",
+   "imageAlt": "Two-way table. Row B: 3, 9, total 12. Row B': 6, 2, total 8. Totals: A 9, A' 11, 20.",
+   "hint": "Only use column A'.",
+   "solution": "Column $A'$ totals $11$; $2$ are in $B'$: $\\frac{2}{11}$."
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "A die is rolled and shows an even number. What is the probability it is a $6$?",
+   "answers": [
+    "1/3"
+   ],
+   "hint": "The even numbers are the new sample space.",
+   "solution": "Given even: $\\{2, 4, 6\\}$. One of them is $6$: $\\frac{1}{3}$."
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "A die is rolled and shows a number greater than $3$. What is the probability it is even?",
+   "answers": [
+    "2/3"
+   ],
+   "solution": "Given $> 3$: $\\{4, 5, 6\\}$. Two are even: $\\frac{2}{3}$."
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "A card drawn from a standard deck is a heart. What is the probability it is a king?",
+   "answers": [
+    "1/13"
+   ],
+   "solution": "Given a heart: $13$ cards, one is a king: $\\frac{1}{13}$."
+  },
+  {
+   "type": "text",
+   "skill": "Conditional probability",
+   "q": "Box B is chosen. What is the probability of a green counter?",
+   "answers": [
+    "3/4"
+   ],
+   "image": "img/y10-probability/tree-boxes.svg",
+   "imageAlt": "Tree diagram. Box A 1/2: red 1/2, green 1/2. Box B 1/2: red 1/4, green 3/4.",
+   "hint": "Given box B: just read the branch.",
+   "solution": "The second-stage branches are conditional: $\\Pr(\\text{green} \\mid B) = \\frac{3}{4}$."
+  },
+  {
+   "type": "mc",
+   "skill": "Conditional probability",
+   "q": "When finding $\\Pr(A \\mid B)$, the sample space is reduced to…",
+   "options": [
+    "$B$",
+    "$A$",
+    "$A \\cap B$",
+    "$A \\cup B$"
+   ],
+   "correct": 0,
+   "solution": "We know $B$ happened, so only outcomes in $B$ count."
   },
   {
    "type": "text",
