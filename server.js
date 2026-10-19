@@ -50,15 +50,38 @@ app.use('/vendor', express.static(path.join(__dirname, 'public', 'vendor'), { ma
 // below stamp their script/style links with this deploy's id, so an open tab can't keep running last week's code.
 const BUILD = (process.env.RENDER_GIT_COMMIT || String(Date.now())).slice(0, 10);
 const fresh = { maxAge: 0, setHeaders: res => res.setHeader('Cache-Control', 'no-cache') };
-function stamped(file) {
+function stamped(file, fill) {
   return (req, res) => {
-    const html = fs.readFileSync(path.join(__dirname, 'public', file), 'utf8')
+    let html = fs.readFileSync(path.join(__dirname, 'public', file), 'utf8')
       .replace(/(src|href)="(\/(?:js|css|shared)\/[^"?]+\.(?:js|css))"/g, `$1="$2?v=${BUILD}"`);
+    if (fill) html = fill(html);
     res.setHeader('Cache-Control', 'no-cache'); res.type('html').send(html);
   };
 }
+// The school bank list (what /api/bank returns), used by the teacher page.
+const bankList = () => ({ sets: [...banks.values()].map(b => ({ id: b.id, title: b.title, ...b._meta })), topics: G.list() });
+// The teacher page arrives with the school bank list already in it: the rows are drawn in the same markup host.js
+// builds (renderBankTab), so the question picker is its final size on the first paint and nothing below it jumps
+// when the page's script takes over; the list's data goes in too, so host.js doesn't wait for /api/bank.
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function bankTabHTML(list) {
+  const tip = '<p class="tip">Sets your school has agreed on. They live in the game\'s banks folder, so every teacher sees the same questions.</p>';
+  if (!list.sets.length) return tip + '<div class="empty">No school sets yet. Add a .json file to the banks folder and redeploy.</div>';
+  return tip + '<div class="setlist">' + list.sets.map(s => {
+    const meta = [s.year ? 'Year ' + s.year : '', s.topic, `${s.main} questions`, s.modified ? `${s.modified} supported` : ''].filter(Boolean).join(' · ');
+    return '<div class="setrow"><input type="checkbox" class="check" aria-label="Use ' + esc(s.title) + '">' +
+      '<div><h3>' + esc(s.title) + '</h3><div class="meta">' + esc(meta) + '</div>' + (s.description ? '<div class="meta">' + esc(s.description) + '</div>' : '') + '</div>' +
+      '<div class="ops"><button class="btn small">Preview</button><button class="btn small">Copy and edit</button></div></div>';
+  }).join('') + '</div>';
+}
+function fillHost(html) {
+  const list = bankList();
+  return html
+    .replace('<div id="tab-bank" class="tabpane on"></div>', '<div id="tab-bank" class="tabpane on">' + bankTabHTML(list) + '</div>')
+    .replace('<!--BANK-->', '<script>window.MF_BANK = ' + JSON.stringify(list).replace(/</g, '\\u003c') + ';</script>');
+}
 app.get(['/', '/index.html'], stamped('index.html'));
-app.get(['/host', '/host.html'], stamped('host.html'));
+app.get(['/host', '/host.html'], stamped('host.html', fillHost));
 // Question pictures: school bank pictures (banks/img) and pictures teachers uploaded with their own sets.
 // Served as images only (sandboxed), so an uploaded SVG can't run script if opened directly.
 const imgHeaders = res => { res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox"); res.setHeader('X-Content-Type-Options', 'nosniff'); };
@@ -72,12 +95,7 @@ app.get('/qimg/:id', (req, res) => {
 app.use('/shared', express.static(path.join(__dirname, 'shared'), fresh));
 app.use(express.static(path.join(__dirname, 'public'), { ...fresh, extensions: ['html'] }));
 
-app.get('/api/bank', (req, res) => {
-  res.json({
-    sets: [...banks.values()].map(b => ({ id: b.id, title: b.title, ...b._meta })),
-    topics: G.list()
-  });
-});
+app.get('/api/bank', (req, res) => res.json(bankList()));
 app.get('/api/bank/:id', (req, res) => {
   const b = banks.get(req.params.id);
   if (!b) return res.status(404).json({ error: 'not found' });

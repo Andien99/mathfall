@@ -19,7 +19,7 @@
 
 <main>
   <!-- Setup -->
-  <section id="setup" class="view">
+  <section id="setup" class="view on">
     <div class="setup-grid">
       <div class="card qcol">
         <div class="card-h"><h2>Questions</h2><p>Pick from the school bank, your own sets, or generated topics. You can combine them.</p></div>
@@ -31,17 +31,31 @@
         <div id="tab-bank" class="tabpane on"></div>
         <div id="tab-mine" class="tabpane"></div>
         <div id="tab-gen" class="tabpane"></div>
-        <div id="selSummary" class="sel-summary"></div>
+        <div id="selSummary" class="sel-summary">&nbsp;</div>
       </div>
       <div class="card scol">
         <div class="card-h"><h2>Game settings</h2></div>
-        <div id="settingsForm" class="settings"></div>
+        <!-- Written here (not built by host.js) so the card is its full size on the first paint; host.js marks the saved choices. -->
+        <div id="settingsForm" class="settings">
+          <div class="setting"><label>Run length<div class="sub">One run is a tower climb ending in a boss. Teams who win start a harder run.</div></label><div class="seg" role="radiogroup" data-key="length"><button type="button" role="radio" data-v="quick" aria-checked="true" class="on">Quick · 6 floors ~20 min</button><button type="button" role="radio" data-v="standard" aria-checked="false">Standard · 9 floors ~30 min</button><button type="button" role="radio" data-v="long" aria-checked="false">Long · 13 floors ~45 min</button></div></div>
+          <div class="setting"><label>Round timer<div class="sub">Enemies act when everyone has acted, or when this runs out.</div></label><div class="seg" role="radiogroup" data-key="timer" data-type="num"><button type="button" role="radio" data-v="0" aria-checked="false">Off</button><button type="button" role="radio" data-v="30" aria-checked="false">30s</button><button type="button" role="radio" data-v="45" aria-checked="false">45s</button><button type="button" role="radio" data-v="60" aria-checked="true" class="on">60s</button><button type="button" role="radio" data-v="90" aria-checked="false">90s</button></div></div>
+          <div class="setting"><label>Team size<div class="sub">Students are grouped as they join. Balance teams in the lobby.</div></label><div class="seg" role="radiogroup" data-key="teamSize" data-type="num"><button type="button" role="radio" data-v="2" aria-checked="false">2</button><button type="button" role="radio" data-v="3" aria-checked="false">3</button><button type="button" role="radio" data-v="4" aria-checked="true" class="on">4</button><button type="button" role="radio" data-v="5" aria-checked="false">5</button></div></div>
+          <div class="setting"><label>Adaptive support<div class="sub">After two wrong in a row, a student gets supported questions until they get two right.</div></label><div class="seg" role="radiogroup" data-key="adaptive" data-type="bool"><button type="button" role="radio" data-v="true" aria-checked="true" class="on">On</button><button type="button" role="radio" data-v="false" aria-checked="false">Off</button></div></div>
+          <div class="setting"><label>Hints<div class="sub">Students can open a hint before answering.</div></label><div class="seg" role="radiogroup" data-key="hints" data-type="bool"><button type="button" role="radio" data-v="true" aria-checked="true" class="on">On</button><button type="button" role="radio" data-v="false" aria-checked="false">Off</button></div></div>
+          <div class="setting"><label>Pause after a wrong answer<div class="sub">Time to read the worked answer before the next question.</div></label><div class="seg" role="radiogroup" data-key="wrongPause" data-type="num"><button type="button" role="radio" data-v="0" aria-checked="false">None</button><button type="button" role="radio" data-v="1.5" aria-checked="true" class="on">1.5s</button><button type="button" role="radio" data-v="3" aria-checked="false">3s</button><button type="button" role="radio" data-v="5" aria-checked="false">5s</button></div></div>
+          <div class="setting"><label>Time until the raid<div class="sub">When this runs out, every team is pulled into the raid boss fight together. The goal: be as strong as possible by then.</div></label><div class="seg" role="radiogroup" data-key="timeLimit" data-type="num"><button type="button" role="radio" data-v="0" aria-checked="false">No timer</button><button type="button" role="radio" data-v="15" aria-checked="false">15m</button><button type="button" role="radio" data-v="20" aria-checked="false">20m</button><button type="button" role="radio" data-v="30" aria-checked="true" class="on">30m</button><button type="button" role="radio" data-v="45" aria-checked="false">45m</button><button type="button" role="radio" data-v="60" aria-checked="false">60m</button></div></div>
+          <div class="setting"><label>Raid boss<div class="sub">Off: the game simply ends when time is up.</div></label><div class="seg" role="radiogroup" data-key="raid" data-type="bool"><button type="button" role="radio" data-v="true" aria-checked="true" class="on">On</button><button type="button" role="radio" data-v="false" aria-checked="false">Off</button></div></div>
+          <div class="setting"><label>Raid length<div class="sub">How long teams have to beat the raid boss.</div></label><div class="seg" role="radiogroup" data-key="raidMinutes" data-type="num"><button type="button" role="radio" data-v="5" aria-checked="false">5m</button><button type="button" role="radio" data-v="8" aria-checked="true" class="on">8m</button><button type="button" role="radio" data-v="10" aria-checked="false">10m</button><button type="button" role="radio" data-v="12" aria-checked="false">12m</button></div></div>
+          <div class="setting"><label>Sound on student devices</label><div class="seg" role="radiogroup" data-key="sound" data-type="bool"><button type="button" role="radio" data-v="true" aria-checked="true" class="on">On</button><button type="button" role="radio" data-v="false" aria-checked="false">Off</button></div></div>
+          <div class="setting"><label>Late joining</label><div class="seg" role="radiogroup" data-key="lateJoin" data-type="bool"><button type="button" role="radio" data-v="true" aria-checked="true" class="on">Allowed</button><button type="button" role="radio" data-v="false" aria-checked="false">Locked once started</button></div></div>
+        </div>
         <button id="createBtn" class="btn primary big">Create game</button>
         <div class="test-row">
-          <button id="testBtn" class="btn">Test game (solo)</button>
+          <button id="testBtn" class="btn" aria-describedby="testTip">Test game (solo)</button>
           <label class="test-inv"><input type="checkbox" id="testInv" checked> Invincible heroes</label>
+          <button type="button" id="testHelp" class="help-dot" aria-label="What is a test game?" aria-expanded="false" aria-controls="testTip">?</button>
+          <p id="testTip" class="test-tip" role="tooltip">Plays the game yourself in a new tab with these questions and settings, no students needed. Pick a hero and the run starts; the pink TEST button jumps to any room (boss, shop, events, victory screen, raid).</p>
         </div>
-        <p class="tip test-tip">Plays the game yourself in a new tab with these questions and settings, no students needed. Pick a hero and the run starts; the pink TEST button jumps to any room (boss, shop, events, victory screen, raid).</p>
         <p id="createErr" class="err"></p>
       </div>
     </div>
@@ -107,6 +121,7 @@
 <script src="/shared/content.js"></script>
 <script src="/shared/answers.js"></script>
 <script src="/shared/generators.js"></script>
+<!--BANK-->
 <script type="module" src="/js/host.js"></script>
 </body>
 </html>

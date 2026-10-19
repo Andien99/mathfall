@@ -8,7 +8,7 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { toast(k === 'mf_sets' ? 'Your browser is out of room for saved sets. Pictures take the most space: remove some, or Export the set to keep a copy.' : 'Your browser could not save that.'); return false; } }
 };
-let bank = { sets: [], topics: [] };
+let bank = window.MF_BANK || { sets: [], topics: [] };   // the server writes the school bank list into the page
 let bankCache = {};
 let mySets = store.get('mf_sets', []);
 let sel = store.get('mf_sel', { bankIds: ['year-7-algebra-core-skills'], setIds: [], gens: [], format: 'mix' });
@@ -130,23 +130,31 @@ function seg(values, labels, cur, onPick) {
   values.forEach((v, i) => box.append(h('button', { class: String(cur) === String(v) ? 'on' : '', role: 'radio', 'aria-checked': String(cur) === String(v), onclick: () => { for (const b of box.children) b.classList.remove('on'); box.children[i].classList.add('on'); onPick(v); } }, labels[i])));
   return box;
 }
+// The form itself is written in host.html, so the card is full size on the first paint. This marks the saved
+// choice in each row; one listener handles every click. data-type on a row says how to read its values.
+const settingNow = k => k === 'raid' ? settings.raid !== false : k === 'raidMinutes' ? (settings.raidMinutes || 8) : settings[k];
 function renderSettings() {
-  const f = $('#settingsForm'); clear(f);
-  const S = (label, sub, control) => h('div', { class: 'setting' }, h('label', null, label, sub ? h('div', { class: 'sub' }, sub) : null), control);
-  const set = (k, v) => { settings[k] = v; store.set('mf_settings', settings); if (session && hs && hs.state !== 'ended') socket.emit('host:settings', { settings: { [k]: v } }); };
-  f.append(
-    S('Run length', 'One run is a tower climb ending in a boss. Teams who win start a harder run.', seg(['quick', 'standard', 'long'], ['Quick · 6 floors ~20 min', 'Standard · 9 floors ~30 min', 'Long · 13 floors ~45 min'], settings.length, v => set('length', v))),
-    S('Round timer', 'Enemies act when everyone has acted, or when this runs out.', seg([0, 30, 45, 60, 90], ['Off', '30s', '45s', '60s', '90s'], settings.timer, v => set('timer', +v))),
-    S('Team size', 'Students are grouped as they join. Balance teams in the lobby.', seg([2, 3, 4, 5], ['2', '3', '4', '5'], settings.teamSize, v => set('teamSize', +v))),
-    S('Adaptive support', 'After two wrong in a row, a student gets supported questions until they get two right.', seg([true, false], ['On', 'Off'], settings.adaptive, v => set('adaptive', v === true || v === 'true'))),
-    S('Hints', 'Students can open a hint before answering.', seg([true, false], ['On', 'Off'], settings.hints, v => set('hints', v === true || v === 'true'))),
-    S('Pause after a wrong answer', 'Time to read the worked answer before the next question.', seg([0, 1.5, 3, 5], ['None', '1.5s', '3s', '5s'], settings.wrongPause, v => set('wrongPause', +v))),
-    S('Time until the raid', 'When this runs out, every team is pulled into the raid boss fight together. The goal: be as strong as possible by then.', seg([0, 15, 20, 30, 45, 60], ['No timer', '15m', '20m', '30m', '45m', '60m'], settings.timeLimit, v => set('timeLimit', +v))),
-    S('Raid boss', 'Off: the game simply ends when time is up.', seg([true, false], ['On', 'Off'], settings.raid !== false, v => set('raid', v === true || v === 'true'))),
-    S('Raid length', 'How long teams have to beat the raid boss.', seg([5, 8, 10, 12], ['5m', '8m', '10m', '12m'], settings.raidMinutes || 8, v => set('raidMinutes', +v))),
-    S('Sound on student devices', null, seg([true, false], ['On', 'Off'], settings.sound, v => set('sound', v === true || v === 'true'))),
-    S('Late joining', null, seg([true, false], ['Allowed', 'Locked once started'], settings.lateJoin, v => set('lateJoin', v === true || v === 'true'))));
+  for (const box of $$('#settingsForm .seg')) {
+    const cur = String(settingNow(box.dataset.key));
+    for (const b of box.children) { const on = b.dataset.v === cur; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }
+  }
 }
+$('#settingsForm').addEventListener('click', e => {
+  const b = e.target.closest('.seg button'); if (!b) return;
+  const box = b.parentNode, k = box.dataset.key, t = box.dataset.type;
+  for (const x of box.children) { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); }
+  const v = t === 'num' ? +b.dataset.v : t === 'bool' ? b.dataset.v === 'true' : b.dataset.v;
+  settings[k] = v; store.set('mf_settings', settings);
+  if (session && hs && hs.state !== 'ended') socket.emit('host:settings', { settings: { [k]: v } });
+});
+// The test-game tip sits in a pop-up beside the button (hover or focus shows it; the ? toggles it for touch screens)
+$('#testHelp').addEventListener('click', () => {
+  const open = $('#testTip').classList.toggle('show');
+  $('#testHelp').setAttribute('aria-expanded', String(open));
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.test-row') && $('#testTip').classList.contains('show')) { $('#testTip').classList.remove('show'); $('#testHelp').setAttribute('aria-expanded', 'false'); }
+});
 
 $('#createBtn').addEventListener('click', () => {
   $('#createErr').textContent = '';
@@ -710,5 +718,6 @@ function download(name, text, type) { const a = h('a', { href: URL.createObjectU
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#editor').classList.contains('show')) closeEditor(); });
 
 show('setup');
-loadBank();
+// The bank list normally arrives in the page; fetch it only if it didn't (an old cached page, say).
+if (window.MF_BANK) renderSetup(); else { renderSettings(); renderSummary(); loadBank(); }
 if (window.MF_Loading) MF_Loading.ready();

@@ -240,7 +240,16 @@ main { max-width: 1320px; margin: 0 auto; padding: 22px 24px 60px; }
 /* solo test game */
 .test-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
 .test-inv { display: flex; align-items: center; gap: 6px; font-size: 15px; }
-.test-tip { margin: 6px 0 0; font-size: 13px; }
+.test-row { position: relative; }
+/* the test-game tip is a pop-up, so it takes no room in the card: hover or focus on the row shows it, the ? toggles it */
+.help-dot { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 1px solid var(--line2); background: #121029; color: var(--muted); font-weight: 800; font-size: 14px; line-height: 1; cursor: pointer; }
+.help-dot:hover, .help-dot[aria-expanded="true"] { color: var(--text); border-color: var(--brass); }
+.test-tip {
+  position: absolute; left: 0; right: 0; top: calc(100% + 8px); z-index: 20; margin: 0; padding: 10px 12px;
+  font-size: 14px; color: var(--text); background: #121029; border: 1px solid var(--line2); border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45); visibility: hidden; opacity: 0; transition: opacity 0.12s, visibility 0.12s;
+}
+.test-row:hover .test-tip, .test-row:focus-within .test-tip, .test-tip.show { visibility: visible; opacity: 1; }
 
 /* ---- Question pictures ---- */
 .picfield { margin-top: 10px; }
