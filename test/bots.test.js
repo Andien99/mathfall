@@ -136,6 +136,17 @@ async function main() {
   }
   console.log(JSON.stringify({ ...stats, finished: done.size, players: PLAYERS, resultsPlayers: r ? r.players.length : 0, teams: r ? r.teams : null }, null, 1));
   if (!r || r.players.length !== PLAYERS) stats.errors.push('results missing players');
+  // question review on the teacher's results page: answer, timings, who answered, and wrong answers grouped
+  if (r) {
+    const qs = r.questions || [];
+    if (!qs.length) stats.errors.push('results have no questions');
+    if (qs.some(q => !('answer' in q) || !Array.isArray(q.wrongs) || !Array.isArray(q.gotIt) || !Array.isArray(q.missed) || typeof q.avgSec !== 'number' || !q.students)) stats.errors.push('question review fields missing');
+    if (qs.some(q => q.wrongs.reduce((t, w) => t + w.n, 0) > q.asked - q.correct)) stats.errors.push('question review wrong counts too high');
+    if (stats.wrong && !qs.some(q => q.wrongs.length)) stats.errors.push('question review recorded no wrong answers');
+    if (qs.some(q => q.who || q.time != null)) stats.errors.push('question review leaks internal fields');
+    console.log('REVIEW ' + qs.length + ' questions, ' + qs.reduce((t, q) => t + q.wrongs.length, 0) + ' distinct wrong answers; sample ' + JSON.stringify(qs.find(q => q.wrongs.length) || qs[0]).slice(0, 400));
+    if (process.env.RESULTS_OUT) require('fs').writeFileSync(process.env.RESULTS_OUT, JSON.stringify(r, null, 1));
+  }
   if (stats.answered < PLAYERS * 3) stats.errors.push('too few answers');
   if (!stats.whiffs) stats.errors.push('no whiffs seen');
   if (!stats.free) stats.errors.push('no free actions used');

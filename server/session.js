@@ -589,10 +589,23 @@ class Session {
     const sk = priv.q.skill || 'General';
     s.bySkill[sk] = s.bySkill[sk] || { a: 0, c: 0 };
     s.bySkill[sk].a++; if (correct) s.bySkill[sk].c++;
-    if (!correct && s.wrong.length < 60) s.wrong.push({ q: priv.q.q, given: priv.type === 'mc' ? (p.pending.pub.options[parseInt(given, 10)] || '') : String(given).slice(0, 60), correct: priv.correctText, solution: priv.q.solution || '', image: priv.q.image || '' });
+    const givenText = priv.type === 'mc' ? (p.pending.pub.options[parseInt(given, 10)] || '') : String(given == null ? '' : given).slice(0, 60);
+    if (!correct && s.wrong.length < 60) s.wrong.push({ q: priv.q.q, given: givenText, correct: priv.correctText, solution: priv.q.solution || '', image: priv.q.image || '' });
     const key = priv.key.startsWith('g:') ? priv.key + ':' + priv.q.q : priv.key;
-    const qs = this.qstats[key] || (this.qstats[key] = { text: priv.q.q, image: priv.q.image || '', skill: sk, track: priv.track, asked: 0, correct: 0, gen: priv.key.startsWith('g:') });
+    const qs = this.qstats[key] || (this.qstats[key] = { text: priv.q.q, image: priv.q.image || '', skill: sk, track: priv.track, asked: 0, correct: 0, gen: priv.key.startsWith('g:'),
+      type: priv.type, answer: priv.correctText || '', solution: priv.q.solution || '', time: 0, firstSeen: now(), wrongs: {}, who: {} });
     qs.asked++; if (correct) qs.correct++;
+    // for the teacher's question review: time taken, who answered, and every wrong answer grouped (spacing and
+    // capitals ignored), so the results page can show the class's common mistakes
+    qs.time += Math.min(120000, now() - (p.pending ? p.pending.servedAt : now()));
+    const w = qs.who[p.id] || (qs.who[p.id] = { name: p.name, a: 0, c: 0 });
+    w.a++; if (correct) w.c++;
+    if (!correct) {
+      const shown = givenText.trim() || '(no answer)';
+      const k = shown.toLowerCase().replace(/\s+/g, '');
+      const slot = qs.wrongs[k] || (Object.keys(qs.wrongs).length < 40 ? (qs.wrongs[k] = { text: shown, n: 0, ids: [] }) : null);
+      if (slot) { slot.n++; if (!slot.ids.includes(p.id)) slot.ids.push(p.id); }
+    }
     // adaptive difficulty
     if (correct) { p.wrongRow = 0; p.rightRow++; if (p.boost > 0 && p.rightRow >= 2) p.boost = 0; }
     else { p.rightRow = 0; p.wrongRow++; if (this.settings.adaptive && p.wrongRow >= 2 && !p.modified) { p.boost = 4; p.wrongRow = 0; } }
@@ -716,8 +729,15 @@ class Session {
         qte: p.stats.qte || null
       };
     });
-    const questions = Object.values(this.qstats).map(q => ({ ...q, pct: q.asked ? Math.round(100 * q.correct / q.asked) : 0 }))
-      .sort((a, b) => a.pct - b.pct || b.asked - a.asked);
+    const nameOf = id => (this.players.get(id) || {}).name || '';
+    const questions = Object.values(this.qstats).map(q => {
+      const who = Object.values(q.who || {});
+      const wrongs = Object.values(q.wrongs || {}).map(x => ({ text: x.text, n: x.n, students: x.ids.length, names: x.ids.map(nameOf).filter(Boolean) }))
+        .sort((a, b) => b.students - a.students || b.n - a.n);
+      const { who: _w, wrongs: _x, time, ...rest } = q;
+      return { ...rest, pct: q.asked ? Math.round(100 * q.correct / q.asked) : 0, avgSec: q.asked ? Math.round(time / q.asked / 100) / 10 : 0,
+        students: who.length, gotIt: who.filter(x => x.c > 0).map(x => x.name), missed: who.filter(x => x.c === 0).map(x => x.name), wrongs };
+    }).sort((a, b) => a.pct - b.pct || b.asked - a.asked);
     const skills = {};
     for (const p of this.players.values()) for (const [k, v] of Object.entries(p.stats.bySkill)) { skills[k] = skills[k] || { a: 0, c: 0 }; skills[k].a += v.a; skills[k].c += v.c; }
     const teams = this.teams.map(t => ({ name: t.name, color: t.color, members: t.members.map(id => (this.players.get(id) || {}).name).filter(Boolean), ...t.history, floorNow: t.run ? t.run.floor : 0, ascNow: t.run ? t.run.asc : 0 }));

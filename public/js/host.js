@@ -1,5 +1,5 @@
 // Mathfall teacher page: question sets, settings, lobby, live view, results.
-import { h, $, $$, clear, setMath, mathHTML, toast, fmtTime } from './ui.js';
+import { h, $, $$, clear, setMath, mathHTML, toast, fmtTime, esc, typedToTex } from './ui.js';
 import * as SP from './sprites.js';
 
 const C = window.MF_Content, A = window.MF_Answers, G = window.MF_Generators;
@@ -417,7 +417,6 @@ function renderResults() {
   const stand = h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Team standings')), h('div', { class: 'standings' }, ...teams.map((t, i) => h('div', { class: 'stand', style: { '--tc': t.color } }, h('span', { class: 'place' }, i + 1), h('div', null, h('b', null, t.name), h('div', { class: 'tip', style: { margin: 0 } }, t.members.join(', '))), h('div', null, `${t.bossKills} boss win${t.bossKills === 1 ? '' : 's'} · best floor ${t.bestFloor} · ${t.wipes} fall${t.wipes === 1 ? '' : 's'}`)))));
   const skills = Object.entries(r.skills).map(([k, v]) => ({ k, pct: Math.round(100 * v.c / v.a), a: v.a })).sort((a, b) => a.pct - b.pct);
   const sk = h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Skills, weakest first'), h('p', null, 'Class accuracy on each skill.')), ...skills.map(s => h('div', { class: 'skillrow' }, h('span', null, s.k, h('span', { class: 'tip' }, ` (${s.a})`)), h('div', { class: 'bar' }, h('i', { style: { width: s.pct + '%' } })), h('b', null, s.pct + '%'))));
-  const hard = h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Hardest questions'), h('p', null, 'Questions asked at least twice, lowest accuracy first.')), ...r.questions.filter(q => q.asked >= 2).slice(0, 12).map(q => h('div', { class: 'hardq' }, h('div', null, h('div', { html: mathHTML(q.text) + (q.track === 'modified' ? ' <span class="tip">(supported)</span>' : '') }), q.image ? h('img', { class: 'qthumb', src: q.image, alt: '' }) : null), h('b', { class: 'pct ' + (q.pct < 50 ? 'lo' : q.pct < 75 ? 'mid' : 'hi') }, `${q.pct}% of ${q.asked}`))));
   const tbl = h('table', { class: 'tbl' }, h('thead', null, h('tr', null, h('th', null, 'Student'), h('th', null, 'Team'), h('th', { class: 'num' }, 'Answered'), h('th', { class: 'num' }, 'Correct'), h('th', { class: 'num' }, 'Best streak'), h('th', { class: 'num' }, 'Avg time'), h('th', null, 'Weakest skill'))),
     h('tbody', null, ...r.players.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => {
       const weak = Object.entries(p.bySkill).filter(([, v]) => v.a >= 2).sort((a, b) => a[1].c / a[1].a - b[1].c / b[1].a)[0];
@@ -425,8 +424,116 @@ function renderResults() {
     })));
   const raidCard = r.raid ? h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, r.raid.won ? 'Raid: Inferno Dragon defeated' : `Raid: Inferno Dragon survived (${r.raid.hp}/${r.raid.maxHp} HP left)`)),
     ...r.raid.teams.map(t => h('div', { class: 'skillrow' }, h('span', { style: { color: t.color, fontWeight: 800 } }, t.name), h('div', { class: 'bar' }, h('i', { style: { width: (100 * t.dmg / Math.max(1, r.raid.teams[0].dmg)) + '%', background: t.color } })), h('b', null, t.dmg)))) : null;
-  box.append(head, raidCard, h('div', { class: 'res-grid' }, stand, sk), h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Students')), tbl), hard);
+  box.append(head, raidCard, h('div', { class: 'res-grid' }, stand, sk), ...reviewCards(r), h('div', { class: 'card' }, h('div', { class: 'card-h' }, h('h2', null, 'Students')), tbl));
 }
+
+// ------------------------------------------------------------------ results: question review
+// Every question the class answered, with its accuracy, answer breakdown and the wrong answers students gave,
+// plus the class's most common mistakes. Student names stay hidden until the teacher turns them on, so the
+// page can be projected; "Show to class" presents one question at a time with no names at all.
+const rv = { sort: 'hard', skill: '', names: false, open: new Set(), list: [], all: false };
+const RV_FIRST = 25;   // rows shown before "Show all" (generated topics make every question new, so lists get long)
+const qid = q => q.text + '|' + q.track;
+const qpct = pct => 'pct ' + (pct < 50 ? 'lo' : pct < 75 ? 'mid' : 'hi');
+// an answer as students saw or typed it: options and bank answers may hold $maths$; typed answers are plain text
+function ansHTML(t, typed) {
+  t = String(t == null ? '' : t);
+  if (t === '(no answer)') return '<i>(no answer)</i>';
+  if (t.includes('$')) return mathHTML(t);
+  if (typed && /^[\w\s+\-*/^().=,<>×÷−√π%:]+$/.test(t) && !/[a-z]{3,}/i.test(t)) return mathHTML('$' + typedToTex(t) + '$');
+  return esc(t);
+}
+function reviewOrder(r) {
+  let qs = r.questions.filter(q => !rv.skill || q.skill === rv.skill);
+  if (rv.sort === 'asked') qs = qs.slice().sort((a, b) => (a.firstSeen || 0) - (b.firstSeen || 0));
+  else if (rv.sort === 'skill') qs = qs.slice().sort((a, b) => String(a.skill).localeCompare(String(b.skill)) || a.pct - b.pct);
+  return qs;
+}
+// the answer breakdown: the correct answer first, then wrong answers by how many students gave them
+function breakdown(q, names) {
+  const total = Math.max(1, q.asked), typed = q.type !== 'mc';
+  const rows = [{ html: ansHTML(q.answer, typed), n: q.correct, ok: true, names: names ? q.gotIt : [] }];
+  const shown = q.wrongs.slice(0, 6), rest = q.wrongs.slice(6);
+  for (const w of shown) rows.push({ html: ansHTML(w.text, typed), n: w.n, students: w.students, names: names ? w.names : [] });
+  if (rest.length) rows.push({ html: `<i>${rest.length} other wrong answer${rest.length === 1 ? '' : 's'}</i>`, n: rest.reduce((t, w) => t + w.n, 0), names: [] });
+  return h('div', { class: 'ans-rows' }, ...rows.map(x => h('div', { class: 'ans-row' + (x.ok ? ' ok' : '') },
+    h('span', { class: 'ans-mark' }, x.ok ? '✓' : '✗'),
+    h('div', { class: 'ans-txt' }, h('span', { html: x.html }), x.names && x.names.length ? h('div', { class: 'ans-names' }, x.names.join(', ')) : null),
+    h('div', { class: 'bar' }, h('i', { style: { width: (100 * x.n / total) + '%' } })),
+    h('b', { class: 'ans-n' }, x.n + (x.students > 1 ? ` · ${x.students} students` : '')))));
+}
+function reviewCards(r) {
+  const card = h('div', { class: 'card review' });
+  const mistakes = h('div', { class: 'card' });
+  const draw = () => {
+    rv.list = reviewOrder(r);
+    // common mistakes: the same wrong answer from two or more students, most students first
+    const common = [];
+    for (const q of r.questions) for (const w of q.wrongs) if (w.students >= 2 && w.text !== '(no answer)') common.push({ q, w });
+    common.sort((a, b) => b.w.students - a.w.students || b.w.n - a.w.n);
+    clear(mistakes).append(h('div', { class: 'card-h' }, h('h2', null, 'Common mistakes'), h('p', null, 'The same wrong answer from two or more students. Click one to open its question.')),
+      common.length ? h('div', { class: 'mistakes' }, ...common.slice(0, 8).map(({ q, w }) => h('button', { class: 'mistake', onclick: () => { rv.open.add(qid(q)); rv.skill = ''; rv.all = true; draw(); const el = card.querySelector(`[data-q="${CSS.escape(qid(q))}"]`); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } },
+        h('div', { class: 'mk-q', html: mathHTML(q.text) }),
+        h('div', { class: 'mk-a' }, h('span', { class: 'mk-wrong', html: ansHTML(w.text, q.type !== 'mc') }), h('span', { class: 'mk-arrow' }, ' instead of '), h('span', { class: 'mk-right', html: ansHTML(q.answer, q.type !== 'mc') })),
+        h('div', { class: 'mk-n' }, `${w.students} students` + (rv.names ? ': ' + w.names.join(', ') : '')))))
+        : h('div', { class: 'empty' }, r.questions.length ? 'No wrong answer was given by more than one student.' : 'No questions were answered.'));
+    // the full list
+    const skills = [...new Set(r.questions.map(q => q.skill).filter(Boolean))].sort();
+    const controls = h('div', { class: 'rv-controls' },
+      h('label', null, 'Order ', h('select', { onchange: e => { rv.sort = e.target.value; draw(); } }, ...[['hard', 'Hardest first'], ['asked', 'Order first asked'], ['skill', 'By skill']].map(([v, l]) => h('option', { value: v, selected: rv.sort === v }, l)))),
+      skills.length > 1 ? h('label', null, 'Skill ', h('select', { onchange: e => { rv.skill = e.target.value; draw(); } }, h('option', { value: '' }, 'All skills'), ...skills.map(k => h('option', { value: k, selected: rv.skill === k }, k)))) : null,
+      h('label', { class: 'rv-names' }, h('input', { type: 'checkbox', checked: rv.names, onchange: e => { rv.names = e.target.checked; draw(); } }), ' Show student names'),
+      h('button', { class: 'btn small', onclick: () => { const all = rv.list.every(q => rv.open.has(qid(q))); for (const q of rv.list) all ? rv.open.delete(qid(q)) : rv.open.add(qid(q)); draw(); } }, 'Open / close all'),
+      rv.list.length ? h('button', { class: 'btn small primary', onclick: () => present(0) }, 'Show to class') : null);
+    clear(card).append(h('div', { class: 'card-h' }, h('h2', null, 'Question review'), h('p', null, `Every question the class answered (${r.questions.length}). Click a question for its answers and worked solution. Names are hidden unless you tick the box, so this page is safe to project.`)), controls,
+      rv.list.length ? h('div', { class: 'rq-list' }, ...(rv.all ? rv.list : rv.list.slice(0, RV_FIRST)).map((q, i) => {
+        const open = rv.open.has(qid(q));
+        return h('div', { class: 'rq' + (open ? ' open' : ''), dataset: { q: qid(q) } },
+          h('button', { class: 'rq-head', 'aria-expanded': String(open), onclick: () => { open ? rv.open.delete(qid(q)) : rv.open.add(qid(q)); draw(); } },
+            h('b', { class: qpct(q.pct) + ' rq-pct' }, q.pct + '%'),
+            h('div', { class: 'rq-q' }, h('div', { html: mathHTML(q.text) + (q.track === 'modified' ? ' <span class="tip">(supported)</span>' : '') }), q.image ? h('img', { class: 'qthumb', src: q.image, alt: '' }) : null,
+              h('div', { class: 'rq-meta' }, [q.skill, `${q.correct}/${q.asked} correct`, `${q.students} student${q.students === 1 ? '' : 's'}`, q.avgSec ? `${q.avgSec}s average` : '', q.wrongs.length ? `${q.wrongs.length} different wrong answer${q.wrongs.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '))),
+            h('span', { class: 'rq-chev' }, open ? '▾' : '▸')),
+          open ? h('div', { class: 'rq-body' },
+            breakdown(q, rv.names),
+            q.solution ? h('div', { class: 'rq-sol' }, h('b', null, 'Worked solution '), h('span', { html: mathHTML(q.solution) })) : null,
+            rv.names && q.missed.length ? h('div', { class: 'rq-missed' }, h('b', null, 'Never got it right: '), q.missed.join(', ')) : null,
+            h('button', { class: 'btn small', onclick: () => present(i) }, 'Show to class')) : null);
+      })) : h('div', { class: 'empty' }, 'No questions match.'),
+      !rv.all && rv.list.length > RV_FIRST ? h('button', { class: 'btn rv-more', onclick: () => { rv.all = true; draw(); } }, `Show all ${rv.list.length} questions`) : null);
+  };
+  draw();
+  return [mistakes, card];
+}
+
+// "Show to class": one question at a time, big, with the answers hidden until the teacher reveals them. No names.
+let pv = { i: 0, reveal: false };
+function present(i) { pv = { i, reveal: false }; drawPresent(); $('#present').classList.add('show'); }
+function closePresent() { $('#present').classList.remove('show'); }
+function drawPresent() {
+  const box = clear($('#present')); const list = rv.list; const q = list[pv.i]; if (!q) return closePresent();
+  const go = d => { pv = { i: Math.max(0, Math.min(list.length - 1, pv.i + d)), reveal: false }; drawPresent(); };
+  box.append(h('div', { class: 'pres' },
+    h('div', { class: 'pres-top' }, h('span', null, `Question ${pv.i + 1} of ${list.length}` + (q.skill ? ' · ' + q.skill : '')), h('button', { class: 'btn', onclick: closePresent }, 'Close')),
+    h('div', { class: 'pres-q', html: mathHTML(q.text) }),
+    q.image ? h('img', { class: 'pres-img', src: q.image, alt: '' }) : null,
+    pv.reveal ? h('div', { class: 'pres-ans' },
+      h('div', { class: 'pres-stat' }, h('b', { class: qpct(q.pct) }, q.pct + '%'), ` of the class's ${q.asked} answer${q.asked === 1 ? '' : 's'} were right`),
+      breakdown(q, false),
+      q.solution ? h('div', { class: 'rq-sol' }, h('b', null, 'Worked solution '), h('span', { html: mathHTML(q.solution) })) : null)
+      : h('div', { class: 'pres-hint' }, 'Ask the class first, then reveal what everyone answered.'),
+    h('div', { class: 'pres-nav' },
+      h('button', { class: 'btn', disabled: pv.i === 0, onclick: () => go(-1) }, '← Previous'),
+      h('button', { class: 'btn primary', onclick: () => { pv.reveal = !pv.reveal; drawPresent(); } }, pv.reveal ? 'Hide answers' : 'Reveal answers'),
+      h('button', { class: 'btn', disabled: pv.i >= list.length - 1, onclick: () => go(1) }, 'Next →'))));
+}
+document.addEventListener('keydown', e => {
+  if (!$('#present') || !$('#present').classList.contains('show')) return;
+  if (e.key === 'Escape') closePresent();
+  else if (e.key === 'ArrowRight') { if (pv.i < rv.list.length - 1) { pv = { i: pv.i + 1, reveal: false }; drawPresent(); } }
+  else if (e.key === 'ArrowLeft') { if (pv.i > 0) { pv = { i: pv.i - 1, reveal: false }; drawPresent(); } }
+  else if (e.key === ' ' && e.target === document.body) { e.preventDefault(); pv.reveal = !pv.reveal; drawPresent(); }
+});
 function toCSV(r) {
   const q = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
   const skills = Object.keys(r.skills);
@@ -436,8 +543,9 @@ function toCSV(r) {
   lines.push(['Skill', 'Answered', 'Class percent'].map(q).join(','));
   for (const [k, v] of Object.entries(r.skills)) lines.push([k, v.a, Math.round(100 * v.c / v.a)].map(q).join(','));
   lines.push('');
-  lines.push(['Question', 'Skill', 'List', 'Asked', 'Percent correct'].map(q).join(','));
-  for (const x of r.questions) lines.push([x.text.replace(/\$/g, ''), x.skill, x.track === 'modified' ? 'Supported' : 'Main', x.asked, x.pct].map(q).join(','));
+  lines.push(['Question', 'Skill', 'List', 'Asked', 'Correct', 'Percent correct', 'Students', 'Avg seconds', 'Correct answer', 'Common wrong answers (students)'].map(q).join(','));
+  const plain = s => String(s == null ? '' : s).replace(/\$/g, '');
+  for (const x of r.questions) lines.push([plain(x.text), x.skill, x.track === 'modified' ? 'Supported' : 'Main', x.asked, x.correct, x.pct, x.students, x.avgSec, plain(x.answer), (x.wrongs || []).slice(0, 5).map(w => `${plain(w.text)} (${w.students})`).join('; ')].map(q).join(','));
   return lines.join('\r\n');
 }
 
