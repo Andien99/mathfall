@@ -51,7 +51,7 @@ While playing, the teacher's **live view** opens with **the tower**: a drawn sto
 
 ### The school bank
 
-Every `.json` file in the `banks/` folder appears under **School bank** for every teacher. This is the "agreed upon" bank: add or change a file, redeploy, and everyone sees it. `banks/year-7-algebra-core-skills.json` is included: 48 questions plus 30 supported questions on like terms, collecting like terms, coefficients and constants, substitution and equivalent expressions, each with a worked solution.
+Every `.json` file in the `banks/` folder appears under **School bank** for every teacher. This is the "agreed upon" bank: add or change a file, redeploy, and everyone sees it. `banks/year-7-algebra-core-skills.json` is included: 43 questions plus 29 supported questions on like terms, collecting like terms, coefficients and constants, substitution and equivalent expressions, each with a worked solution. It leaves out brackets (expanding and grouping) and keeps squares simple (no harder than $a^2 + 4$; no square roots).
 
 `banks/year-10-probability-mix.json` (*Year 10 Probability (8A–8F)*) has 88 probability questions from Cambridge Essential Maths 10/10A, 8A–8F: basics, experimental probability, set notation, Venn diagrams, two-way tables, the addition rule (17), conditional probability (20), two-step tables and tree diagrams. 49 have a diagram. Every question is a short step or answered by inspection, or a rule to recall or complete. No supported list. The diagrams are SVGs in `banks/img/y10-probability/`, drawn by `node tools/build_prob_images.js`; the set is built by `node tools/build_y10_prob_bank.js` (it checks every picture exists). The file name is kept from when it was mixed with algebra, so saved selections still work.
 

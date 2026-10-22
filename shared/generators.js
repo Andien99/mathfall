@@ -234,10 +234,10 @@
             ans, [`${k + n}${v}`, `${k}${v}${b + d >= 0 ? '+' : ''}${b + d}`, `${a + b + c + d}${v}`]);
         }
         if (rng() < 0.5) {
-          const a = ri(rng, 2, 6), b = ri(rng, 2, 6), x = ri(rng, 2, 5), y = ri(rng, 1, 6);
-          const ans = a * x * x + b * y;
-          return finish(rng, format, { skill: 'Substitution', q: `If $x = ${x}$ and $y = ${y}$, evaluate $${a}x^{2} + ${b}y$.`, solution: `Square first: $${x}^{2} = ${x * x}$. Then $${a} \\times ${x * x} + ${b} \\times ${y} = ${a * x * x} + ${b * y} = ${ans}$.` },
-            ans, [(a * x) * (a * x) + b * y, a * 2 * x + b * y, a * x * x + b + y]);
+          const b = ri(rng, 2, 6), x = ri(rng, 2, 6), y = ri(rng, 1, 6);
+          const ans = x * x + b * y;
+          return finish(rng, format, { skill: 'Substitution', q: `If $x = ${x}$ and $y = ${y}$, evaluate $x^{2} + ${b}y$.`, solution: `Square first: $${x}^{2} = ${x * x}$. Then $${b} \\times ${y} = ${b * y}$. So $${x * x} + ${b * y} = ${ans}$.` },
+            ans, [2 * x + b * y, x * x + b + y, x * x * b + y]);
         }
         const p = ri(rng, 2, 7), q = ri(rng, 1, 6), r = ri(rng, 2, 6), s = ri(rng, 1, 5);
         const ans = `${p + r}xy+${q + s}x`;
