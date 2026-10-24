@@ -42,6 +42,7 @@ function defaultSettings(s = {}) {
     adaptive: s.adaptive !== false,
     hints: s.hints !== false,
     sound: s.sound !== false,
+    tips: s.tips !== false,
     teamSize: num(s.teamSize, 4, 1, 6),
     lateJoin: s.lateJoin !== false,
     timeLimit: num(s.timeLimit, 0, 0, 120),
@@ -170,7 +171,8 @@ class Session {
     const run = {
       asc: asc || 0, floor: 0, length: this.settings.length, map: RUN.generateMap(this.settings.length), pos: null,
       phase: 'map', votes: {}, voteDeadline: 0, goAt: 0, goNode: null, heroes: {}, combat: null, room: null,
-      next: null, outbox: [], seq: team.run ? team.run.seq : 0, startedAt: now(), pendingJoin: []
+      next: null, outbox: [], seq: team.run ? team.run.seq : 0, startedAt: now(), pendingJoin: [],
+      pace: keepHeroes && old && old.pace ? { ...old.pace } : null   // same heroes, same pace; a fresh run measures again
     };
     team.run = run;
     team.history.runs++;
@@ -250,7 +252,10 @@ class Session {
     run.phase = 'combat'; run.room = null;
     // Enemy health scales with the heroes actually playing (connected) in this team.
     run.activeCount = Math.max(1, team.members.filter(id => { const p = this.players.get(id); return p && p.connected && run.heroes[id]; }).length);
-    run.combat = CB.createCombat(run, type);
+    const L = run.length in CB.BOSS_TARGET_MS ? run.length : 'standard';
+    run.combat = CB.createCombat(run, type, { targetMs: T(CB.BOSS_TARGET_MS[L]), actMs: T(15000) });
+    run.combat.startedAt = now(); run.combat.size = run.activeCount;
+    if (run.combat.bossScale) this.tel.event('boss', { team: team.name, ...run.combat.bossScale });
     CB.beginRound(run, now(), this.settings.timer);
     const bossName = C.ENEMIES[C.bossForAct(run.asc || 0)].name;
     this.event(team, { kind: 'system', text: type === 'boss' ? `${bossName} awakens` : type === 'elite' ? 'An elite foe blocks the way' : 'Monsters!', battle: type });
@@ -341,6 +346,11 @@ class Session {
   winCombat(team) {
     const run = team.run; const c = run.combat;
     const type = c.type;
+    // How fast this team deals damage: the next boss is sized from it (CB.recordPace).
+    if (c.startedAt && !c.raid) {
+      const dmg = c.enemies.reduce((sum, e) => sum + (e.maxHp || 0), 0) + (c.enemyHealed || 0);
+      CB.recordPace(run, dmg, now() - c.startedAt, c.size || run.activeCount || 1);
+    }
     const gold = (type === 'boss' ? 80 : type === 'elite' ? RUN.ri(35, 45) : RUN.ri(18, 28)) + (run.ambushBonus || 0);
     run.ambushBonus = 0;
     for (const h of CB.heroList(run)) {
@@ -602,7 +612,7 @@ class Session {
   // ------------------------------------------------------------ emit
   teamPublic(team) {
     const run = team.run;
-    const base = { code: this.code, state: this.state, paused: this.paused, now: now(), sound: this.settings.sound, timer: this.settings.timer,
+    const base = { code: this.code, state: this.state, paused: this.paused, now: now(), sound: this.settings.sound, tips: this.settings.tips, timer: this.settings.timer,
       team: { id: team.id, name: team.name, color: team.color, history: team.history },
       members: team.members.map(id => { const p = this.players.get(id); return p ? { id, name: p.name, cls: p.cls, gender: p.gender, connected: p.connected } : null; }).filter(Boolean) };
     if (this.raid) base.raid = this.raidPublic(team);
@@ -740,6 +750,23 @@ class Session {
     this.emitHost(true);
   }
 
+  // A boss fight follows the team's size: if a hero has been gone (or back) for 15 s, the boss's health
+  // is rescaled to the heroes still playing. The wait stops a quick refresh from changing anything.
+  checkBossSize(team, t) {
+    const run = team.run; const c = run.combat;
+    if (c.phase === 'won' || c.phase === 'lost') return;
+    const n = Math.max(1, team.members.filter(id => { const p = this.players.get(id); return p && p.connected && run.heroes[id]; }).length);
+    if (n === c.bossFor) { c.sizeSince = 0; c.sizeTo = 0; return; }
+    if (c.sizeTo !== n) { c.sizeTo = n; c.sizeSince = t; return; }
+    if (t - c.sizeSince < T(15000)) return;
+    const was = c.bossFor;
+    CB.rescaleBoss(c, n);
+    c.sizeSince = 0; c.sizeTo = 0;
+    const boss = c.enemies.find(e => e.tier === 'boss' && !e.dead);
+    if (boss) this.event(team, { kind: 'system', text: n < was ? `${boss.name} weakens to match your smaller party` : `${boss.name} grows stronger as a hero returns` });
+    this.flush(team);
+  }
+
   // ------------------------------------------------------------ timers
   tick(t) {
     if (this.state === 'playing' && !this.paused) {
@@ -765,6 +792,7 @@ class Session {
     }
     for (const team of this.teams) {
       const run = team.run; if (!run) continue;
+      if (run.phase === 'combat' && run.combat && run.combat.bossFor) this.checkBossSize(team, t);
       if (run.next && t >= run.next.time) { const fn = run.next.fn; run.next = null; this.runStep(team, fn); continue; }
       if (run.combat && run.combat.phase === 'qte' && run.combat.qte && t >= run.combat.qte.endsAt) { this.advanceQTE(team); continue; }
       if (run.phase === 'combat' && run.combat && run.combat.phase === 'player' && run.combat.roundEndsAt && t >= run.combat.roundEndsAt && !run.next) {
@@ -791,6 +819,7 @@ class Session {
       const run = t.run; if (!run) continue;
       if (run.next) run.next.time += ms;
       if (run.combat && run.combat.roundEndsAt) run.combat.roundEndsAt += ms;
+      if (run.combat && run.combat.startedAt) run.combat.startedAt += ms;   // paused time isn't fighting time
       if (run.voteDeadline) run.voteDeadline += ms;
       if (run.goAt) run.goAt += ms;
       if (run.room && run.room.deadline) run.room.deadline += ms;

@@ -118,9 +118,62 @@ function makeEnemy(c, kind, mult) {
   return { id: 'e' + (++c.nextId), kind, name: def.name, size: def.size, tier: def.kind, hp, maxHp: hp, block: 0, st: {}, dead: false, intent: null, mem: {}, dmgMult: mult.dmg };
 }
 
-function createCombat(run, encounterType) {
+// ---------------------------------------------------------------- boss health
+// Act bosses are sized to the team in front of them, not a fixed number. Two parts:
+//  1. Party size: health is linear in the heroes playing (3 heroes = 75% of a 4-hero boss), because
+//     damage is too. The old curve gave a 3-hero team 81% of the health for 75% of the damage.
+//  2. Damage output: every won fight records how fast this team actually deals damage (per hero, per
+//     minute, recent fights counting most). That folds in their upgrades, skills, items, accuracy and
+//     how long they take to answer. The boss gets enough health to last BOSS_TARGET_MS at that pace,
+//     kept between BOSS_CLAMP of the size-based health so it never becomes trivial or a slog.
+const BOSS_TARGET_MS = { quick: 150000, standard: 195000, long: 240000 };   // time spent dealing damage; quick-time moves and phase 2 add to it
+const BOSS_ACT_MS = 15000;          // each later act's boss is meant to last a little longer
+const BOSS_CLAMP = [0.5, 1.15];
+const PACE_DECAY = 0.6;             // weight left on older fights each time a new one is recorded
+const PACE_MIN_MS = 45000;          // need this much measured fighting before the pace is trusted
+
+// Called after every won fight. dmg = enemy health removed, ms = fight time, size = heroes playing.
+function recordPace(run, dmg, ms, size) {
+  if (!(ms > 0) || !(dmg > 0) || !(size > 0)) return;
+  const p = run.pace || (run.pace = { dmg: 0, ms: 0, fights: 0, raw: 0 });
+  p.dmg = p.dmg * PACE_DECAY + dmg / size;
+  p.ms = p.ms * PACE_DECAY + ms;
+  p.raw += ms; p.fights++;
+}
+// Damage per hero per millisecond, or 0 if there isn't enough to go on yet.
+function pacePerHero(run) {
+  const p = run.pace;
+  if (!p || p.fights < 2 || p.raw < PACE_MIN_MS || p.ms <= 0) return 0;
+  return p.dmg / p.ms;
+}
+// Multiplier on the size-based boss health. info is filled in for the session report.
+function bossPaceFactor(run, baseHp, size, opts = {}) {
+  const per = pacePerHero(run);
+  const target = (opts.targetMs != null ? opts.targetMs : (BOSS_TARGET_MS[run.length] || BOSS_TARGET_MS.standard)) + (opts.actMs != null ? opts.actMs : BOSS_ACT_MS) * (run.asc || 0);
+  if (!per || !(baseHp > 0)) return { factor: 1, per: 0, target };
+  const want = per * size * target;
+  const factor = Math.max(BOSS_CLAMP[0], Math.min(BOSS_CLAMP[1], want / baseHp));
+  return { factor, per, target, want: Math.round(want) };
+}
+// A hero dropping out (or coming back) part-way through a boss: keep the boss's health in step with the
+// party. The health bar keeps the same fraction, so nobody sees a sudden jump.
+function rescaleBoss(c, nNew) {
+  const nOld = c.bossFor || nNew;
+  if (nNew === nOld || nNew < 1) return null;
+  const k = nNew / nOld;
+  c.bossFor = nNew;
+  for (const e of c.enemies) {
+    if (e.dead || e.tier !== 'boss') continue;
+    const frac = e.hp / e.maxHp;
+    e.maxHp = Math.max(20, Math.round(e.maxHp * k));
+    e.hp = Math.max(1, Math.round(e.maxHp * frac));
+  }
+  return k;
+}
+
+function createCombat(run, encounterType, opts = {}) {
   const size = Math.max(1, run.activeCount || heroList(run).length);
-  const partyMult = 0.25 + 0.1875 * size;
+  const partyMult = encounterType === 'boss' ? Math.max(0.3, size / 4) : 0.25 + 0.1875 * size;
   const depth = run.depth || run.floor || 1;
   const floorMult = 1 + 0.08 * Math.max(0, depth - 1);
   const ascMult = 1 + 0.15 * (run.asc || 0);
@@ -128,6 +181,16 @@ function createCombat(run, encounterType) {
   const c = { enemies: [], round: 0, phase: 'player', roundEndsAt: 0, phaseEndsAt: 0, nextId: 0, type: encounterType, mult, events: 0 };
   const kinds = encounterKinds(run, encounterType);
   for (const k of kinds) c.enemies.push(makeEnemy(c, k, mult));
+  if (encounterType === 'boss') {
+    // Summoned shards and thralls keep the ordinary scaling; only the boss itself follows the team's pace.
+    const boss = c.enemies.find(e => e.tier === 'boss');
+    if (boss) {
+      const pf = bossPaceFactor(run, boss.maxHp, size, opts);
+      boss.maxHp = boss.hp = Math.max(20, Math.round(boss.maxHp * pf.factor));
+      c.bossFor = size;
+      c.bossScale = { size, base: Math.round(boss.maxHp / pf.factor), hp: boss.maxHp, factor: Math.round(pf.factor * 100) / 100, perHeroPerMin: Math.round(pf.per * 60000 * 10) / 10, targetSec: Math.round(pf.target / 1000) };
+    }
+  }
   for (const h of heroList(run)) {
     h.block = 0; h.st = {}; h.acted = false; h.readyAction = null; h.focus = h.focus || 0;
     h.energy = C.ENERGY.start + (has(h, 'energy_crystal') ? 2 : 0);
@@ -612,7 +675,7 @@ function enemyTurn(run) {
       }
       let drained = 0;
       for (const h of heroesAlive()) { const r = hitHero(e, h, dmg, { chilled }); drained += r.dmg; o.targets.push(r); ids.add(h.id); }
-      if (it.drain && drained) { const before = e.hp; e.hp = Math.min(e.maxHp, e.hp + drained); if (e.hp > before) o.targets.push({ id: e.id, heal: e.hp - before }); }
+      if (it.drain && drained) { const before = e.hp; e.hp = Math.min(e.maxHp, e.hp + drained); if (e.hp > before) { o.targets.push({ id: e.id, heal: e.hp - before }); c.enemyHealed = (c.enemyHealed || 0) + e.hp - before; } }
       if (it.perShard) {
         for (const s of aliveEnemies(c).filter(x => x.kind === 'shard')) { s.dead = true; s.hp = 0; o.targets.push({ id: s.id, dmg: 0, killed: true, shatter: true }); ids.add(s.id); }
       }
@@ -624,7 +687,7 @@ function enemyTurn(run) {
       if (h) { addStatus(h, it.status, { t: 2 }); o.targets.push({ id: h.id, status: [it.status] }); ids.add(h.id); }
     } else if (it.type === 'heal') {
       const a = c.enemies.find(x => x.id === it.ally && !x.dead) || aliveEnemies(c).sort((x, y) => x.hp / x.maxHp - y.hp / y.maxHp)[0];
-      if (a) { const before = a.hp; a.hp = Math.min(a.maxHp, a.hp + it.heal); o.targets.push({ id: a.id, heal: a.hp - before }); ids.add(a.id); }
+      if (a) { const before = a.hp; a.hp = Math.min(a.maxHp, a.hp + it.heal); o.targets.push({ id: a.id, heal: a.hp - before }); ids.add(a.id); c.enemyHealed = (c.enemyHealed || 0) + a.hp - before; }
     } else if (it.type === 'charge') {
       if (it.block) { e.block += it.block; o.targets.push({ id: e.id, block: it.block }); }
       o.warn = it.warn;
@@ -685,4 +748,4 @@ function publicIntent(it) {
   return o;
 }
 
-module.exports = { createRaidCombat, whiff, createCombat, beginRound, heroAction, enemyTurn, combatOutcome, publicEnemy, aliveHeroes, aliveEnemies, heroList, needsToAct, MS };
+module.exports = { recordPace, pacePerHero, bossPaceFactor, rescaleBoss, BOSS_TARGET_MS, createRaidCombat, whiff, createCombat, beginRound, heroAction, enemyTurn, combatOutcome, publicEnemy, aliveHeroes, aliveEnemies, heroList, needsToAct, MS };

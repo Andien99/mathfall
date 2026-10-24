@@ -12,7 +12,7 @@ let bank = { sets: [], topics: [] };
 let bankCache = {};
 let mySets = store.get('mf_sets', []);
 let sel = store.get('mf_sel', { bankIds: ['year-7-algebra-core-skills'], setIds: [], gens: [], format: 'mix' });
-let settings = store.get('mf_settings', { length: 'quick', timer: 60, adaptive: true, hints: true, sound: true, teamSize: 4, lateJoin: true, timeLimit: 30, wrongPause: 1.5, raid: true, raidMinutes: 8 });
+let settings = store.get('mf_settings', { length: 'quick', timer: 60, adaptive: true, hints: true, sound: true, tips: true, teamSize: 4, lateJoin: true, timeLimit: 30, wrongPause: 1.5, raid: true, raidMinutes: 8 });
 if (settings.raid == null) { settings.raid = true; settings.raidMinutes = 8; if (!settings.timeLimit) settings.timeLimit = 30; }
 let session = null;     // { code, hostToken }
 let hs = null;          // latest host state
@@ -145,6 +145,7 @@ function renderSettings() {
     S('Raid boss', 'Off: the game simply ends when time is up.', seg([true, false], ['On', 'Off'], settings.raid !== false, v => set('raid', v === true || v === 'true'))),
     S('Raid length', 'How long teams have to beat the raid boss.', seg([5, 8, 10, 12], ['5m', '8m', '10m', '12m'], settings.raidMinutes || 8, v => set('raidMinutes', +v))),
     S('Sound on student devices', null, seg([true, false], ['On', 'Off'], settings.sound, v => set('sound', v === true || v === 'true'))),
+    S('Pawcal\'s tips', 'A guide cat pops up with what to press, what skills and items do, and a nudge to use skills.', seg([true, false], ['On', 'Off'], settings.tips !== false, v => set('tips', v === true || v === 'true'))),
     S('Late joining', null, seg([true, false], ['Allowed', 'Locked once started'], settings.lateJoin, v => set('lateJoin', v === true || v === 'true'))));
 }
 

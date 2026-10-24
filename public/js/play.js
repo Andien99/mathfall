@@ -6,6 +6,7 @@ import { QuestionPanel } from './question.js';
 import * as SP from './sprites.js';
 import { sfx, setSound, soundOn, unlockAudio } from './audio.js';
 import { startTelemetry, timed } from './telemetry.js';
+import { Guide } from './guide.js';
 
 const C = window.MF_Content;
 const socket = io({ transports: ['websocket', 'polling'] });
@@ -96,14 +97,17 @@ const qpanel = new QuestionPanel($('#qLayer'), {
   onSubmit: (qid, value) => {
     // Hold this round's animations until the card closes, so the student sees their own hero act.
     scene.hold(1500);
+    const intent = qpanel.q && qpanel.q.intent;
     socket.emit('answer', { qid, value }, timed('answer', res => {
       if (!res || !res.ok || !res.correct) scene.release();
+      guide.noteAnswer(res, intent);
       qpanel.result(res);
       if (res && res.ok) renderActions();
     }));
   },
   onClosed: res => {
     scene.release();
+    setTimeout(guideUpdate, 600);
     if (res && res.free) banner('Next Attack or Defend is free!', 'free');
     else if (res && res.note) banner(res.note, 'free');
   },
@@ -206,7 +210,18 @@ function onState(st) {
     setTimeout(fit, 20);
   }
   renderHUD();
+  guideUpdate();
 }
+
+// Pawcal the guide cat (guide.js): one short tip at a time, never over a question.
+const guide = new Guide({ C, sfx, questionOpen: () => qpanel.isOpen, touch: () => matchMedia('(pointer: coarse)').matches || !matchMedia('(hover: hover)').matches,
+  actionKeys: h => actionKeys(h), actionInfo: (h, k) => actionInfo(h, k) });
+function guideUpdate() {
+  if (!state || !state.run || state.you.joining) return;
+  requestAnimationFrame(() => guide.update({ run: state.run, hero: myHero(), you: state.you, tips: state.tips }));
+}
+setInterval(guideUpdate, 1000);   // tips also wait out their gap and expire without a state change
+$('#helpBtn').addEventListener('click', () => { unlockAudio(); if (state && state.run && !qpanel.isOpen) guide.help({ run: state.run, hero: myHero(), you: state.you }); });
 
 function myHero() { return state && state.run ? state.run.heroes.find(x => x.id === me.playerId) : null; }
 
@@ -278,7 +293,8 @@ function renderTestTools() {
     h('div', { class: 'tt-grid' }, go('normal1', 'Monsters'), go('normal2', 'Harder monsters'), go('elite', 'Elite'), go('boss', 'Boss'),
       go('bosshalf', 'Boss to half HP'), go('treasure', 'Treasure'), go('merchant', 'Merchant'), go('rest', 'Campfire'),
       go('event', 'Unknown event'), go('victory', 'Victory screen'), go('complete', 'Act complete'), go('energy', 'Full energy'),
-      go('hurt', 'Low health'), go('raid', 'Raid boss')));
+      go('hurt', 'Low health'), go('raid', 'Raid boss'),
+      h('button', { class: 'btn small', onclick: () => { guide.resetSeen(); toast('Pawcal will give every tip again'); } }, 'Reset tips')));
   box = h('div', { id: 'testTools' }, h('button', { class: 'tt-toggle', onclick: () => box.classList.toggle('open') }, 'TEST'), panel);
   document.body.append(box);
 }
@@ -399,7 +415,8 @@ function renderActions() {
       const short = info.cost ? Math.max(0, info.cost - (hero.energy || 0)) : 0;
       const free = (hero.free && (k === 'attack' || k === 'defend')) || (k.startsWith('skill') && info.cost === 0);
       const allyNote = (k === 'defend' || info.target === 'ally') && scene.allyTarget ? ' → ' + (run.heroes.find(x => x.id === scene.allyTarget) || {}).name : '';
-      list.appendChild(h('button', { class: 'act ' + info.cls + (short ? ' low' : '') + (free ? ' freeact' : ''), disabled: over || short > 0, onclick: () => act(k), title: info.desc },
+      const ready = info.cost > 0 && !short && !free && !over;
+      list.appendChild(h('button', { class: 'act ' + info.cls + (short ? ' low' : '') + (free ? ' freeact' : '') + (ready ? ' ready' : ''), disabled: over || short > 0, onclick: () => act(k), title: info.desc },
         h('img', { src: SP.iconURL(info.icon, 2), alt: '' }),
         h('div', null, h('div', { class: 'an' }, info.name + allyNote), h('div', { class: 'ad' }, info.desc)),
         free ? h('span', { class: 'freetag', title: k.startsWith('skill') ? 'Mana Surge: no energy needed' : 'No question needed' }, h('b', null, 'FREE'), h('small', null, k.startsWith('skill') ? 'no energy' : 'no question'))
@@ -431,6 +448,7 @@ function act(action) {
   if (qpanel.isOpen) return;
   const hero = myHero(); if (!hero) return;
   unlockAudio(); sfx('click');
+  guide.noteAction(action, hero);
   let target = scene.target;
   if (action === 'defend') target = scene.allyTarget || null;
   if (action.startsWith('skill')) { const info = actionInfo(hero, action); if (info.target === 'ally') target = scene.allyTarget || null; else if (info.target === 'self' || info.target === 'party') target = null; }
@@ -510,26 +528,35 @@ function readyLine(room) {
   const names = run.heroes.filter(x => x.connected && !room.ready[x.id]).map(x => x.id === me.playerId ? 'you' : x.name);
   return h('div', { class: 'readyline' }, h('b', null, `${r}/${n} ready`), names.length ? ' · waiting for ' + listJoin(names) : '');
 }
-// Loot cards. The border colour is the rarity: grey common, purple rare, orange legendary.
+// Loot cards. Two things are shown on every card, kept visually apart so students can't mix them up:
+//  - WHAT it is (the ribbon, the card's colour and the icon's frame): a SKILL is an action you choose in battle
+//    (blue, square rune tile, an energy cost, takes one of your 3 slots); an ITEM is a passive bonus that works by
+//    itself (green-brown, round relic frame, no cost, no limit).
+//  - HOW RARE it is (the border and the small gem label): grey common, purple rare, orange legendary.
 function skillCard(id, lvl, extra) {
   const def = C.SKILLS[id]; const rc = C.RARITY[def.rarity].color;
-  const cost = C.skillCost(id, { items: (myHero() || {}).items });
-  return h('div', { class: 'skcard rar-' + def.rarity + (extra && extra.isNew ? ' new' : '') + (extra && extra.small ? ' small' : ''), style: { '--rc': rc } },
-    h('img', { src: SP.iconURL(def.icon, 3), alt: '' }),
-    h('div', { class: 'rar' }, C.RARITY[def.rarity].name + ' skill' + (extra && extra.label ? ' · ' + extra.label : '')),
+  const hero = myHero() || {};
+  const cost = C.skillCost(id, { items: hero.items });
+  const used = (hero.skills || []).length;
+  const pips = h('span', { class: 'slots', title: `You have ${used} of ${C.MAX_SKILLS} skill slots filled` }, ...Array.from({ length: C.MAX_SKILLS }, (_, i) => h('i', { class: i < used ? 'on' : '' })));
+  return h('div', { class: 'skcard skill rar-' + def.rarity + (extra && extra.isNew ? ' new' : '') + (extra && extra.small ? ' small' : ''), style: { '--rc': rc } },
+    h('div', { class: 'kind' }, h('span', { class: 'kind-tag' }, 'Skill'), h('span', { class: 'kind-sub' }, 'You use it in battle')),
+    h('div', { class: 'ic' }, h('img', { src: SP.iconURL(def.icon, 3), alt: '' }), h('span', { class: 'ecost', title: `Costs ${cost} energy each time you use it` }, h('b', null, cost), h('small', null, 'energy'))),
+    h('div', { class: 'rar' }, C.RARITY[def.rarity].name + ' · ' + C.HEROES[def.cls].name + (extra && extra.label ? ' · ' + extra.label : '')),
     h('h4', null, C.skillName(id, lvl)),
     h('p', null, C.skillDesc(id, lvl)),
-    h('div', { class: 'cd' }, `Costs ${cost} energy`),
+    h('div', { class: 'cd' }, 'Takes a skill slot ', pips),
     extra && extra.button ? extra.button : null);
 }
 function itemCard(id, extra) {
   const it = C.ITEMS[id]; const rc = C.RARITY[it.rarity].color;
   return h('div', { class: 'skcard item rar-' + it.rarity + (extra && extra.isNew ? ' new' : '') + (extra && extra.small ? ' small' : ''), style: { '--rc': rc } },
-    h('img', { src: SP.iconURL(it.icon, 3), alt: '' }),
-    h('div', { class: 'rar' }, C.RARITY[it.rarity].name + ' item' + (extra && extra.label ? ' · ' + extra.label : '')),
+    h('div', { class: 'kind' }, h('span', { class: 'kind-tag' }, 'Item'), h('span', { class: 'kind-sub' }, 'Always on by itself')),
+    h('div', { class: 'ic' }, h('img', { src: SP.iconURL(it.icon, 3), alt: '' })),
+    h('div', { class: 'rar' }, C.RARITY[it.rarity].name + ' · any hero' + (extra && extra.label ? ' · ' + extra.label : '')),
     h('h4', null, it.name),
     h('p', null, it.desc),
-    h('div', { class: 'cd' }, 'Passive: works every fight'),
+    h('div', { class: 'cd' }, 'No energy, no slot, no limit'),
     extra && extra.button ? extra.button : null);
 }
 function goldCard(n, extra) {
@@ -545,8 +572,8 @@ function goldCard(n, extra) {
 function loadout(hero) {
   const items = hero.items || [];
   return h('div', { class: 'loadout' },
-    h('div', { class: 'lo-row' }, h('b', null, `Skills ${hero.skills.length}/${C.MAX_SKILLS}`), ...hero.skills.map(s => { const d = C.SKILLS[s.id]; return h('span', { class: 'chipx', style: { '--rc': C.RARITY[d.rarity].color }, title: C.skillDesc(s.id, s.lvl) }, h('img', { src: SP.iconURL(d.icon, 1), alt: '' }), C.skillName(s.id, s.lvl)); })),
-    h('div', { class: 'lo-row' }, h('b', null, 'Items'), ...(items.length ? items.map(id => { const it = C.ITEMS[id]; return h('span', { class: 'chipx', style: { '--rc': C.RARITY[it.rarity].color }, title: it.desc }, h('img', { src: SP.iconURL(it.icon, 1), alt: '' }), it.name); }) : [h('i', { class: 'none' }, 'none yet')])));
+    h('div', { class: 'lo-row lo-skill' }, h('b', null, `Your skills ${hero.skills.length}/${C.MAX_SKILLS}`, h('small', null, 'used in battle')), ...hero.skills.map(s => { const d = C.SKILLS[s.id]; return h('span', { class: 'chipx', style: { '--rc': C.RARITY[d.rarity].color }, title: C.skillDesc(s.id, s.lvl) }, h('img', { src: SP.iconURL(d.icon, 1), alt: '' }), C.skillName(s.id, s.lvl)); })),
+    h('div', { class: 'lo-row lo-item' }, h('b', null, 'Your items', h('small', null, 'always on')), ...(items.length ? items.map(id => { const it = C.ITEMS[id]; return h('span', { class: 'chipx', style: { '--rc': C.RARITY[it.rarity].color }, title: it.desc }, h('img', { src: SP.iconURL(it.icon, 1), alt: '' }), it.name); }) : [h('i', { class: 'none' }, 'none yet')])));
 }
 // A new skill when all three slots are full: pick the one it replaces.
 function replaceRow(newId, lvl, label, onPick, onBack) {
@@ -591,10 +618,10 @@ function renderRoom() {
       panel.append(img, h('div', { class: 'center' }, h('button', { class: 'btn primary', onclick: openIt }, 'Open the chest')));
       function openIt() { sfx('open'); roomOp('open', {}, r => { if (r.ok) sfx('twinkle'); }); }
     } else if (!ch.decided) {
-      const take = (pick, slot) => roomOp('take', { pick, slot }, r => { if (r.ok) { sfx(pick === 'gold' ? 'coin' : 'open'); roomUI.chestSkill = false; } });
+      const take = (pick, slot) => roomOp('take', { pick, slot }, r => { if (r.ok) { sfx(pick === 'gold' ? 'coin' : 'open'); roomUI.chestSkill = false; if (pick === 'skill' && ch.skill) guide.noteLearned(C.skillName(ch.skill.id, ch.skill.lvl)); } });
       if (roomUI.chestSkill && ch.skill) panel.append(...replaceRow(ch.skill.id, ch.skill.lvl, 'New', i => take('skill', i), () => { roomUI.chestSkill = false; renderRoom(); }));
       else {
-        panel.append(h('p', { class: 'lead' }, 'Keep one: a new skill, an item, or the gold.'));
+        panel.append(h('p', { class: 'lead' }, h('span', null, 'Keep one: '), h('b', { class: 'mk-skill' }, 'a skill'), ' (a new move for battle), ', h('b', { class: 'mk-item' }, 'an item'), ' (a bonus that is always on), or the gold.'));
         const row = h('div', { class: 'row' });
         const fresh = !roomUI.dealt; roomUI.dealt = true;   // the cards fly in once, not on every update
         if (ch.skill) row.append(skillCard(ch.skill.id, ch.skill.lvl, { isNew: fresh, small: true, button: h('button', { class: 'btn primary', onclick: () => { sfx('click'); if (hero.skills.length < C.MAX_SKILLS) take('skill'); else { roomUI.chestSkill = true; renderRoom(); } } }, 'Take skill') }));
@@ -621,7 +648,7 @@ function renderRoom() {
     const stock = you.stock;
     panel.append(h('h2', null, "Pip's Wandering Wares"), h('p', { class: 'lead' }, `"Shiny skills and trinkets, fair prices!" You have ${hero.gold} gold.`));
     if (stock) {
-      const buy = (kind, i, slot) => roomOp('buy', { kind, i, slot }, r => { if (r.ok) { sfx('coin'); roomUI.buy = null; } });
+      const buy = (kind, i, slot) => roomOp('buy', { kind, i, slot }, r => { if (r.ok) { sfx('coin'); roomUI.buy = null; if (kind === 'skill' && stock.skills[i]) guide.noteLearned(C.skillName(stock.skills[i].id, stock.skills[i].lvl)); } });
       const priceBtn = (it, onclick) => h('button', { class: 'btn' + (hero.gold >= it.price && !it.sold ? ' primary' : ''), disabled: it.sold || hero.gold < it.price, onclick }, it.sold ? 'Sold' : hero.gold < it.price ? `${it.price} gold (not enough)` : `Buy for ${it.price}`);
       if (roomUI.buy != null && stock.skills[roomUI.buy] && !stock.skills[roomUI.buy].sold) {
         const it = stock.skills[roomUI.buy];

@@ -626,10 +626,9 @@ body.portrait .qpanel.compact { align-items: flex-end; }
 .skcard.small h4 { font-size: 18px; } .skcard.small p { font-size: 14px; min-height: 5.2em; } .skcard.small img { width: 40px; height: 40px; }
 .skcard.rar-common { border-width: 2px; }
 .skcard.rar-rare { border-width: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 26px color-mix(in srgb, var(--rc) 45%, transparent); }
-.skcard.rar-legendary { border-width: 2px; background: linear-gradient(180deg, rgba(70, 44, 30, 0.96), rgba(24, 14, 30, 0.96)); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 34px color-mix(in srgb, var(--rc) 60%, transparent); }
+.skcard.rar-legendary { border-width: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 34px color-mix(in srgb, var(--rc) 60%, transparent); }
 .skcard.rar-legendary::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(115deg, transparent 35%, rgba(255, 220, 160, 0.16) 50%, transparent 65%); background-size: 250% 100%; animation: legendShine 2.8s linear infinite; }
 @keyframes legendShine { from { background-position: 120% 0; } to { background-position: -120% 0; } }
-.skcard.item .cd { color: #c8b8ff; }
 .skcard.gold { border: 2px dashed #ffd25a; }
 .skcard.gold h4 { color: #ffe27a; }
 .room .row.shop { gap: 10px; }
@@ -680,3 +679,83 @@ body.portrait .qimg img { max-height: 22vh; }
 .qzoom img { max-width: 100%; max-height: 100%; background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 20px 80px rgba(0, 0, 0, 0.7); }
 .qzoom-x { position: absolute; top: max(10px, env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(0, 0, 0, 0.5); color: #fff; font-size: 28px; line-height: 1; }
 .wrongs .w .wimg { display: block; max-width: 220px; max-height: 120px; background: #fff; border-radius: 6px; padding: 4px; margin: 6px 0 2px; }
+
+/* ---------------- skill vs item: what it is (ribbon, colour, icon frame) is kept apart from how rare it is (border) ---------------- */
+.skcard .kind { display: flex; align-items: baseline; gap: 7px; margin: -12px -14px 10px; padding: 6px 12px; border-radius: 6px 6px 0 0; border-bottom: 1px solid rgba(0, 0, 0, 0.45); }
+.skcard.small .kind { margin: -10px -11px 8px; padding: 5px 10px; }
+.skcard .kind-tag { font-family: var(--display); font-weight: 900; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; line-height: 1; }
+.skcard .kind-sub { font-size: 12px; font-weight: 700; opacity: 0.9; }
+.skcard .ic { float: right; position: relative; margin: 0 0 4px 8px; display: grid; place-items: center; width: 58px; height: 58px; }
+.skcard .ic img { float: none; margin: 0; width: 42px; height: 42px; }
+.skcard.small .ic { width: 50px; height: 50px; } .skcard.small .ic img { width: 36px; height: 36px; }
+.skcard .rar::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 5px; transform: rotate(45deg) translateY(-1px); background: var(--rc); box-shadow: 0 0 6px var(--rc); }
+.skcard .cd { display: flex; align-items: center; gap: 6px; }
+
+/* SKILL: an action. Cool blue, square rune tile, energy cost on the tile, slot pips. */
+.skcard.skill { background: repeating-linear-gradient(135deg, rgba(120, 170, 255, 0.05) 0 2px, transparent 2px 10px), linear-gradient(180deg, rgba(30, 52, 120, 0.97), rgba(12, 18, 52, 0.97)); }
+.skcard.skill .kind { background: linear-gradient(90deg, #3f8cff, #2a5fc4); color: #f2f7ff; }
+.skcard.skill .ic { border-radius: 8px; background: radial-gradient(circle, rgba(120, 180, 255, 0.35), rgba(10, 20, 60, 0.9) 70%); border: 2px solid #6aa6ff; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.5); }
+.skcard.skill .ic { margin-bottom: 14px; }
+.skcard.skill .ecost { position: absolute; left: 50%; transform: translateX(-50%); bottom: -14px; display: flex; flex-direction: column; align-items: center; line-height: 1; padding: 3px 5px; border-radius: 5px; background: linear-gradient(180deg, #ffd84a, #c88a0a); color: #2a1a00; box-shadow: 0 1px 0 #000, 0 0 8px rgba(255, 210, 80, 0.5); }
+.skcard.skill .ecost b { font-size: 15px; font-weight: 900; } .skcard.skill .ecost small { font-size: 8px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.4px; }
+.skcard.skill .cd { color: #a9c6ff; }
+.skcard .slots { display: inline-flex; gap: 3px; } .skcard .slots i { width: 9px; height: 9px; border-radius: 2px; border: 1px solid #6aa6ff; background: transparent; }
+.skcard .slots i.on { background: #6aa6ff; }
+
+/* ITEM: a passive. Warm leather-green, round relic frame, "always on". */
+.skcard.item { background: radial-gradient(120% 80% at 50% 0%, rgba(120, 200, 120, 0.14), transparent 60%), linear-gradient(180deg, rgba(58, 48, 28, 0.97), rgba(26, 22, 14, 0.97)); }
+.skcard.item .kind { background: linear-gradient(90deg, #3fae63, #2a7a46); color: #f0fff2; }
+.skcard.item .ic { border-radius: 50%; background: radial-gradient(circle, rgba(150, 230, 150, 0.32), rgba(30, 26, 12, 0.92) 70%); border: 2px solid #79d68f; box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(121, 214, 143, 0.18); }
+.skcard.item .ic::after { content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 1px dashed rgba(121, 214, 143, 0.55); animation: itemSpin 9s linear infinite; }
+@keyframes itemSpin { to { transform: rotate(360deg); } }
+.skcard.item p { color: #efe6cf; }
+.skcard.item .cd { color: #9fe0ae; }
+.skcard.gold .rar::before { display: none; }
+
+.room .lead .mk-skill { color: #8fbaff; } .room .lead .mk-item { color: #8ee0a2; }
+.lo-row > b small { display: block; font-size: 10px; text-transform: none; letter-spacing: 0; font-weight: 600; opacity: 0.8; }
+.lo-skill .chipx { border-radius: 4px; background: rgba(24, 40, 96, 0.85); box-shadow: inset 3px 0 0 #3f8cff; }
+.lo-item .chipx { border-radius: 12px; background: rgba(46, 38, 20, 0.85); box-shadow: inset 3px 0 0 #3fae63; }
+@media (max-width: 700px) {
+  .skcard .kind-sub { display: none; }
+  .skcard.small .ic { width: 42px; height: 42px; } .skcard.small .ic img { width: 30px; height: 30px; }
+  .skcard.small .kind { margin: -8px -9px 6px; }
+}
+
+/* ---------------- Pawcal the guide cat (guide.js) ---------------- */
+.gd { position: fixed; left: 10px; bottom: 110px; z-index: 60; display: flex; align-items: flex-end; gap: 2px; pointer-events: none; transform: translateX(-130%); opacity: 0; transition: transform 0.38s cubic-bezier(.2, 1.3, .4, 1), opacity 0.2s; }
+.gd.show { transform: none; opacity: 1; }
+.gd.show > * { pointer-events: auto; }
+.gd-cat { flex: none; width: 144px; height: 144px; padding: 0; border: 0; background: no-repeat 0 0 / 1000% 100%; image-rendering: pixelated; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45)); cursor: pointer; }
+.gd-bubble { position: relative; max-width: 320px; margin-bottom: 46px; padding: 10px 13px 9px; border-radius: 10px; background: #fff8e6; color: #2a1f10; border: 2px solid #3a2a14; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35), 0 10px 30px rgba(0, 0, 0, 0.4); font-size: 15.5px; line-height: 1.35; }
+.gd-bubble::before { content: ''; position: absolute; left: -12px; bottom: 22px; border: 6px solid transparent; border-right: 8px solid #3a2a14; }
+.gd-bubble::after { content: ''; position: absolute; left: -8px; bottom: 24px; border: 4px solid transparent; border-right: 6px solid #fff8e6; }
+.gd-name { font-family: var(--display); font-weight: 900; font-size: 13px; color: #c0601a; letter-spacing: 0.06em; margin-bottom: 2px; }
+.gd-text b { color: #13306e; }
+.gd-text kbd { display: inline-block; min-width: 1.4em; padding: 0 5px; border-radius: 4px; border: 1px solid #6a5a3a; border-bottom-width: 3px; background: #fff; font: 800 13px/1.35 ui-monospace, monospace; text-align: center; color: #2a1f10; }
+.gd-btns { display: flex; align-items: center; gap: 10px; margin-top: 7px; }
+.gd-ok { padding: 4px 14px; border-radius: 6px; border: 0; background: #3f8cff; color: #fff; font-weight: 800; font-size: 14px; box-shadow: 0 2px 0 #1d4a99; }
+.gd-mute { border: 0; background: none; padding: 2px; color: #7a6a50; font-size: 12.5px; text-decoration: underline; }
+.gd.top { flex-direction: row; align-items: flex-start; }
+.gd.top .gd-bubble { margin: 26px 0 0; }
+.gd.top { left: 10px; }
+.gd.top .gd-bubble::before { bottom: auto; top: 22px; } .gd.top .gd-bubble::after { bottom: auto; top: 24px; }
+@media (max-width: 700px), (orientation: portrait) {
+  .gd { left: 4px; }
+  .gd-cat { width: 96px; height: 96px; }
+  .gd-bubble { max-width: calc(100vw - 112px); margin-bottom: 30px; font-size: 14px; padding: 8px 10px 7px; }
+}
+#helpBtn { font-family: var(--display); font-weight: 900; color: #ffe2a0; margin-right: 6px; }
+
+/* the control the cat is talking about pulses */
+@keyframes gdPulse { 0%, 100% { box-shadow: 0 0 0 2px #ffd84a, 0 0 10px rgba(255, 216, 74, 0.6); } 50% { box-shadow: 0 0 0 4px #ffd84a, 0 0 26px rgba(255, 216, 74, 0.9); } }
+body[data-gdhl="attack"] #actions .act.attack, body[data-gdhl="defend"] #actions .act.defend,
+body[data-gdhl="skill0"] #actions .act.sk0, body[data-gdhl="skill1"] #actions .act.sk1, body[data-gdhl="skill2"] #actions .act.sk2,
+body[data-gdhl="focus"] #actions .act.focus, body[data-gdhl="rise"] #actions .act.rise,
+body[data-gdhl="cards"] #roomLayer .skcard.skill, body[data-gdhl="cards"] #roomLayer .skcard.item { animation: gdPulse 1.1s ease-in-out infinite; z-index: 1; }
+
+/* a skill you can afford right now shimmers, so it doesn't hide among Attack and Defend */
+#actions .act.ready { border-color: rgba(255, 216, 74, 0.7); background: linear-gradient(90deg, rgba(90, 80, 170, 0.55), rgba(40, 36, 90, 0.35)); }
+#actions .act.ready::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(110deg, transparent 30%, rgba(255, 230, 150, 0.22) 50%, transparent 70%); background-size: 250% 100%; animation: legendShine 2.4s linear infinite; }
+#actions .act.ready .cost { animation: readyCost 1.6s ease-in-out infinite; }
+@keyframes readyCost { 50% { transform: scale(1.1); } }
