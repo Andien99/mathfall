@@ -26,7 +26,9 @@ CONFIGS = {
     'cleric:f': dict(src='cleric_f_base.png', sheet='cleric', variants=[0, 0.62, 0.36], tint=dict(lo=0.93, hi=0.04, smin=0.25, lmax=0.7, wrap=True), scale=0.85),  # red, blue, green cape
     'cleric:m': dict(src='cleric_m_base.png', sheet='cleric_m', variants=[0, 0.16, -0.12], tint=dict(lo=0.55, hi=0.75, smin=0.12, lmax=0.8), scale=0.93),           # blue, violet, teal robe
     # the fur shares the coat's reds, so only the coat area is recoloured (region: x0, y0, x1, y1 in the base image)
-    'samurai:m': dict(src='samurai_base.png', sheet='samurai', variants=[0, 0.62, 0.36], tint=dict(lo=0.94, hi=0.02, smin=0.4, lmax=0.45, wrap=True, region=(0, 19, 34, 50)), aliases=['samurai:f'], face=(4, 0)),  # crimson, indigo, jade haori
+    # the samurai idles in a low iaido crouch, hand on the sheathed sword (samurai_iai_base.png, PixelLab edit_image at 0.92),
+    # and the attack frames use the blade-out stance (samurai_base.png), so he visibly draws when he strikes
+    'samurai:m': dict(src='samurai_iai_base.png', swing_src='samurai_base.png', sheet='samurai', variants=[0, 0.62, 0.36], samurai=True, aliases=['samurai:f'], face=(14, 1), keep=[(13, 0, 37, 21), (52, 12, 76, 38)], swing_keep=[(4, 0, 30, 17), (34, 15, 55, 40)]),  # crimson, indigo, jade haori
 }
 
 def anchor_x(im):
@@ -54,6 +56,7 @@ def build_one(key):
     W, H = base.size
     ground = max(y for y in range(H) for x in range(W) if base.getpixel((x, y))[3]) + 1
     OX, OY = AX - anchor_x(base), AY - ground
+    OX = max(0, min(OX, FW - W))   # a wide stance: keep the whole sprite (tail included) inside the frame
     pivot = int(H * 0.72)
     def frame(body, dx=0, dy=0, lean_px=0, upper=None):
         b = body
@@ -66,8 +69,14 @@ def build_one(key):
         k.alpha_composite(body.crop((0, c, W, H)), (0, c)); k.alpha_composite(lean(body.crop((0, 0, W, a)), a, -2), (0, knee))
         f = Image.new('RGBA', (FW, FH)); paste_clip(f, k, (OX, OY))
         return darken(f) if dark else f
-    t = cfg['tint']
-    def shade(im, hs):
+    t = cfg.get('tint', {})
+    def shade(im, hs, keep=None):
+        if cfg.get('samurai'):   # coat only: crimson vs the fur's orange (tools/build_samurai_victory.py)
+            from build_samurai_victory import shade as sam
+            out = sam(im, hs)
+            if hs:   # his head and tail keep their colours (the dark reds of his ears, mask and tail rings look like coat)
+                for box in (keep or cfg.get('keep') or []): out.paste(im.crop(box), box[:2])
+            return out
         if 'region' not in t: return hue_shift(im, t['lo'], t['hi'], hs, t['smin'], t['lmax'], t.get('wrap', False))
         box = t['region']; out = im.copy()
         out.paste(hue_shift(im.crop(box), t['lo'], t['hi'], hs, t['smin'], t['lmax'], t.get('wrap', False)), box[:2])
@@ -82,9 +91,18 @@ def build_one(key):
             for i in range(4): P['idle%d' % i] = shade(idles[i], hs)
         else:
             P['idle0'] = frame(body); P['idle1'] = frame(body, upper=(up1, 0, 1)); P['idle2'] = frame(body, upper=(up2, 0, 1)); P['idle3'] = P['idle1']
-        P['windup'] = frame(body, lean_px=2, dx=1)
-        P['swing1'] = frame(body, lean_px=3, dx=3)
-        P['swing2'] = frame(body, lean_px=1, dx=1)
+        if 'swing_src' in cfg:   # the strike frames from a second drawing (the samurai: blade drawn), feet on the same spot
+            sw = shade(Image.open(os.path.join(ART_SRC, cfg['swing_src'])).convert('RGBA'), hs, cfg.get('swing_keep'))
+            sg = max(y for y in range(sw.height) for x in range(sw.width) if sw.getpixel((x, y))[3]) + 1
+            sox, soy = OX + anchor_x(base) - anchor_x(sw), AY - sg
+            def sframe(dx=0, lean_px=0):
+                b = lean(sw, int(sw.height * 0.72), lean_px) if lean_px else sw
+                f = Image.new('RGBA', (FW, FH)); paste_clip(f, b, (sox + dx, soy)); return f
+            P['windup'] = sframe(dx=1, lean_px=2); P['swing1'] = sframe(dx=3, lean_px=3); P['swing2'] = sframe(dx=1, lean_px=1)
+        else:
+            P['windup'] = frame(body, lean_px=2, dx=1)
+            P['swing1'] = frame(body, lean_px=3, dx=3)
+            P['swing2'] = frame(body, lean_px=1, dx=1)
         P['cast0'] = frame(body, lean_px=2, upper=(up2, 0, -1))
         P['cast1'] = frame(body, lean_px=-2, dx=-1)
         P['defend'] = frame(body, upper=(int(H * 0.68), 0, 2), lean_px=1)
@@ -95,7 +113,7 @@ def build_one(key):
         sc = cfg.get('scale', 1)
         for pi, name in enumerate(POSES): sheet.alpha_composite(shrink_frame(P[name], sc, AX, AY), (pi * FW, vi * FH))
     sheet.save(os.path.join(OUT_DIR, cfg['sheet'] + '.png'))
-    px, py, pw, ph = (cfg['face'] + (22, 22)) if 'face' in cfg else face_box(base)   # face: the portrait's top-left in the base image, when the fur fools the skin finder
+    px, py, pw, ph = (cfg['face'] + (22, 22)) if cfg.get('face') else face_box(base)   # face: the portrait's top-left in the base image, when the fur fools the skin finder
     sc = cfg.get('scale', 1)
     if sc < 1:   # move the portrait crop to where the face ends up after the shrink
         fx, fy = OX + px + pw / 2, OY + py + ph / 2

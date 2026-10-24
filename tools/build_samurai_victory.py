@@ -42,12 +42,13 @@ if __name__ == '__main__':
 
 # ---- colour variants for the samurai's move sheets
 # His fur shares the coat's hue, so a plain hue range would recolour his ears, mask and tail too. The coat is crimson
-# (its blue channel is above its green), the fur is orange-brown (green above blue): only crimson pixels are shifted.
+# (strongly red, blue at least level with green), the fur is orange-brown (green clearly above blue): only crimson
+# pixels are shifted.
 # This works on any frame, including PixelLab in-betweens with colours the idle doesn't have.
 def is_coat(r, g, b):
     import colorsys
     h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
-    return (h >= 0.9 or h <= 0.02) and s >= 0.3 and 0.06 <= l <= 0.5 and b > g
+    return (h >= 0.9 or h <= 0.02) and s >= 0.3 and 0.06 <= l <= 0.5 and g - b <= 2 and r >= 1.6 * g
 
 def shade(im, hs):
     """Recolour the samurai's coat by hue shift hs (crimson -> indigo / jade), leaving the fur alone."""
