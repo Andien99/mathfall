@@ -148,7 +148,9 @@ The sprite sheet (`public/art/guide.png`, 10 frames of 64×64: idle loop, talkin
 
 ## Skills and items on the loot screens
 
-Chest, merchant and boss-hoard cards now show **what a card is** separately from **how rare it is**. A **SKILL** card has a blue ribbon ("You use it in battle"), a blue card, a square rune tile for its icon with the energy cost on it, the hero class, and pips for your 3 skill slots. An **ITEM** card has a green ribbon ("Always on by itself"), a leather-brown card, a round relic frame for its icon, "any hero" and "No energy, no slot, no limit". Rarity is still the border colour and a small diamond (grey common, purple rare, orange legendary). The treasure line reads "Keep one: a skill (a new move for battle), an item (a bonus that is always on), or the gold", and the loadout strip under the cards says *Your skills: used in battle* and *Your items: always on*.
+Chest, merchant and boss-hoard cards show **what a card is** by its colour and **how rare it is** by its border. Every card has a coloured ribbon and body for its type: **SKILL** is blue ("You use it in battle": a square rune tile with the energy cost, the hero class and pips for your 3 skill slots), **ITEM** is green ("Always on by itself": a round relic frame, "any hero", "No energy, no slot, no limit"), and **GOLD** is yellow ("Spend it at the shop"). The 3 px border is the rarity: grey common, purple rare, orange legendary (gold takes its chest's rarity). **Legendary** cards have an animated border: two bright streaks of light run round it while the card's glow pulses (still for anyone with reduced motion turned on).
+
+A chest is a choice: each student keeps **one** of the skill, the item or the gold, so the chest row puts a round **OR** between the cards (on phones, the gold card sits on its own line under a dashed OR divider), and the line above reads "Choose one: a skill (a new move for battle) OR an item (a bonus that is always on) OR the gold". The merchant has no OR: you can buy as many as you can afford. The loadout strip under the cards says *Your skills: used in battle* and *Your items: always on*.
 
 ## Replacing the art
 

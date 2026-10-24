@@ -629,8 +629,6 @@ body.portrait .qpanel.compact { align-items: flex-end; }
 .skcard.rar-legendary { border-width: 2px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 34px color-mix(in srgb, var(--rc) 60%, transparent); }
 .skcard.rar-legendary::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(115deg, transparent 35%, rgba(255, 220, 160, 0.16) 50%, transparent 65%); background-size: 250% 100%; animation: legendShine 2.8s linear infinite; }
 @keyframes legendShine { from { background-position: 120% 0; } to { background-position: -120% 0; } }
-.skcard.gold { border: 2px dashed #ffd25a; }
-.skcard.gold h4 { color: #ffe27a; }
 .room .row.shop { gap: 10px; }
 .loadout { margin: 14px auto 0; max-width: 720px; display: grid; gap: 6px; padding: 8px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.28); }
 .lo-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 14px; }
@@ -710,7 +708,6 @@ body.portrait .qimg img { max-height: 22vh; }
 @keyframes itemSpin { to { transform: rotate(360deg); } }
 .skcard.item p { color: #efe6cf; }
 .skcard.item .cd { color: #9fe0ae; }
-.skcard.gold .rar::before { display: none; }
 
 .room .lead .mk-skill { color: #8fbaff; } .room .lead .mk-item { color: #8ee0a2; }
 .lo-row > b small { display: block; font-size: 10px; text-transform: none; letter-spacing: 0; font-weight: 600; opacity: 0.8; }
@@ -751,11 +748,49 @@ body.portrait .qimg img { max-height: 22vh; }
 @keyframes gdPulse { 0%, 100% { box-shadow: 0 0 0 2px #ffd84a, 0 0 10px rgba(255, 216, 74, 0.6); } 50% { box-shadow: 0 0 0 4px #ffd84a, 0 0 26px rgba(255, 216, 74, 0.9); } }
 body[data-gdhl="attack"] #actions .act.attack, body[data-gdhl="defend"] #actions .act.defend,
 body[data-gdhl="skill0"] #actions .act.sk0, body[data-gdhl="skill1"] #actions .act.sk1, body[data-gdhl="skill2"] #actions .act.sk2,
-body[data-gdhl="focus"] #actions .act.focus, body[data-gdhl="rise"] #actions .act.rise,
-body[data-gdhl="cards"] #roomLayer .skcard.skill, body[data-gdhl="cards"] #roomLayer .skcard.item { animation: gdPulse 1.1s ease-in-out infinite; z-index: 1; }
+body[data-gdhl="focus"] #actions .act.focus, body[data-gdhl="rise"] #actions .act.rise { animation: gdPulse 1.1s ease-in-out infinite; z-index: 1; }
+/* loot cards keep their rarity border and glow: Pawcal's highlight is a separate ring outside them */
+@keyframes gdRing { 0%, 100% { outline-color: rgba(255, 255, 255, 0.25); outline-offset: 3px; } 50% { outline-color: rgba(255, 255, 255, 0.9); outline-offset: 6px; } }
+body[data-gdhl="cards"] #roomLayer .skcard.skill, body[data-gdhl="cards"] #roomLayer .skcard.item { outline: 2px dashed #fff; animation-name: gdRing; animation-duration: 1.1s; animation-iteration-count: infinite; }
+body[data-gdhl="cards"] #roomLayer .skcard.rar-legendary { animation-name: gdRing, lgGlow; animation-duration: 1.1s, 2.2s; }
 
 /* a skill you can afford right now shimmers, so it doesn't hide among Attack and Defend */
 #actions .act.ready { border-color: rgba(255, 216, 74, 0.7); background: linear-gradient(90deg, rgba(90, 80, 170, 0.55), rgba(40, 36, 90, 0.35)); }
 #actions .act.ready::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(110deg, transparent 30%, rgba(255, 230, 150, 0.22) 50%, transparent 70%); background-size: 250% 100%; animation: legendShine 2.4s linear infinite; }
 #actions .act.ready .cost { animation: readyCost 1.6s ease-in-out infinite; }
 @keyframes readyCost { 50% { transform: scale(1.1); } }
+
+/* ---------------- card colour = what it is (skill blue, item green, gold yellow); border = rarity ---------------- */
+.room .skcard { border-width: 3px; border-style: solid; border-color: var(--rc); }
+.skcard.rar-common { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6); }
+.skcard.gold { background: radial-gradient(120% 70% at 50% 0%, rgba(255, 220, 90, 0.18), transparent 60%), linear-gradient(180deg, rgba(92, 70, 14, 0.97), rgba(40, 28, 6, 0.97)); }
+.skcard.gold .kind { background: linear-gradient(90deg, #f2c230, #c8900e); color: #2a1a00; }
+.skcard.gold .ic { border-radius: 50%; background: radial-gradient(circle, rgba(255, 220, 90, 0.4), rgba(40, 28, 6, 0.9) 70%); border: 2px solid #ffd25a; }
+.skcard.gold h4 { color: #ffe27a; } .skcard.gold p { color: #f4e8c4; } .skcard.gold .cd { color: #ffe27a; }
+.skcard.gold .btn { background: linear-gradient(180deg, #ffe27a, #d8a520); color: #2a1a00; border-color: #8a6410; }
+.room .lead .mk-gold { color: #ffd25a; } .room .lead .mk-one { color: #fff; } .room .lead .mk-or { color: #ffe2a0; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.05em; }
+
+/* Legendary: a border of light that runs round the card */
+@property --lg-ang { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.room .skcard.rar-legendary { border-color: transparent; isolation: isolate; box-shadow: 0 0 22px rgba(255, 154, 46, 0.55), 0 0 46px rgba(255, 120, 30, 0.25); animation: lgGlow 2.2s ease-in-out infinite; }
+.room .skcard.rar-legendary.new { animation: cardIn 0.6s cubic-bezier(.2, 1.4, .4, 1), lgGlow 2.2s ease-in-out 0.6s infinite; }
+.room .skcard.rar-legendary::before { content: ''; position: absolute; inset: -3px; z-index: -1; border-radius: 10px; padding: 3px; filter: drop-shadow(0 0 3px rgba(255, 200, 100, 0.9));
+  background: conic-gradient(from var(--lg-ang), #8a3c00 0deg, #ff9a2e 50deg, #fffbe8 88deg, #ffc35a 105deg, #ff9a2e 130deg, #8a3c00 180deg, #ff9a2e 230deg, #fffbe8 268deg, #ffc35a 285deg, #ff9a2e 310deg, #8a3c00 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: lgSpin 2.6s linear infinite; pointer-events: none; }
+@keyframes lgSpin { to { --lg-ang: 360deg; } }
+@keyframes lgGlow { 50% { box-shadow: 0 0 34px rgba(255, 170, 60, 0.85), 0 0 70px rgba(255, 120, 30, 0.4); } }
+@media (prefers-reduced-motion: reduce) { .room .skcard.rar-legendary, .room .skcard.rar-legendary::before { animation: none; } }
+
+/* "OR" between chest choices: you keep only one */
+.room .row.choose { align-items: stretch; gap: 6px; }
+.room .or { align-self: center; display: grid; place-items: center; flex: none; width: 40px; }
+.room .or span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #1a1430; border: 2px solid var(--brass-hi); color: var(--brass-hi); font-family: var(--display); font-weight: 900; font-size: 15px; box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.35), 0 0 14px rgba(255, 226, 160, 0.35); }
+@media (max-width: 700px) {
+  .room .row.choose .skcard.small { width: calc(50% - 20px); }
+  .room .row.choose .skcard.gold { width: 100%; max-width: 260px; }
+  .room .or { width: 28px; } .room .or span { width: 28px; height: 28px; font-size: 11px; }
+  .room .or.wrap { width: 100%; height: 28px; margin: 2px 0; position: relative; }
+  .room .or.wrap::before { content: ''; position: absolute; left: 12%; right: 12%; top: 50%; border-top: 2px dashed rgba(255, 226, 160, 0.45); }
+  .room .or.wrap span { position: relative; }
+}

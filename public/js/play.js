@@ -559,15 +559,21 @@ function itemCard(id, extra) {
     h('div', { class: 'cd' }, 'No energy, no slot, no limit'),
     extra && extra.button ? extra.button : null);
 }
+// Gold has its own colour (yellow) like skills (blue) and items (green); its border is the chest's rarity.
 function goldCard(n, extra) {
-  return h('div', { class: 'skcard gold' + (extra && extra.isNew ? ' new' : ''), style: { '--rc': '#ffd25a' } },
-    h('img', { src: SP.iconURL('gold', 3), alt: '' }),
-    h('div', { class: 'rar' }, 'Gold'),
+  const rarity = extra && extra.rarity;
+  const rc = rarity ? C.RARITY[rarity].color : '#ffd25a';
+  return h('div', { class: 'skcard gold' + (rarity ? ' rar-' + rarity : '') + (extra && extra.isNew ? ' new' : ''), style: { '--rc': rc } },
+    h('div', { class: 'kind' }, h('span', { class: 'kind-tag' }, 'Gold'), h('span', { class: 'kind-sub' }, 'Spend it at the shop')),
+    h('div', { class: 'ic' }, h('img', { src: SP.iconURL('gold', 3), alt: '' })),
+    rarity ? h('div', { class: 'rar' }, C.RARITY[rarity].name + ' chest') : null,
     h('h4', null, `${n} gold`),
-    h('p', null, 'Save it for the merchant: skills, items and healing.'),
+    h('p', null, 'Buy skills, items and healing from the merchant later.'),
     h('div', { class: 'cd' }, `You have ${(myHero() || {}).gold || 0}`),
     extra && extra.button ? extra.button : null);
 }
+// The "OR" between chest choices: you keep only one card.
+const orSep = wrap => h('div', { class: 'or' + (wrap ? ' wrap' : ''), 'aria-hidden': 'true' }, h('span', null, 'OR'));
 // "Your skills" and "Your items" under the loot, so students can see what they already carry
 function loadout(hero) {
   const items = hero.items || [];
@@ -621,12 +627,13 @@ function renderRoom() {
       const take = (pick, slot) => roomOp('take', { pick, slot }, r => { if (r.ok) { sfx(pick === 'gold' ? 'coin' : 'open'); roomUI.chestSkill = false; if (pick === 'skill' && ch.skill) guide.noteLearned(C.skillName(ch.skill.id, ch.skill.lvl)); } });
       if (roomUI.chestSkill && ch.skill) panel.append(...replaceRow(ch.skill.id, ch.skill.lvl, 'New', i => take('skill', i), () => { roomUI.chestSkill = false; renderRoom(); }));
       else {
-        panel.append(h('p', { class: 'lead' }, h('span', null, 'Keep one: '), h('b', { class: 'mk-skill' }, 'a skill'), ' (a new move for battle), ', h('b', { class: 'mk-item' }, 'an item'), ' (a bonus that is always on), or the gold.'));
-        const row = h('div', { class: 'row' });
+        panel.append(h('p', { class: 'lead' }, h('b', { class: 'mk-one' }, 'Choose one: '), h('b', { class: 'mk-skill' }, 'a skill'), ' (a new move for battle) ', h('b', { class: 'mk-or' }, 'or'), ' ', h('b', { class: 'mk-item' }, 'an item'), ' (a bonus that is always on) ', h('b', { class: 'mk-or' }, 'or'), ' ', h('b', { class: 'mk-gold' }, 'the gold'), '.'));
+        const row = h('div', { class: 'row choose' });
         const fresh = !roomUI.dealt; roomUI.dealt = true;   // the cards fly in once, not on every update
         if (ch.skill) row.append(skillCard(ch.skill.id, ch.skill.lvl, { isNew: fresh, small: true, button: h('button', { class: 'btn primary', onclick: () => { sfx('click'); if (hero.skills.length < C.MAX_SKILLS) take('skill'); else { roomUI.chestSkill = true; renderRoom(); } } }, 'Take skill') }));
-        if (ch.item) row.append(itemCard(ch.item, { isNew: fresh, small: true, button: h('button', { class: 'btn primary', onclick: () => { sfx('click'); take('item'); } }, 'Take item') }));
-        row.append(goldCard(ch.gold, { isNew: fresh, button: h('button', { class: 'btn', onclick: () => take('gold') }, `Take ${ch.gold} gold`) }));
+        if (ch.item) { if (row.firstChild) row.append(orSep(false)); row.append(itemCard(ch.item, { isNew: fresh, small: true, button: h('button', { class: 'btn primary', onclick: () => { sfx('click'); take('item'); } }, 'Take item') })); }
+        if (row.firstChild) row.append(orSep(row.children.length > 1));
+        row.append(goldCard(ch.gold, { isNew: fresh, rarity: ch.rarity, button: h('button', { class: 'btn', onclick: () => take('gold') }, `Take ${ch.gold} gold`) }));
         panel.append(row);
       }
       panel.append(loadout(hero));
