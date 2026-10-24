@@ -499,7 +499,13 @@ const SKILL_FX = {
   perfect_parry(X, p) { X.block(X.hero, p.block); X.status(X.hero, 'thorns', { v: X.n(p.thorns), t: 1 }); poise(X); },
   blade_dance(X, p) { for (let w = 0; w < p.wavesN; w++) for (const e of X.enemies()) X.hit(e, p.dmg).wave = w; },
   inner_calm(X, p) { for (const h of X.heroes()) X.block(h, p.block); poise(X); },
-  sakura_storm(X, p) { for (const e of X.enemies()) X.status(e, 'vuln', { t: p.vulnT }, X.hit(e, p.dmg)); },
+  // Sakura Storm: five cuts through every enemy (Strength and Hunter's Mark add to the last cut only), then Vulnerable
+  sakura_storm(X, p) {
+    for (let i = 0; i < p.hitsN; i++) for (const e of X.enemies()) {
+      const lastCut = i === p.hitsN - 1, r = X.hit(e, p.dmg, lastCut ? {} : { noStr: true, noMark: true }); r.hit = i;
+      if (lastCut && !e.dead) X.status(e, 'vuln', { t: p.vulnT }, r);
+    }
+  },
   moonlit_iai(X, p) { const e = X.enemy(), big = e.hp >= e.maxHp || e.hp < e.maxHp / 2, r = X.hit(e, Math.round(p.dmg * (big ? 1.5 : 1))); if (big) r.crit = true; },
   crimson_banner(X, p) { for (const h of X.heroes()) { X.block(h, p.block); X.status(h, 'str', { v: X.n(p.str), t: p.strT }); } }
 };

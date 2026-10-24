@@ -175,7 +175,7 @@ check('Perfect Parry: block, counter, Poised', () => {
   run.combat.enemies.forEach(e => { e.intent = { move: 'stab', type: 'attack', dmg: 4, target: 'h1' }; });
   const evs = CB.enemyTurn(run); assert.ok(evs.filter(x => x.kind === 'enemy').every(x => x.targets[0].thorns === 6));
 });
-check('Sakura Storm: 14 and Vulnerable on every enemy', () => { const { ev, e } = cast(fight('samurai'), 'sakura_storm', null); for (const id of ['e1', 'e2', 'e3']) assert.strictEqual(dmgTo(ev, id), 14); assert.ok(e.every(x => x.st.vuln)); });
+check('Sakura Storm: five cuts of 3 (15) and Vulnerable on every enemy', () => { const { ev, e } = cast(fight('samurai'), 'sakura_storm', null); for (const id of ['e1', 'e2', 'e3']) { assert.strictEqual(dmgTo(ev, id), 15); assert.strictEqual(ev.targets.filter(t => t.id === id && t.dmg != null).length, 5); } assert.ok(e.every(x => x.st.vuln)); });
 check('Moonlit Iai: 42 at full or below half health, 28 otherwise', () => {
   assert.strictEqual(dmgTo(cast(fight('samurai'), 'moonlit_iai', 'e1').ev, 'e1'), 42);
   assert.strictEqual(dmgTo(cast(fight('samurai'), 'moonlit_iai', 'e1', r => { r.combat.enemies[0].hp = 150; }).ev, 'e1'), 28);

@@ -226,7 +226,7 @@
     inner_calm: { cls: 'samurai', name: 'Inner Calm', rarity: 'rare', cost: 4, target: 'party', icon: 'inner_calm', fx: 'buff_party', color: '#ffc8e0',
       p: { block: 6 }, desc: p => `Every hero gains ${p.block} block, and you become Poised.` },
     sakura_storm: { cls: 'samurai', name: 'Sakura Storm', rarity: 'legendary', cost: 8, target: 'allEnemies', icon: 'sakura_storm', fx: 'whirl', color: '#ff9ac8',
-      p: { dmg: 14, vulnT: 1 }, desc: p => `A storm of blossom and steel: ${p.dmg} damage to every enemy, and they are Vulnerable (take +50% damage) for ${p.vulnT} round.` },
+      p: { dmg: 3, hitsN: 5, vulnT: 1 }, desc: p => `A storm of blossom and steel: ${p.hitsN} cuts of ${p.dmg} damage to every enemy, then they are Vulnerable (take +50% damage) for ${p.vulnT} round.` },
     moonlit_iai: { cls: 'samurai', name: 'Moonlit Iai', rarity: 'legendary', cost: 8, target: 'enemy', icon: 'moonlit_iai', fx: 'slash_heavy', color: '#fff6c8',
       p: { dmg: 28 }, desc: p => `One perfect draw: ${p.dmg} damage, or ${Math.round(p.dmg * 1.5)} if the target is at full health or below half.` },
     crimson_banner: { cls: 'samurai', name: 'Crimson Banner', rarity: 'legendary', cost: 8, target: 'party', icon: 'crimson_banner', fx: 'buff_party', color: '#ff6b6b',
