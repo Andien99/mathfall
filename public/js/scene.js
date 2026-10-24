@@ -35,6 +35,7 @@ const FX_SHEET = (src, w, h, cols, n, fps, ax, ay, loop) => { const img = new Im
 const PFX = {
   // Quickdraw (samurai): the red crescent slash, after Andy's slash FX reference (one PixelLab image, revealed and faded in code)
   qSlash: FX_SHEET('quickdraw_slash.png', 118, 68, 1, 1, 1, 59, 34, true),
+  sSlash: FX_SHEET('sakura_slash.png', 118, 68, 1, 1, 1, 59, 34, true),   // Sakura Storm: the same crescent in blossom pink
   rock: FX_SHEET('meteor_fly.png', 160, 160, 3, 8, 12, 80, 80, true),
   boom: FX_SHEET('meteor_impact.png', 192, 160, 4, 12, 14, 96, 142, false),
   geyser: FX_SHEET('fire_column.png', 40, 100, 4, 10, 12, 20, 96, false),
@@ -593,6 +594,7 @@ export class BattleScene {
     // offence
     const home = { x: A.x, y: A.y };
     if (fx === 'combo' && first) return this._combo(A, ev, tgt, rc, T, home);
+    if (ev.skill === 'sakura_storm' && first) { const own = SP.heroAnim(A.skin || A.cls, 'iai'); if (own && own.iai) return this._sakuraAnim(A, ev, tgt, rc, own, T, home); }
     if (ev.skill === 'quickdraw' && first) { const own = SP.heroAnim(A.skin || A.cls, 'iai'); if (own && own.iai) return this._iaiAnim(A, first, ev, tgt, rc, own, T, home); }
     if (['missiles', 'multishot', 'ricochet', 'phantom'].includes(fx) && first) return this._multiShot(A, ev, tgt, fx, rc, T);
     if (fx === 'quake') {   // Earthshatter: the floor cracks out from the knight, rock spikes burst up under every enemy
@@ -695,6 +697,77 @@ export class BattleScene {
     // generic
     setTimeout(() => this.impact(ev, tgt, fx, rc), T(300));
     return T(900);
+  }
+
+  // Sakura Storm (samurai; his Quickdraw frames, re-timed): 1. stillness, one petal falls; 2. a pink aura and a column of
+  // blossom spiralling up round him; 3. the draw, and he vanishes in a burst of petals, a streak flashing through the enemy
+  // line; 4. he reappears behind every enemy with his back to them, petals gusting through the gap, while pink crescents
+  // hang across each enemy; 5. he slowly sheathes: on the click every petal in the air stops for a beat, then all the
+  // crescents detonate at once (the damage, and a blossom sigil for Vulnerable); 6. he goes back in a burst of petals.
+  _sakuraAnim(A, ev, tgt, rc, anim, T, home) {
+    const rnd = (a, b) => a + Math.random() * (b - a), t0 = now(), when = (ms, fn) => setTimeout(fn, T(ms));
+    const ens = [...new Set(tgt.map(t => t.id))].map(id => this.actors.get(id)).filter(e => e && !e.gone);
+    if (!ens.length) { this._applyAfter(ev); return 0; }
+    const minX = Math.min(...ens.map(e => e.x)), maxX = Math.max(...ens.map(e => e.x)), avgY = ens.reduce((s, e) => s + e.y, 0) / ens.length;
+    const dest = { x: Math.max(this.stage.x + 22, minX - 46), y: Math.round(avgY) + 2 };   // past the enemy line: still facing the way he went, his back to them
+    // frames in his Quickdraw sheet: crouch, the draw, the follow-through, the six sheathe frames, crouch
+    const VAN = 1400, APP = VAN + 130, CLICK0 = APP + 1150, CLICK = CLICK0 + 6 * 80, BOOM = CLICK + 320, RET = BOOM + 520, BACK = RET + 170, END = BACK + 420;
+    const tl = [[0, VAN], [3, APP - VAN], [5, CLICK0 - APP], [7, 80], [8, 80], [9, 80], [10, 80], [11, 80], [12, 80], [13, END - CLICK]];
+    const at = []; let acc = 0; for (const [, ms] of tl) { at.push(acc); acc += ms; }
+    A.anim = { d: { ...anim, timeline: tl, loop: null }, t0, speed: T(1000) / 1000, at, total: acc };
+    const pc = () => { const r = Math.random(); return { c: r < 0.45 ? '#ffb0d4' : r < 0.85 ? '#ff86bc' : '#ffe8f2', edge: r < 0.85 ? '#c8407e' : '#ff9ac8' }; };
+    const P = (x, y, o) => this.petals.push(Object.assign({ x, y, x0: x, vx: 0, vy: 0, ph: rnd(0, 6.28), amp: rnd(2, 5), rate: rnd(1.2, 2.2), spin: rnd(0, 3), floor: avgY + rnd(-2, 14), t: 0, land: 0, storm: true, life: 3.2 }, pc(), o));
+    const burstAt = (x, y, n, sp, fy) => { for (let i = 0; i < n; i++) { const a = rnd(0, Math.PI * 2), v = rnd(0.4, 1) * sp; P(x + rnd(-6, 6), y + rnd(-10, 10), { vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6 - 20, life: rnd(1.6, 2.8), floor: (fy == null ? avgY : fy) + rnd(-2, 14) }); } };
+    const ghostOf = f => { const v = (A.variant || 0) % anim.whites.length, wh = anim.whites[v][f]; if (wh) this.ghosts.push({ img: this.tinted(wh, '#ffc8e0'), x: Math.round(A.x + A.ox - anim.ax), y: Math.round(A.y + A.oy - anim.ay), t0: now(), life: T(240), a: 0.5, add: true }); };
+    // 1. stillness
+    when(120, () => P(A.x - 14, A.y - 74, { vy: 5, amp: 3, floor: A.y + 2, life: 2.6 }));
+    // 2. the bloom: a pink aura, and petals spiralling up round him, faster and faster
+    when(600, () => {
+      this.auras.push({ follow: A, t0: now(), until: now() + T(VAN - 600), colors: ['#ff9ac8', '#ffc8e0', '#ff6aa8', '#ffffff'], halo: ['#ffd8ea', '#ff86bc', '#ff3a8a'] });
+      sfx('twinkle');
+    });
+    for (let i = 0; i < 56; i++) when(600 + i * 13, () => P(A.x, A.y, { floor: A.y + rnd(-2, 14), orb: { cx: A.x + rnd(-3, 3), cy: A.y - 2, a: rnd(0, 6.28), va: rnd(4, 7) * (1 + i / 30), r: rnd(10, 24), rise: rnd(0, 8), vr: rnd(55, 95), until: t0 + T(VAN) }, life: 3.4 }));
+    when(1050, () => sfx('whirl'));
+    // 3. the draw, and he vanishes in a burst of petals; a streak flashes through the enemy line
+    when(VAN + 55, () => {
+      ghostOf(3); A.alpha = 0; A.hideHud = true;
+      burstAt(A.x + A.ox, A.y + A.oy - 24, 22, 150, A.y);
+      this.mets.push({ kind: 'pline', x0: A.x + A.ox - 10, x1: dest.x, y: A.y + A.oy - 22, w: 3, t0: now(), life: T(340) });
+      this.glows.push({ x: A.x + A.ox, y: A.y + A.oy - 24, r: 40, color: '#ffc8e0', t: 0, life: 0.3, a: 0.9 });
+      this.flash = Math.max(this.flash || 0, 0.12); sfx('resolveVanish');
+    });
+    // 4. he reappears behind them, back turned; petals gust through the gap; the crescents appear and hang
+    when(APP, () => {
+      this.move(A, dest.x - A.x, dest.y - A.y, 1, true); A.alpha = 1;
+      burstAt(dest.x, dest.y - 24, 16, 110);
+      for (let i = 0; i < 46; i++) { const x = rnd(dest.x + 10, home.x - 10); P(x, avgY - rnd(8, 44), { vx: -rnd(120, 230), vy: rnd(-10, 10), life: rnd(1.8, 3) }); }
+      this.glows.push({ x: dest.x, y: dest.y - 24, r: 34, color: '#ffc8e0', t: 0, life: 0.3, a: 0.8 }); sfx('slash');
+    });
+    const ANG = [-20, 28, -62, 58, 4].map(d => d * Math.PI / 180);   // the angle of each cut across the body
+    ens.forEach((e, ei) => ANG.forEach((a, j) => when(APP + 160 + ei * 60 + j * 70, () => {
+      const big = e.size === 'xl' ? 2.2 : e.size === 'l' ? 1.4 : 1, nrm = a + Math.PI / 2 * (j % 2 ? 1 : -1), off = (j - 2) * 3.5 * big, start = now();
+      this.mets.push({ kind: 'sslash', x: e.x + Math.cos(nrm) * off, y: e.y - (e.size === 'xl' ? 40 : 18) + Math.sin(nrm) * off, rot: nrm, R: 34 * big, W: 3 * big, ph: rnd(0, 6), t0: start, boom: t0 + T(BOOM) - start, life: t0 + T(BOOM + 380) - start });
+      sfx('slash');
+    })));
+    // 5. the click: silence (every petal stops), then everything detonates
+    when(CLICK, () => { this.petalFreezeUntil = now() + T(BOOM - CLICK); this.glows.push({ x: A.x + A.ox + 8, y: A.y + A.oy - 14, r: 10, color: '#ffffff', t: 0, life: 0.2, a: 1 }); sfx('lockSnap'); });
+    when(BOOM, () => {
+      for (const e of ens) {
+        if (e.gone) continue;
+        burstAt(e.x, e.y - 22, 18, 170);
+        this.mets.push({ kind: 'qslash', pink: true, x: e.x - 2, y: e.y - 22, sc: e.size === 'xl' ? 1.4 : e.size === 'l' ? 1.0 : 0.75, t0: now(), life: T(480) });   // one last full crescent through each
+        for (let i = 0; i < 14; i++) { const a = rnd(0, Math.PI * 2), v = rnd(70, 170); this.particles.push({ x: e.x, y: e.y - 22, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6, g: 60, life: rnd(0.35, 0.7), t: 0, c: ['#ff6aa8', '#ffc8e0', '#ffffff', '#c8407e'][i % 4], streak: 2 + (i % 3), drag: 0.85 }); }
+        this.glows.push({ x: e.x, y: e.y - 22, r: 34, color: '#ff9ac8', t: 0, life: 0.35, a: 0.6 });
+        if (ev.targets.some(t => t.id === e.id && t.status && t.status.includes('vuln'))) when(220, () => this.mets.push({ kind: 'sigil', x: e.x, y: e.y - 54, r: 9, t0: now(), life: T(1300) }));
+      }
+      this.flash = Math.max(this.flash || 0, 0.1); this.shake = Math.max(this.shake, 6); this.shakeT = now(); sfx('hitBig');
+      this.impact(ev, tgt, 'sakura', rc);
+    });
+    // 6. back to his place in a burst of petals
+    when(RET, () => { A.alpha = 0; A.hideHud = true; burstAt(A.x + A.ox, A.y + A.oy - 24, 26, 130, A.y + A.oy); this.glows.push({ x: A.x + A.ox, y: A.y + A.oy - 24, r: 26, color: '#ffc8e0', t: 0, life: 0.25, a: 0.6 }); sfx('resolveVanish'); });
+    when(BACK, () => { this.move(A, 0, 0, 1, true); A.alpha = 1; A.hideHud = false; burstAt(home.x, home.y - 24, 14, 100, home.y); this.glows.push({ x: home.x, y: home.y - 24, r: 30, color: '#ffc8e0', t: 0, life: 0.3, a: 0.8 }); });
+    when(END + 40, () => { A.anim = null; A.alpha = 1; A.hideHud = false; });
+    return T(END + 200);
   }
 
   // Quickdraw (samurai, anims.iai): he dashes at the enemy still in his iaido crouch, a red aura gathers round him, the
@@ -868,11 +941,11 @@ export class BattleScene {
       const p = this.pos(t.id); if (!p) continue;
       const k = seen[t.id] = (seen[t.id] || 0) + 1, dy = (k - 1) * 11;   // repeat hits on one target stack upwards
       if (t.dmg != null && !t.shatter) {
-        const colr = { iai: '#ff3a4a', slash_heavy: '#ff9a3c', slash_wide: '#ffd0a0', proj_fire: '#ff8a3c', proj_firearrow: '#ff8a3c', flamewave: '#ff8a3c', proj_arcane: '#b8a6ff', missiles: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', timestop: '#cfe8ff', proj_poison: '#9cff6b', venom: '#9cff6b', phantom: '#a8ffe0', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8', radiance: '#fff0a8', pillar: '#fff2a8', quake: '#e0a060', combo: '#ffb347', xslash: '#9fd8ff', ricochet: '#fff2c0', deadeye: '#8fffd8' }[fx] || '#ffffff';
-        this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy' || fx === 'iai');
+        const colr = { sakura: '#ff9ac8', iai: '#ff3a4a', slash_heavy: '#ff9a3c', slash_wide: '#ffd0a0', proj_fire: '#ff8a3c', proj_firearrow: '#ff8a3c', flamewave: '#ff8a3c', proj_arcane: '#b8a6ff', missiles: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', timestop: '#cfe8ff', proj_poison: '#9cff6b', venom: '#9cff6b', phantom: '#a8ffe0', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8', radiance: '#fff0a8', pillar: '#fff2a8', quake: '#e0a060', combo: '#ffb347', xslash: '#9fd8ff', ricochet: '#fff2c0', deadeye: '#8fffd8' }[fx] || '#ffffff';
+        this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy' || fx === 'iai' || fx === 'sakura');
         this.elementHit(p.x, p.y - 16, { proj_firearrow: 'proj_fire', flamewave: 'proj_fire', missiles: 'proj_arcane', timestop: 'proj_ice' }[fx] || fx);
         if (fx !== 'phantom' || !this.pixelFx) this.glows.push({ x: p.x, y: p.y - 16, r: 34 + Math.min(40, t.dmg * 1.5), color: colr, t: 0, life: 0.35, a: 0.8 });   // Phantom Volley: its own small flashes
-        if (['slash', 'slash_heavy', 'slash_wide', 'shadow', 'iai'].includes(fx)) this.arc(p.x, p.y - 18, fx === 'slash_heavy' || fx === 'iai' ? 20 : 15, colr === '#ffffff' ? '#e8f4ff' : colr);
+        if (['slash', 'slash_heavy', 'slash_wide', 'shadow', 'iai', 'sakura'].includes(fx)) this.arc(p.x, p.y - 18, fx === 'slash_heavy' || fx === 'iai' || fx === 'sakura' ? 20 : 15, colr === '#ffffff' ? '#e8f4ff' : colr);
         if (t.splash) this.burst(p.x, p.y - 12, '#ff8a3c', 24, 50);
         if (t.dmg > 0) { this.flashActor(p.a); this.pose(p.a, 'hurt', 260); this.hitShake(p.a, t.dmg); }
         if (t.blocked) this.number(p.x + 12, p.y - 28, 'Blocked ' + t.blocked, '#9fb6d8', 0.75);
@@ -1381,8 +1454,32 @@ export class BattleScene {
         n.save(); n.translate(cx, cy); n.rotate(-age / 1000 * Math.PI * 2 * 3.2); n.scale(sc * 2, sc * 2);   // 170px across
         n.drawImage(PFX.vortex.img, -42.5, -42.5); n.restore();
       }
-      else if (m.kind === 'qslash' && PFX.qSlash.img.complete && PFX.qSlash.img.naturalWidth) {   // the cut sweeps in from the right, then fades as it drifts on
-        const S = PFX.qSlash, sweep = Math.min(1, age / 70), k = age / m.life, w = S.w * m.sc, h = S.h * m.sc;
+      else if (m.kind === 'sslash') {   // a thin crescent cut that hangs across the enemy (draws itself in, pulses), then bursts outward when it goes off
+        const boom = age >= m.boom, k = boom ? (age - m.boom) / (m.life - m.boom) : 0, draw = Math.min(1, age / 90);
+        const R = m.R * (boom ? 1 + 0.6 * k : 1), W = m.W * (boom ? 1.6 * (1 - k) + 0.6 : 1 + 0.15 * Math.sin(age / 70 + m.ph));
+        const a0 = m.rot - 0.5, a1 = a0 + 1.0 * draw, cx = m.x - Math.cos(m.rot) * m.R, cy = m.y - Math.sin(m.rot) * m.R;   // (m.x, m.y) is the middle of the cut
+        const lens = (w) => { n.beginPath(); const N = 16;
+          for (let j = 0; j <= N; j++) { const u = j / N, a = a0 + (a1 - a0) * u, r = R + w * Math.sin(Math.PI * u) / 2; n.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+          for (let j = N; j >= 0; j--) { const u = j / N, a = a0 + (a1 - a0) * u, r = R - w * Math.sin(Math.PI * u) / 2; n.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+          n.closePath(); n.fill(); };
+        n.globalAlpha = boom ? Math.max(0, 1 - k) : 0.9; n.fillStyle = boom && k < 0.25 ? '#ffd8ea' : '#ff5aa0'; lens(W + 2);
+        n.fillStyle = '#ffffff'; lens(Math.max(1, W * 0.45));
+        n.globalAlpha = 1;
+      }
+      else if (m.kind === 'sigil') {   // Vulnerable: a five-petal blossom that opens over the enemy, turns and fades
+        const k = age / m.life, r = m.r * Math.min(1, age / 160) * (1 + 0.15 * k);
+        n.globalAlpha = k < 0.55 ? 0.9 : Math.max(0, 1 - (k - 0.55) / 0.45);
+        n.fillStyle = '#ffb0cc';
+        for (let j = 0; j < 5; j++) { const a = -Math.PI / 2 + j * Math.PI * 0.4 + age / 900; n.beginPath(); n.arc(m.x + Math.cos(a) * r * 0.55, m.y + Math.sin(a) * r * 0.55, r * 0.42, 0, Math.PI * 2); n.fill(); }
+        n.fillStyle = '#fff2a8'; n.beginPath(); n.arc(m.x, m.y, r * 0.2, 0, Math.PI * 2); n.fill(); n.globalAlpha = 1;
+      }
+      else if (m.kind === 'pline') {   // the streak he leaves as he flashes through the enemy line
+        const k = age / m.life, w = Math.max(1, Math.round(m.w * (1 - k))), x0 = Math.round(Math.min(m.x0, m.x1)), L = Math.round(Math.abs(m.x1 - m.x0));
+        n.globalAlpha = 1 - k; n.fillStyle = '#ff9ac8'; n.fillRect(x0, Math.round(m.y) - w, L, w * 2 + 1);
+        n.fillStyle = '#ffffff'; n.fillRect(x0, Math.round(m.y), L, 1); n.globalAlpha = 1;
+      }
+      else if (m.kind === 'qslash' && (m.pink ? PFX.sSlash : PFX.qSlash).img.complete && (m.pink ? PFX.sSlash : PFX.qSlash).img.naturalWidth) {   // the cut sweeps in from the right, then fades as it drifts on
+        const S = m.pink ? PFX.sSlash : PFX.qSlash, sweep = Math.min(1, age / 70), k = age / m.life, w = S.w * m.sc, h = S.h * m.sc;
         const x0 = Math.round(m.x - S.ax * m.sc - 10 * k), y0 = Math.round(m.y - S.ay * m.sc);
         n.save(); n.beginPath(); n.rect(x0 + w * (1 - sweep), y0 - 4, w * sweep + 4, h + 8); n.clip();
         n.globalAlpha = k < 0.35 ? 1 : Math.max(0, 1 - (k - 0.35) / 0.65);
@@ -3737,18 +3834,25 @@ export class BattleScene {
       if (!A._petalsAt || A._petalsAt < this.victoryAt) { A._petalsAt = t; for (let i = 0; i < 16; i++) spawn(true); }   // the blade clicks home
       if (Math.random() < dt * 6 && this.petals.length < 70) spawn(false);
     }
+    const pdt = this.petalFreezeUntil && t < this.petalFreezeUntil ? 0 : dt;   // Sakura Storm: every petal stops for a beat on the click
     for (let i = this.petals.length - 1; i >= 0; i--) {
-      const p = this.petals[i];
+      const p = this.petals[i], dt = pdt;
       p.t += dt;
       if (p.land) {   // resting on the floor, fading out
         p.land += dt; if (p.land > 1.4) { this.petals.splice(i, 1); continue; }
         n.globalAlpha = 1 - p.land / 1.4; n.fillStyle = p.c; n.fillRect(Math.round(p.x), Math.round(p.y), 3, 1); n.fillStyle = p.edge; n.fillRect(Math.round(p.x) + 2, Math.round(p.y), 1, 1); continue;
       }
-      if (!this._victory && p.t > 0.3) p.land = 0.7;   // the fight is over and the screen moves on: let them fade
-      p.vy = Math.min(p.vy + 22 * dt, 11 + p.amp);   // floats: the burst rises a little, then everything drifts down slowly
-      p.y += p.vy * dt; p.x0 += p.vx * dt; p.vx *= Math.pow(0.35, dt);
-      p.x = p.x0 + Math.sin(p.t * p.rate + p.ph) * p.amp;
-      if (p.y >= p.floor) { p.y = p.floor; p.land = 0.001; continue; }
+      if (p.storm ? p.t > p.life : !this._victory && p.t > 0.3) p.land = 0.7;   // fade out: a storm petal when its time is up, a victory petal once the screen moves on
+      if (p.orb) {   // spiralling up round the samurai, until it is blown outward
+        const o = p.orb; o.a += o.va * dt; o.rise += o.vr * dt;
+        p.x = o.cx + Math.cos(o.a) * o.r; p.y = o.cy - o.rise + Math.sin(o.a) * o.r * 0.35;
+        if (t >= o.until) { p.orb = null; p.x0 = p.x; p.vx = Math.cos(o.a) * (90 + Math.random() * 90); p.vy = -10 - Math.random() * 40; }
+      } else {
+        p.vy = Math.min(p.vy + 22 * dt, 11 + p.amp);   // floats: the burst rises a little, then everything drifts down slowly
+        p.y += p.vy * dt; p.x0 += p.vx * dt; p.vx *= Math.pow(0.35, dt);
+        p.x = p.x0 + Math.sin(p.t * p.rate + p.ph) * p.amp;
+        if (p.y >= p.floor) { p.y = p.floor; p.land = 0.001; continue; }
+      }
       const f = Math.floor(p.t * 5 + p.spin) % 4, x = Math.round(p.x), y = Math.round(p.y);   // tumbling: flat, tilted, edge-on, tilted back
       n.globalAlpha = Math.min(1, p.t * 3);
       n.fillStyle = p.c;
@@ -4317,7 +4421,8 @@ export class BattleScene {
       const a = au.follow, g = Math.min(1, k), fade = k > 1 ? 1 - (k - 1) / 0.25 : 1;
       const x = (a.x + a.ox) * s + sx, y = (a.y + a.oy - 24) * s + sy, r = (18 + 26 * g + Math.sin(tnow / 40) * 2) * s;
       const rg2 = ctx.createRadialGradient(x, y, r * 0.2, x, y, r);
-      rg2.addColorStop(0, hexA('#ffb347', 0.25 * fade)); rg2.addColorStop(0.6, hexA('#ff7a2a', 0.35 * fade * (0.6 + g * 0.4))); rg2.addColorStop(1, hexA('#ff4a1a', 0));
+      const hc = au.halo || ['#ffb347', '#ff7a2a', '#ff4a1a'];   // halo: [inner, middle, edge] colours (default: fire)
+      rg2.addColorStop(0, hexA(hc[0], 0.25 * fade)); rg2.addColorStop(0.6, hexA(hc[1], 0.35 * fade * (0.6 + g * 0.4))); rg2.addColorStop(1, hexA(hc[2], 0));
       ctx.save(); ctx.translate(x, y); ctx.scale(0.8, 1.25); ctx.translate(-x, -y); ctx.fillStyle = rg2; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.restore();
     }
     // charge-star glow
