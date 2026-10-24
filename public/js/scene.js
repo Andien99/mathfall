@@ -3663,7 +3663,12 @@ export class BattleScene {
       const m = A.anim, mine = m && m.d && m.d.loop;
       // the snap draw out of his iaido crouch ('drawAt'): a white slash where the blade comes out
       if (mine && m.d.drawAt != null && (!A._drawnAt || A._drawnAt < this.victoryAt) && t >= m.t0 + m.at[m.d.drawAt] * m.speed) {
-        A._drawnAt = t; this.arc(A.x - 16, A.y - 20, 18, '#ffffff'); this.flash = Math.max(this.flash || 0, 0.12); sfx('slash');
+        A._drawnAt = t; this.arc(A.x - 16, A.y - 24, 22, '#ffffff'); this.flash = Math.max(this.flash || 0, 0.12); sfx('slash');
+        for (let i = 0; i < 26; i++) {   // the slash throws a gust of blossom forward that slows and drifts down
+          const r = Math.random(), x = A.x - 10 + (Math.random() - 0.5) * 16, y = A.y - 40 + Math.random() * 30;
+          this.petals.push({ x, y, x0: x, vy: -10 - Math.random() * 30, vx: -60 - Math.random() * 110, ph: Math.random() * 6.28, amp: 2 + Math.random() * 4, rate: 1.5 + Math.random(), spin: Math.random() * 3,
+            floor: A.y + Math.random() * 14 - 2, c: r < 0.45 ? '#ffb0d4' : r < 0.85 ? '#ff86bc' : '#ffe8f2', edge: r < 0.85 ? '#c8407e' : '#ff9ac8', t: 0, land: 0 });
+        }
       }
       // the blossoms start when the blade clicks home (the move's 'sheathAt' frame); without the move, shortly after the win
       const held = mine ? m.t0 + (m.d.sheathAt != null ? m.at[m.d.sheathAt] : m.total) * m.speed : (this.victoryAt || t) + 700;
@@ -3688,7 +3693,7 @@ export class BattleScene {
       }
       if (!this._victory && p.t > 0.3) p.land = 0.7;   // the fight is over and the screen moves on: let them fade
       p.vy = Math.min(p.vy + 22 * dt, 11 + p.amp);   // floats: the burst rises a little, then everything drifts down slowly
-      p.y += p.vy * dt; p.x0 += p.vx * dt; p.vx *= Math.pow(0.6, dt);
+      p.y += p.vy * dt; p.x0 += p.vx * dt; p.vx *= Math.pow(0.35, dt);
       p.x = p.x0 + Math.sin(p.t * p.rate + p.ph) * p.amp;
       if (p.y >= p.floor) { p.y = p.floor; p.land = 0.001; continue; }
       const f = Math.floor(p.t * 5 + p.spin) % 4, x = Math.round(p.x), y = Math.round(p.y);   // tumbling: flat, tilted, edge-on, tilted back

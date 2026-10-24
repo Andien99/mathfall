@@ -81,12 +81,12 @@ EXTRA = {
     'cleric:f/victory': dict(base='cleric:f', ms=[130] * 9, loop=[[8, 650], [9, 650]]),
     'mage:f/victory': dict(base='mage:f', ms=[130] * 11, loop=[[10, 650], [11, 650]]),
     'ranger:f/victory': dict(base='ranger:f', ms=[130] * 9, loop=[[8, 650], [9, 650]]),
-    # samurai: from his iaido crouch a snap draw ('drawAt': the blade comes out, with a slash flash in the game; the
-    # in-betweens of PixelLab's draw were unusable, so it cuts from the start of the draw to the blade out), then
-    # (PixelLab animate_image from his old idle to tools/build_samurai_victory.py's hold pose) a flick of the blade,
-    # it slides home ('sheathAt': the click, when the first cherry blossoms fly), then he turns his back and looks over
-    # his shoulder. The hold breathes between the last frame and the same lifted 1px.
-    'samurai:m/victory': dict(base='samurai:m', ms=[140, 70, 50, 90, 80, 90, 150, 110, 200, 260, 110, 110, 110, 120], loop=[[14, 700], [15, 700]], sheathAt=8, drawAt=2),
+    # samurai (Andy's victory concept; PixelLab keyframes and in-betweens, tools/art-src/victory/): out of his iaido crouch he
+    # draws and raises the blade high, slashes the air ('drawAt': the smear frame, where the game throws a gust of petals),
+    # flicks and sheathes it ('sheathAt': the click, when the blossoms start to fall), turns his back, lifts the sheathed
+    # katana up across his shoulders and holds the pose looking back, breathing. The raise keeps only PixelLab's first and
+    # last in-betweens (the middle ones drew the bare blade).
+    'samurai:m/victory': dict(base='samurai:m', ms=[140, 70, 220, 50, 50, 60, 80,  80, 90, 150, 110, 200, 260, 110, 110, 110, 120, 350,  140, 90, 100, 250], loop=[[21, 750], [22, 750]], sheathAt=11, drawAt=4),
     # Champion's Combo (tools/assemble_combo.py): three slashes ('slashAt' = the frame each one lands on), lift the sword
     # up, hold it while the electric aura charges ('holdAt' = first and last held frame; 'blade' = blade length for the
     # aura), then the downward slash: the giant arc appears on 'arcAt' and the finisher lands on 'hit'.
