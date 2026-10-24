@@ -234,13 +234,18 @@ function renderLobby() {
   for (const m of team) if (m.cls && m.id !== me.playerId) (taken[m.cls] = taken[m.cls] || []).push(m.name);
   const gender = pendingGender;
   for (const b of $$('#genderPick button')) { b.classList.toggle('on', b.dataset.g === gender); b.setAttribute('aria-pressed', b.dataset.g === gender ? 'true' : 'false'); }
-  const sig = JSON.stringify([you.cls, gender, taken]);
+  const locked = !!you.locked;
+  document.body.classList.toggle('hero-locked', locked);
+  for (const b of $$('#genderPick button')) b.disabled = locked;
+  const sig = JSON.stringify([you.cls, gender, taken, locked]);
   if (box.dataset.sig !== sig) {
     box.dataset.sig = sig;
     clear(box);
     for (const cls of C.HERO_ORDER) {
       const H = C.HEROES[cls];
-      const card = h('button', { class: 'hero-card' + (you.cls === cls ? ' picked' : ''), onclick: () => pickHero(cls), 'aria-pressed': you.cls === cls ? 'true' : 'false' },
+      const mine = you.cls === cls;
+      const card = h('button', { class: 'hero-card' + (mine ? ' picked' : '') + (locked ? (mine ? ' locked' : ' dim') : ''), onclick: () => { if (locked) { if (!mine) toast('Tap Change hero to pick someone else.'); return; } pickHero(cls); }, 'aria-pressed': mine ? 'true' : 'false' },
+        locked && mine ? h('span', { class: 'lock-stamp' }, '✓ Locked in') : null,
         h('div', { class: 'art' }, h('img', { src: SP.heroFullURL(cls + ':' + gender, 0, 'idle0', 3), alt: '', 'data-cls': cls + ':' + gender })),
         h('h3', null, H.name), h('div', { class: 'role' }, H.role + ' · ' + H.hp + ' HP'),
         h('p', { class: 'blurb' }, H.blurb),
@@ -253,8 +258,30 @@ function renderLobby() {
   const tb = $('#teamBox');
   clear(tb); tb.className = 'team-box panel';
   tb.append(h('h3', { style: { color: state.team.color } }, 'Team ' + state.team.name), h('div', { style: { color: 'var(--muted)', fontSize: '14px', marginBottom: '6px' } }, 'Your teacher may move you to another team.'));
-  for (const m of team) tb.appendChild(h('div', { class: 'mem' }, h('img', { src: m.cls ? SP.portraitURL(m.cls + ':' + (m.gender || 'm'), 0, 'open', 2) : SP.iconURL('focus', 2), alt: '' }), h('div', null, h('div', { style: { fontWeight: 800 } }, m.name + (m.id === me.playerId ? ' (you)' : '')), h('div', { class: 'cls' }, m.cls ? C.HEROES[m.cls].name : 'Choosing…'))));
-  $('#lobbyWait').textContent = you.cls ? 'Ready! Waiting for your teacher to start the game…' : 'Pick a hero, then wait for your teacher to start.';
+  for (const m of team) tb.appendChild(h('div', { class: 'mem' }, h('img', { src: m.cls ? SP.portraitURL(m.cls + ':' + (m.gender || 'm'), 0, 'open', 2) : SP.iconURL('focus', 2), alt: '' }), h('div', null, h('div', { style: { fontWeight: 800 } }, m.name + (m.id === me.playerId ? ' (you)' : '')), h('div', { class: 'cls' }, m.cls ? C.HEROES[m.cls].name : 'Choosing…', m.locked ? h('span', { class: 'mlock' }, ' ✓ Locked in') : m.cls ? h('span', { class: 'mpick' }, ' · still deciding') : null))));
+  renderLockBar(you);
+}
+// The bar under the hero cards: pick → lock in → wait for the teacher (and change your mind any time before Start).
+function renderLockBar(you) {
+  const bar = $('#lockBar'); clear(bar);
+  const H = you.cls && C.HEROES[you.cls];
+  bar.classList.toggle('locked', !!you.locked);
+  if (!H) {
+    bar.append(h('div', { class: 'lb-text' }, h('b', null, 'Step 1: '), 'tap a hero above.'),
+      h('button', { class: 'btn primary big', disabled: true }, 'Lock in'));
+  } else if (!you.locked) {
+    bar.append(h('div', { class: 'lb-text' }, h('b', null, 'Step 2: '), `happy with the ${H.name}? Lock it in so your team knows you're ready.`),
+      h('button', { class: 'btn primary big', onclick: () => lockHero(true) }, `Lock in ${H.name}`));
+  } else {
+    bar.append(h('div', { class: 'lb-text' },
+        h('div', { class: 'lb-big' }, h('span', { class: 'lb-tick' }, '✓'), ` You're the ${H.name}!`),
+        h('div', { class: 'lb-wait' }, 'Waiting for your teacher to press ', h('b', null, 'Start'), h('span', { class: 'dots' }, h('i', null, '.'), h('i', null, '.'), h('i', null, '.')))),
+      h('button', { class: 'btn big', onclick: () => lockHero(false) }, 'Change hero'));
+  }
+}
+function lockHero(on) {
+  sfx(on ? 'correct' : 'click');
+  socket.emit('lockHero', { locked: on }, r => { if (r && !r.ok && r.msg) toast(r.msg); });
 }
 // idle animation for hero cards
 setInterval(() => {

@@ -231,6 +231,8 @@ function renderLobby() {
   const qrSrc = '/api/qr?text=' + encodeURIComponent(location.origin + '/?code=' + hs.code);
   if ($('#qr').getAttribute('src') !== qrSrc) $('#qr').src = qrSrc;
   $('#playerCount').textContent = hs.players.length;
+  const lockedN = hs.players.filter(p => p.locked).length;
+  $('#lockedCount').textContent = hs.players.length ? ` · ${lockedN} locked in` : '';
   $('#lobbyQs').textContent = hs.questions.title;
   const grid = $('#lobbyTeams'); clear(grid);
   const byId = Object.fromEntries(hs.players.map(p => [p.id, p]));
@@ -247,7 +249,7 @@ function teamColumn(t, players, lobby) {
     const row = h('div', { class: 'pl' + (p.connected ? '' : ' off'), draggable: 'true' },
       h('button', { class: 'dot' + (p.modified ? ' on' : ''), title: p.modified ? 'Supported questions' : 'Main questions', 'aria-label': (p.modified ? 'Using supported questions: ' : 'Using main questions: ') + p.name, onclick: () => togglePin(p) }),
       h('img', { src: p.cls ? SP.portraitURL(p.skin || p.cls, 0, 'open', 2) : SP.iconURL('focus', 2), alt: '' }),
-      h('div', { class: 'n' }, p.name, h('div', { class: 'c' }, p.cls ? C.HEROES[p.cls].name : 'Choosing a hero')),
+      h('div', { class: 'n' }, p.name, h('div', { class: 'c' }, p.cls ? C.HEROES[p.cls].name : 'Choosing a hero', lobby && p.cls ? h('span', { class: p.locked ? 'lk on' : 'lk' }, p.locked ? ' ✓ locked in' : ' · deciding') : null)),
       h('button', { class: 'x', title: 'Remove ' + p.name, 'aria-label': 'Remove ' + p.name, onclick: () => { if (confirm(`Remove ${p.name} from the game?`)) socket.emit('host:kick', { pid: p.id }); } }, '×'));
     row.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', p.id); });
     col.append(row);

@@ -625,7 +625,7 @@ class Session {
     const run = team.run;
     const base = { code: this.code, state: this.state, paused: this.paused, now: now(), sound: this.settings.sound, tips: this.settings.tips, timer: this.settings.timer,
       team: { id: team.id, name: team.name, color: team.color, history: team.history },
-      members: team.members.map(id => { const p = this.players.get(id); return p ? { id, name: p.name, cls: p.cls, gender: p.gender, connected: p.connected } : null; }).filter(Boolean) };
+      members: team.members.map(id => { const p = this.players.get(id); return p ? { id, name: p.name, cls: p.cls, gender: p.gender, connected: p.connected, locked: !!p.locked } : null; }).filter(Boolean) };
     if (this.raid) base.raid = this.raidPublic(team);
     if (!run) return base;
     const order = team.members.filter(id => run.heroes[id]);
@@ -656,7 +656,7 @@ class Session {
   }
   youFor(team, p) {
     const run = team.run;
-    const you = { id: p.id, name: p.name, cls: p.cls, gender: p.gender, track: this.trackFor(p) === 'modified' ? 'support' : 'main', joining: !!(run && !run.heroes[p.id]), test: this.test };
+    const you = { id: p.id, name: p.name, cls: p.cls, gender: p.gender, locked: !!p.locked, track: this.trackFor(p) === 'modified' ? 'support' : 'main', joining: !!(run && !run.heroes[p.id]), test: this.test };
     if (p.pending) you.pendingQ = p.pending.answered ? null : p.pending.pub.qid;
     const room = run && run.room;
     if (room && room.type === 'treasure' && room.chests[p.id]) { const ch = room.chests[p.id]; you.chest = { rarity: ch.rarity, opened: ch.opened, decided: ch.decided, choice: ch.choice || null, gold: ch.opened ? ch.gold : 0, goldPaid: !!ch.goldPaid, skill: ch.opened ? ch.skill : null, item: ch.opened ? ch.item : null }; }
@@ -695,7 +695,7 @@ class Session {
 
   hostState() {
     const players = [...this.players.values()].map(p => ({
-      id: p.id, name: p.name, connected: p.connected, teamId: p.teamId, cls: p.cls, skin: p.cls ? p.cls + ':' + (p.gender || 'm') : null, modified: p.modified, support: this.trackFor(p) === 'modified',
+      id: p.id, name: p.name, connected: p.connected, teamId: p.teamId, cls: p.cls, locked: !!p.locked, skin: p.cls ? p.cls + ':' + (p.gender || 'm') : null, modified: p.modified, support: this.trackFor(p) === 'modified',
       answered: p.stats.answered, correct: p.stats.correct, streak: p.stats.streak, best: p.stats.best, busy: !!(p.pending && !p.pending.answered)
     }));
     const teams = this.teams.map(t => {
@@ -1014,12 +1014,26 @@ function attach(io, banks) {
       if (!C.HEROES[d.cls]) return reply(cb, { ok: false });
       const run = t && t.run;
       if (run && run.heroes[p.id] && !(run.room && (run.room.type === 'defeat' || run.room.type === 'complete'))) return reply(cb, { ok: false, msg: 'You can change hero when this run ends.' });
+      if (p.locked && s.state === 'lobby' && (p.cls !== d.cls || (d.gender && d.gender !== p.gender))) return reply(cb, { ok: false, msg: 'Tap Change hero first.' });
       p.cls = d.cls;
       if (d.gender === 'm' || d.gender === 'f') p.gender = d.gender;
       if (run && run.heroes[p.id]) { const h = s.heroFor(t, p); h.gold = run.heroes[p.id].gold; run.heroes[p.id] = h; }
       reply(cb, { ok: true });
-      if (s.test && s.state === 'lobby') { startGame(s); s.emitHost(true); }   // solo test game: picking a hero starts the run
+      s.hostDirty = true;
       s.flush(t);
+    }));
+
+    // Lobby: lock in the hero you picked, so you (and your teacher) know you are ready. Unlock to change your mind;
+    // nothing is final until the teacher presses Start.
+    socket.on('lockHero', student((s, p, t, d, cb) => {
+      if (s.state !== 'lobby') return reply(cb, { ok: false });
+      const want = d.locked !== false;
+      if (want && !p.cls) return reply(cb, { ok: false, msg: 'Pick a hero first.' });
+      p.locked = want;
+      reply(cb, { ok: true, locked: p.locked });
+      if (s.test && want) { startGame(s); s.emitHost(true); }   // solo test game: locking in starts the run
+      s.hostDirty = true;
+      if (t) s.flush(t);
     }));
 
     socket.on('act', student((s, p, t, d, cb) => {

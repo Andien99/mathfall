@@ -253,3 +253,4 @@ main { max-width: 1320px; margin: 0 auto; padding: 22px 24px 60px; }
 .picops { display: grid; gap: 6px; }
 .qthumb { display: block; max-width: 160px; max-height: 90px; background: #fff; border-radius: 4px; padding: 2px; margin: 4px 0; }
 .pvimg { display: inline-block; vertical-align: middle; max-width: 90px; max-height: 50px; background: #fff; border-radius: 3px; padding: 1px; margin: 0 4px; }
+.pl .c .lk { color: var(--muted); } .pl .c .lk.on { color: #5fd18a; font-weight: 700; }
