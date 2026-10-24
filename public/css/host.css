@@ -6,11 +6,13 @@
 }
 * { box-sizing: border-box; }
 html { background: var(--bg); }
-html, body { margin: 0; background: radial-gradient(ellipse at 50% -20%, #2a2a5e 0%, var(--bg) 55%) fixed var(--bg); color: var(--text); font-family: var(--ui); font-size: 17px; min-height: 100%; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--ui); font-size: 17px; min-height: 100%; }
+/* the glow behind the page sits on its own fixed layer, so scrolling never repaints it */
+body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 50% -20%, #2a2a5e 0%, var(--bg) 55%); transform: translateZ(0); }
 button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
-.top { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-bottom: 1px solid var(--line); background: rgba(10, 8, 22, 0.7); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(6px); }
+.top { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-bottom: 1px solid var(--line); background: rgba(10, 8, 22, 0.96); position: sticky; top: 0; z-index: 10; }
 .brand { display: flex; align-items: baseline; gap: 12px; }
 .logo { font-family: var(--display); font-weight: 900; font-size: 28px; letter-spacing: 0.04em; background: linear-gradient(180deg, #fff3c8, #f2c14e 60%, #a8622a); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .who { color: var(--muted); font-weight: 700; }
@@ -18,7 +20,7 @@ button { cursor: pointer; }
 main { max-width: 1320px; margin: 0 auto; padding: 22px 24px 60px; }
 .view { display: none; }
 .view.on { display: block; }
-.card { background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25); margin-bottom: 18px; }
+.card { contain: layout paint; background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25); margin-bottom: 18px; }
 .card-h h2 { font-family: var(--display); margin: 0; font-size: 24px; }
 .card-h p { margin: 4px 0 12px; color: var(--muted); }
 .btn { border: 1px solid var(--line2); background: linear-gradient(180deg, #2c3a80, #1d2558); border-radius: 7px; padding: 9px 16px; font-weight: 700; transition: filter 0.1s; }
@@ -214,7 +216,7 @@ main { max-width: 1320px; margin: 0 auto; padding: 22px 24px 60px; }
   position: relative; padding: 18px 0 0; border-radius: 10px; overflow: hidden;
   background: radial-gradient(1px 1px at 12% 18%, #fff, transparent), radial-gradient(1px 1px at 82% 12%, #fff, transparent), radial-gradient(1.5px 1.5px at 66% 30%, #cfd8ff, transparent), radial-gradient(1px 1px at 30% 40%, #fff, transparent), radial-gradient(1px 1px at 90% 55%, #fff, transparent), radial-gradient(1px 1px at 8% 70%, #cfd8ff, transparent),
     radial-gradient(ellipse at 80% 8%, rgba(255, 240, 200, 0.25), transparent 30%), linear-gradient(180deg, #0b0a1e, #1a1636 60%, #2a2238); }
-.tw { width: min(880px, 92%); margin: 0 auto; display: flex; flex-direction: column; filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.6)); }
+.tw { width: min(880px, 92%); margin: 0 auto; display: flex; flex-direction: column; box-shadow: 0 24px 34px -10px rgba(0, 0, 0, 0.6); }
 .tw-crown { height: 26px; margin: 0 -18px; background: var(--brick); background-size: 48px 24px; image-rendering: pixelated;
   -webkit-mask: linear-gradient(#000 0 0) bottom / 100% 12px no-repeat, repeating-linear-gradient(90deg, #000 0 34px, transparent 34px 56px);
   mask: linear-gradient(#000 0 0) bottom / 100% 12px no-repeat, repeating-linear-gradient(90deg, #000 0 34px, transparent 34px 56px); }

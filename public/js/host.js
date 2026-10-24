@@ -201,7 +201,7 @@ socket.on('host:state', st => {
   hs = st;
   if (!session) return;
   if (st.state === 'lobby') { if (view !== 'lobby') show('lobby'); renderLobby(); }
-  else if (st.state === 'playing') { if (view !== 'live') show('live'); renderLive(); }
+  else if (st.state === 'playing') { if (view !== 'live') { show('live'); liveSig = {}; } scheduleLive(); }
   else if (st.state === 'ended') { if (view !== 'results') { show('results'); renderResults(); } }
   applyRememberedPins();
   renderNav();
@@ -264,11 +264,34 @@ $('#startBtn').addEventListener('click', () => socket.emit('host:start', {}, r =
 
 // ------------------------------------------------------------------ live
 const NODE_LABEL = { enemy: 'Fighting monsters', elite: 'Fighting an elite', boss: 'Fighting the boss', treasure: 'Opening treasure', rest: 'At the campfire', merchant: 'At the merchant', unknown: 'Exploring' };
+// The live view only redraws the parts whose data changed, at most once a frame, so scrolling stays smooth.
+let liveSig = {}, liveQueued = false;
+// While the teacher is scrolling, updates wait (up to a second) so the page never rebuilds under the scroll.
+let lastScroll = 0, firstHeld = 0;
+addEventListener('scroll', () => { lastScroll = performance.now(); }, { passive: true, capture: true });
+addEventListener('wheel', () => { lastScroll = performance.now(); }, { passive: true });
+function scheduleLive() {
+  if (liveQueued) return; liveQueued = true;
+  const go = () => {
+    const t = performance.now();
+    if (t - lastScroll < 250 && (!firstHeld || t - firstHeld < 1000)) { if (!firstHeld) firstHeld = t; setTimeout(() => requestAnimationFrame(go), 120); return; }
+    liveQueued = false; firstHeld = 0;
+    if (hs && hs.state === 'playing') renderLive();
+  };
+  requestAnimationFrame(go);
+}
+function changed(key, data) { const sig = JSON.stringify(data); if (liveSig[key] === sig) return false; liveSig[key] = sig; return true; }
 function renderLive() {
   $('#liveCode').textContent = hs.code;
-  renderTower();
+  const teamSig = hs.teams.map(t => [t.id, t.name, t.color, t.rows, t.floor, t.phase, t.room, t.node, t.asc, t.boss, t.heroCls, t.heroes, t.combat && [t.combat.type, t.combat.round, t.combat.enemies.map(e => [e.name, e.hp, e.maxHp])], t.history && t.history.bossKills, t.members]);
+  if (changed('tower', [teamSig, hs.raid])) renderTower();
   $('#raidBtn').style.display = hs.raid || hs.settings.raid === false ? 'none' : '';
   $('#pauseBtn').textContent = hs.paused ? 'Resume' : 'Pause all';
+  const playerSig = hs.players.map(p => [p.id, p.name, p.teamId, p.correct, p.answered, p.streak, p.connected, p.busy, p.modified]);
+  if (changed('teams', [teamSig, playerSig])) renderLiveTeams();
+  if (changed('table', [playerSig, hs.teams.map(t => [t.id, t.name]), sortKey])) renderLiveTable();
+}
+function renderLiveTeams() {
   const grid = $('#liveTeams'); clear(grid);
   const byId = Object.fromEntries(hs.players.map(p => [p.id, p]));
   for (const t of hs.teams) {
@@ -286,7 +309,6 @@ function renderLive() {
     card.append(h('div', { class: 'ops' }, h('button', { class: 'btn small', onclick: () => openWatch(t) }, 'Watch'), h('button', { class: 'btn small', title: 'Ends the round or room for this team now', onclick: () => socket.emit('host:skipRoom', { teamId: t.id }) }, 'Hurry along')));
     grid.append(card);
   }
-  renderLiveTable();
 }
 function renderLiveTable() {
   const tb = $('#liveTable'); clear(tb);
@@ -381,6 +403,7 @@ async function openWatch(t) {
   const { BattleScene } = await import('./scene.js');
   if (!watchScene) watchScene = new BattleScene($('#watchCanvas'), { onBanner: () => {}, onAnimDone: () => { if (watchScene.last) watchScene.sync(watchScene.last.run, { force: true }); } });
   watchScene.actors.clear();
+  watchScene.sleeping = false;
   const fitW = () => { const r = $('.watch-stage').getBoundingClientRect(); watchScene.resize(r.width, r.height, { x: 0, y: 10, w: r.width, h: r.height - 20 }); };
   fitW();
   socket.emit('host:watch', { teamId: t.id });
@@ -398,7 +421,7 @@ function onWatch(st) {
   watchScene.setRoom(run.phase === 'room' ? run.room : null);
   $('#watchInfo').textContent = run.raidMode ? (st.raid ? `Raid · Inferno Dragon ${st.raid.hp}/${st.raid.maxHp}` : 'Raid') : run.phase === 'combat' && run.combat ? `Floor ${run.floor} · Round ${run.combat.round}` : run.phase === 'map' ? 'Choosing a path' : 'Floor ' + run.floor;
 }
-$('#watchClose').addEventListener('click', () => { $('#watch').classList.remove('show'); socket.emit('host:watch', { teamId: null }); watchTeam = null; });
+$('#watchClose').addEventListener('click', () => { $('#watch').classList.remove('show'); if (watchScene) watchScene.sleeping = true; socket.emit('host:watch', { teamId: null }); watchTeam = null; });
 
 // ------------------------------------------------------------------ results
 function renderResults() {

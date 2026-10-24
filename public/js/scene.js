@@ -3638,7 +3638,7 @@ export class BattleScene {
 
   _raf() {
     requestAnimationFrame(this._raf);
-    if (!this.W || document.hidden) return;
+    if (!this.W || document.hidden || this.sleeping) return;
     const t = now();
     const dt = Math.min(0.05, (t - (this.lastT || t)) / 1000); this.lastT = t;
     // adaptive quality
