@@ -38,3 +38,30 @@ if __name__ == '__main__':
     out.alpha_composite(head, (hx, hy))
     out.save(os.path.join(V, 'samurai_hold.png'))
     print('scale %.3f' % s, 'bbox', out.getbbox(), 'idle', ib)
+
+
+# ---- colour variants for the samurai's move sheets
+# His fur shares the coat's hue, so a plain hue range would recolour his ears, mask and tail too. The coat is crimson
+# (its blue channel is above its green), the fur is orange-brown (green above blue): only crimson pixels are shifted.
+# This works on any frame, including PixelLab in-betweens with colours the idle doesn't have.
+def is_coat(r, g, b):
+    import colorsys
+    h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+    return (h >= 0.9 or h <= 0.02) and s >= 0.3 and 0.06 <= l <= 0.5 and b > g
+
+def shade(im, hs):
+    """Recolour the samurai's coat by hue shift hs (crimson -> indigo / jade), leaving the fur alone."""
+    if not hs: return im
+    import colorsys
+    out = im.copy(); px = out.load(); memo = {}
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            if not a: continue
+            if (r, g, b) not in memo:
+                if is_coat(r, g, b):
+                    h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+                    memo[(r, g, b)] = tuple(round(v * 255) for v in colorsys.hls_to_rgb((h + hs) % 1, l, s))
+                else: memo[(r, g, b)] = (r, g, b)
+            px[x, y] = memo[(r, g, b)] + (a,)
+    return out

@@ -112,6 +112,7 @@ export class BattleScene {
     this.nctx = this.nat.getContext('2d');
     this.actors = new Map();
     this.particles = [];
+    this.petals = [];   // cherry blossom petals (samurai victory)
     this.glows = [];
     this.numbers = [];
     this.projectiles = [];
@@ -3653,6 +3654,49 @@ export class BattleScene {
     this.draw(t, sdt);
   }
 
+  // Samurai victory: once the katana is sheathed and he holds the pose, cherry blossom petals drift down around him.
+  // A small flurry is released the moment the blade clicks home, then a gentle, sparse fall for as long as the victory
+  // lasts. Each petal sways, tumbles between three pixel shapes, settles on the floor and fades.
+  _drawPetals(n, t, dt) {
+    if (this._victory) for (const A of this.actors.values()) {
+      if (A.type !== 'hero' || A.cls !== 'samurai' || A.downed || A.gone) continue;
+      // the blossoms start when the blade clicks home (the move's 'sheathAt' frame); without the move, shortly after the win
+      const m = A.anim, mine = m && m.d && m.d.loop;
+      const held = mine ? m.t0 + (m.d.sheathAt != null ? m.at[m.d.sheathAt] : m.total) * m.speed : (this.victoryAt || t) + 700;
+      if (t < held) continue;
+      const floor = A.y + 2;
+      const spawn = (burst) => {
+        const x = A.x + (Math.random() - 0.5) * (burst ? 40 : 130), y = burst ? A.y - 30 - Math.random() * 30 : A.y - 100 - Math.random() * 40;
+        const r = Math.random();
+        this.petals.push({ x, y, x0: x, vy: burst ? -6 - Math.random() * 10 : 9 + Math.random() * 7, vx: (Math.random() - 0.5) * (burst ? 26 : 6) - 3,
+          ph: Math.random() * 6.28, amp: 3 + Math.random() * 5, rate: 1.2 + Math.random() * 1.1, spin: Math.random() * 3, floor: floor + Math.random() * 14 - 2,
+          c: r < 0.45 ? '#ffb0d4' : r < 0.85 ? '#ff86bc' : '#ffe8f2', edge: r < 0.85 ? '#c8407e' : '#ff9ac8', t: 0, land: 0 });
+      };
+      if (!A._petalsAt || A._petalsAt < this.victoryAt) { A._petalsAt = t; for (let i = 0; i < 16; i++) spawn(true); }   // the blade clicks home
+      if (Math.random() < dt * 6 && this.petals.length < 70) spawn(false);
+    }
+    for (let i = this.petals.length - 1; i >= 0; i--) {
+      const p = this.petals[i];
+      p.t += dt;
+      if (p.land) {   // resting on the floor, fading out
+        p.land += dt; if (p.land > 1.4) { this.petals.splice(i, 1); continue; }
+        n.globalAlpha = 1 - p.land / 1.4; n.fillStyle = p.c; n.fillRect(Math.round(p.x), Math.round(p.y), 3, 1); n.fillStyle = p.edge; n.fillRect(Math.round(p.x) + 2, Math.round(p.y), 1, 1); continue;
+      }
+      if (!this._victory && p.t > 0.3) p.land = 0.7;   // the fight is over and the screen moves on: let them fade
+      p.vy = Math.min(p.vy + 22 * dt, 11 + p.amp);   // floats: the burst rises a little, then everything drifts down slowly
+      p.y += p.vy * dt; p.x0 += p.vx * dt; p.vx *= Math.pow(0.6, dt);
+      p.x = p.x0 + Math.sin(p.t * p.rate + p.ph) * p.amp;
+      if (p.y >= p.floor) { p.y = p.floor; p.land = 0.001; continue; }
+      const f = Math.floor(p.t * 5 + p.spin) % 4, x = Math.round(p.x), y = Math.round(p.y);   // tumbling: flat, tilted, edge-on, tilted back
+      n.globalAlpha = Math.min(1, p.t * 3);
+      n.fillStyle = p.c;
+      if (f === 0) { n.fillRect(x + 1, y, 2, 1); n.fillRect(x, y + 1, 2, 1); n.fillStyle = p.edge; n.fillRect(x + 2, y + 1, 1, 1); }
+      else if (f === 1) { n.fillRect(x, y, 1, 2); n.fillRect(x + 1, y + 1, 1, 1); n.fillStyle = p.edge; n.fillRect(x + 1, y + 2, 1, 1); }
+      else if (f === 2) { n.fillRect(x, y + 1, 3, 1); }
+      else { n.fillRect(x + 1, y, 1, 2); n.fillRect(x, y + 1, 1, 1); n.fillStyle = p.edge; n.fillRect(x, y + 2, 1, 1); }
+    }
+    n.globalAlpha = 1;
+  }
   draw(t, dt) {
     const ctx = this.ctx, n = this.nctx, s = this.s, W = this.W, H = this.H;
     const time = (t - this.t0) / 1000;
@@ -3847,6 +3891,7 @@ export class BattleScene {
       else n.fillRect(Math.round(p.x), Math.round(p.y), p.spark && k > 0.5 ? 2 : 1, 1);
     }
     n.globalAlpha = 1;
+    this._drawPetals(n, t, dt);
     if (this.pixelFx) this.drawPixelFx(n, t);
     for (const z of this.zaps) {   // electricity crackling round the raised blade, stronger as it charges
       if (t > z.until) continue;

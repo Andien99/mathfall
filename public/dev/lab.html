@@ -116,6 +116,13 @@ function enemyEvent() {
 let timer = null, lastEv = null;
 function play(ev) {
   clearTimeout(timer);
+  scene.victory = false;
+  if (!ev && S.move === 'victory') {   // the hero's victory animation, held, as after a won fight (the samurai's blossoms fall)
+    reset(); lastEv = null;
+    setTimeout(() => { scene.victory = true; }, 250);
+    if (S.loop) timer = setTimeout(() => play(), 9000 / S.speed);
+    return;
+  }
   reset();
   lastEv = ev || eventFor(S.move);
   for (const t of lastEv.targets || []) if (t.revived) { const a = scene.actors.get(t.id); if (a) { a.downed = true; a.hp = 0; } }   // Phoenix Feather / Resurrection: the ally starts knocked out
@@ -146,6 +153,7 @@ function render() {
   moveBtn(mv, 'attack', BASIC[S.cls][1], 'attack');
   moveBtn(mv, 'defend', C.HEROES[S.cls].defend.name, 'defend');
   for (const id of C.HEROES[S.cls].skills) moveBtn(mv, id, C.SKILLS[id].name, 'skill');
+  moveBtn(mv, 'victory', 'Victory', 'after a win');
   const ex = $('#extra'); ex.innerHTML = '';
   for (const id of C.classSkills(S.cls)) if (!C.HEROES[S.cls].skills.includes(id)) moveBtn(ex, id, C.SKILLS[id].name, C.SKILLS[id].rarity + ' · ' + C.SKILLS[id].cost);
   $('#loop').checked = S.loop;
@@ -164,7 +172,7 @@ $('#loop').onchange = e => { S.loop = e.target.checked; save(); if (S.loop) play
 $('#play').onclick = () => play();
 $('#enemyHit').onclick = () => { reset(); play(enemyEvent()); };
 scene.slowmo = S.speed;
-scene.onAnimDone = () => { if (!S.loop) return; clearTimeout(timer); timer = setTimeout(() => play(lastEv), 900 / S.speed); };   // loop long moves (Resurrection, Meteor) without cutting them off
+scene.onAnimDone = () => { if (!S.loop || S.move === 'victory') return; clearTimeout(timer); timer = setTimeout(() => play(lastEv), 900 / S.speed); };   // loop long moves (Resurrection, Meteor) without cutting them off
 fit(); addEventListener('resize', fit);
 render(); reset();
 // ?emove=breath (or tailstorm, &dodge=1) plays that enemy move instead of a hero move

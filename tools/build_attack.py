@@ -11,6 +11,7 @@ import os
 from PIL import Image
 from build_knight import recolour, VARIANTS, update_manifest, OUT_DIR
 from heroart import hue_shift, ART_SRC
+from build_samurai_victory import shade as SAMURAI_SHADE
 import json
 
 AW, AH, AAX, AAY = 128, 112, 80, 104
@@ -38,6 +39,7 @@ MOVES = {
                    ms=[60, 60, 60, 60, 70, 650, 90, 250], hit=6, release=6, charge=5, muzzle=[-59, -41], cast=True, zoom=1.08),
     'mage:m': dict(sheet='mage_m', move='cast', shade=lambda im, hs: hue_shift(im, 0.45, 0.70, hs, 0.3, 0.95), variants=[0, 0.2, -0.27],
                    ms=[60, 60, 60, 70, 100, 560, 90, 250], hit=6, release=6, charge=4, muzzle=[-43, -37], cast=True, zoom=1.08),
+    'samurai:m': dict(sheet='samurai', shade=SAMURAI_SHADE, variants=[0, 0.62, 0.36], aliases=['samurai:f']),   # crimson, indigo, jade haori (no slash of its own yet)
 }
 
 # Defends and big moves (no dash, no projectile): the game plays the frames, then runs the move's usual
@@ -79,6 +81,10 @@ EXTRA = {
     'cleric:f/victory': dict(base='cleric:f', ms=[130] * 9, loop=[[8, 650], [9, 650]]),
     'mage:f/victory': dict(base='mage:f', ms=[130] * 11, loop=[[10, 650], [11, 650]]),
     'ranger:f/victory': dict(base='ranger:f', ms=[130] * 9, loop=[[8, 650], [9, 650]]),
+    # samurai (PixelLab animate_image from his idle to tools/build_samurai_victory.py's hold pose): a flick of the blade,
+    # it slides home ('sheathAt': the click, when the first cherry blossoms fly), then he turns his back and looks over
+    # his shoulder. The hold breathes between the last frame and the same lifted 1px.
+    'samurai:m/victory': dict(base='samurai:m', ms=[90, 80, 90, 150, 110, 200, 260, 110, 110, 110, 120], loop=[[11, 700], [12, 700]], sheathAt=5),
     # Champion's Combo (tools/assemble_combo.py): three slashes ('slashAt' = the frame each one lands on), lift the sword
     # up, hold it while the electric aura charges ('holdAt' = first and last held frame; 'blade' = blade length for the
     # aura), then the downward slash: the giant arc appears on 'arcAt' and the finisher lands on 'hit'.
@@ -128,7 +134,7 @@ EXTRA = {
 }
 for key, e in EXTRA.items():
     base = MOVES[e.pop('base')]; skin, mv = key.split('/')
-    MOVES[key] = dict(dict(sheet=base['sheet'], shade=base['shade'], variants=base['variants'], cast=True, skin=skin, move=mv), **e)
+    MOVES[key] = dict(dict(sheet=base['sheet'], shade=base['shade'], variants=base['variants'], cast=True, skin=skin, move=mv, aliases=base.get('aliases', [])), **e)
 
 def build(skin):
     m = MOVES[skin]
@@ -156,7 +162,9 @@ def build(skin):
         'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m.get('hit'), 'loop': m.get('loop'), 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
         'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom'),
         'tips': tips, 'chargeTo': m.get('chargeTo'), 'swing': m.get('swing'), 'aura': m.get('aura'), 'ring': m.get('ring'), 'upswing': m.get('upswing'), 'dashAt': m.get('dashAt'),
-        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor'), 'quake': m.get('quake'), 'leap': m.get('leap'), 'resolve': m.get('resolve')}
+        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor'), 'quake': m.get('quake'), 'leap': m.get('leap'), 'resolve': m.get('resolve'), 'sheathAt': m.get('sheathAt')}
+    for al in m.get('aliases', []):   # e.g. samurai:f shares the samurai's sheets until she has her own
+        man['heroes'][al].setdefault('anims', {})[mv] = man['heroes'][m.get('skin', skin)]['anims'][mv]
     json.dump(man, open(path, 'w'), indent=1)
     print('wrote', name, n, 'frames', sum(m['ms']), 'ms')
 
@@ -164,4 +172,4 @@ if __name__ == '__main__':
     import sys
     only = sys.argv[1:]   # e.g. knight:m/combo knight:f/combo; nothing = every move
     for k in MOVES:
-        if not only or k in only: build(k)
+        if (not only and 'ms' in MOVES[k]) or k in only: build(k)

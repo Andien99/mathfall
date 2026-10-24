@@ -5277,7 +5277,104 @@
     15,
     22,
     22
-   ]
+   ],
+   "anims": {
+    "victory": {
+     "sheet": "samurai_victory.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 13,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       90
+      ],
+      [
+       1,
+       80
+      ],
+      [
+       2,
+       90
+      ],
+      [
+       3,
+       150
+      ],
+      [
+       4,
+       110
+      ],
+      [
+       5,
+       200
+      ],
+      [
+       6,
+       260
+      ],
+      [
+       7,
+       110
+      ],
+      [
+       8,
+       110
+      ],
+      [
+       9,
+       110
+      ],
+      [
+       10,
+       120
+      ]
+     ],
+     "hit": null,
+     "loop": [
+      [
+       11,
+       700
+      ],
+      [
+       12,
+       700
+      ]
+     ],
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null,
+     "slashAt": null,
+     "holdAt": null,
+     "arcAt": null,
+     "blade": null,
+     "meteor": null,
+     "quake": null,
+     "leap": null,
+     "resolve": null,
+     "sheathAt": 5
+    }
+   }
   },
   "samurai:f": {
    "sheet": "samurai.png",
@@ -5350,7 +5447,104 @@
     15,
     22,
     22
-   ]
+   ],
+   "anims": {
+    "victory": {
+     "sheet": "samurai_victory.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 13,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       90
+      ],
+      [
+       1,
+       80
+      ],
+      [
+       2,
+       90
+      ],
+      [
+       3,
+       150
+      ],
+      [
+       4,
+       110
+      ],
+      [
+       5,
+       200
+      ],
+      [
+       6,
+       260
+      ],
+      [
+       7,
+       110
+      ],
+      [
+       8,
+       110
+      ],
+      [
+       9,
+       110
+      ],
+      [
+       10,
+       120
+      ]
+     ],
+     "hit": null,
+     "loop": [
+      [
+       11,
+       700
+      ],
+      [
+       12,
+       700
+      ]
+     ],
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 16,
+     "cast": true,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null,
+     "slashAt": null,
+     "holdAt": null,
+     "arcAt": null,
+     "blade": null,
+     "meteor": null,
+     "quake": null,
+     "leap": null,
+     "resolve": null,
+     "sheathAt": 5
+    }
+   }
   }
  },
  "enemies": {
