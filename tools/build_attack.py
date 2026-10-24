@@ -83,10 +83,9 @@ EXTRA = {
     'ranger:f/victory': dict(base='ranger:f', ms=[130] * 9, loop=[[8, 650], [9, 650]]),
     # samurai (Andy's victory concept; PixelLab keyframes and in-betweens, tools/art-src/victory/): out of his iaido crouch he
     # draws and raises the blade high, slashes the air ('drawAt': the smear frame, where the game throws a gust of petals),
-    # flicks and sheathes it ('sheathAt': the click, when the blossoms start to fall), turns his back, lifts the sheathed
-    # katana up across his shoulders and holds the pose looking back, breathing. The raise keeps only PixelLab's first and
-    # last in-betweens (the middle ones drew the bare blade).
-    'samurai:m/victory': dict(base='samurai:m', ms=[140, 70, 220, 50, 50, 60, 80,  80, 90, 150, 110, 200, 260, 110, 110, 110, 120, 350,  140, 90, 100, 250], loop=[[21, 750], [22, 750]], sheathAt=11, drawAt=4),
+    # flicks and sheathes it ('sheathAt': the click, when the blossoms start to fall), turns his back, takes the kasa off his
+    # back and puts it on, brim pulled low over his eyes, and holds the pose with the sheathed sword at his side, breathing.
+    'samurai:m/victory': dict(base='samurai:m', ms=[140, 70, 220, 50, 50, 60, 80,  80, 90, 150, 110, 200, 260, 110, 110, 110, 120, 300,  120, 110, 110, 110, 100, 120, 250], loop=[[24, 750], [25, 750]], sheathAt=11, drawAt=4, keep=[(21, 25, (70, 53, 95, 63))]),
     # Champion's Combo (tools/assemble_combo.py): three slashes ('slashAt' = the frame each one lands on), lift the sword
     # up, hold it while the electric aura charges ('holdAt' = first and last held frame; 'blade' = blade length for the
     # aura), then the downward slash: the giant arc appears on 'arcAt' and the finisher lands on 'hit'.
@@ -147,7 +146,10 @@ def build(skin):
     out = Image.new('RGBA', (AW * n, AH * len(m['variants'])))
     for vi, hs in enumerate(m['variants']):
         for i in range(n):
-            out.alpha_composite(m['shade'](src.crop((i * AW, 0, (i + 1) * AW, AH)), hs), (i * AW, vi * AH))
+            fr = src.crop((i * AW, 0, (i + 1) * AW, AH)); sh = m['shade'](fr, hs)
+            for f0, f1, box in (m.get('keep') or []):   # areas that keep their colours in those frames (e.g. a face in shadow)
+                if hs and f0 <= i <= f1: sh.paste(fr.crop(box), box[:2])
+            out.alpha_composite(sh, (i * AW, vi * AH))
     name = m['sheet'] + '_' + mv + '.png'
     out.save(os.path.join(OUT_DIR, name))
     tips = None
