@@ -130,6 +130,12 @@ EXTRA = {
                              resolve=dict(charge=[1, 6], up=7, hover=8, swing=[9, 10, 11], down=12, land=13, tipCharge=[-39, -15], tipUp=[-33, -100], guardUp=[-33, -61], tipDown=[-33, -15], guardDown=[-33, -51])),
     'knight:f/resolve': dict(base='knight:f', ms=[80, 120, 120, 120, 120, 120, 120, 300, 300, 60, 60, 60, 300, 400], hit=12, cast=False,
                              resolve=dict(charge=[1, 6], up=7, hover=8, swing=[9, 10, 11], down=12, land=13, tipCharge=[-28, -30], tipUp=[-28, -100], guardUp=[-28, -62], tipDown=[-32, -1], guardDown=[-32, -40])),
+    # Quickdraw (samurai; PixelLab keyframe + in-betweens, tools/art-src/quickdraw/): he dashes in still in his iaido crouch
+    # (until 'dashTo'), a red aura gathers round him ('auraAt' to 'cutAt'), the draw-cut lands on 'cutAt' with the red
+    # crescent slash (public/art/fx/quickdraw_slash.png), he holds the follow-through, re-sheathes ('sheathAt': the click)
+    # and goes back to his place ('returnAt').
+    'samurai:m/iai': dict(base='samurai:m', ms=[280, 420, 45, 45, 70, 320, 80, 80, 80, 80, 90, 120, 260], hit=3, cast=False, dash=26,
+                          iai=dict(dashTo=1, auraAt=1, cutAt=3, sheathAt=11, returnAt=12)),
     'knight:m/power': dict(base='knight:m', ms=[60, 70, 90, 110, 120, 130, 140, 110, 90, 380], hit=9, aura=[1, 7], dashAt=7, dashFrames=8, upswing=9, dash=10, cast=False),
     'knight:f/power': dict(base='knight:f', ms=[60, 70, 110, 120, 130, 140, 110, 90, 380], hit=8, aura=[1, 6], dashAt=6, dashFrames=7, upswing=8, dash=10, cast=False),
 }
@@ -166,7 +172,7 @@ def build(skin):
         'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m.get('hit'), 'loop': m.get('loop'), 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
         'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom'),
         'tips': tips, 'chargeTo': m.get('chargeTo'), 'swing': m.get('swing'), 'aura': m.get('aura'), 'ring': m.get('ring'), 'upswing': m.get('upswing'), 'dashAt': m.get('dashAt'),
-        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor'), 'quake': m.get('quake'), 'leap': m.get('leap'), 'resolve': m.get('resolve'), 'sheathAt': m.get('sheathAt'), 'drawAt': m.get('drawAt')}
+        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor'), 'quake': m.get('quake'), 'leap': m.get('leap'), 'resolve': m.get('resolve'), 'sheathAt': m.get('sheathAt'), 'drawAt': m.get('drawAt'), 'iai': m.get('iai')}
     for al in m.get('aliases', []):   # e.g. samurai:f shares the samurai's sheets until she has her own
         man['heroes'][al].setdefault('anims', {})[mv] = man['heroes'][m.get('skin', skin)]['anims'][mv]
     json.dump(man, open(path, 'w'), indent=1)

@@ -33,6 +33,8 @@ const SPIKES = [0, 1, 2].map(i => { const im = new Image(); im.src = '/art/fx/ea
 // and explosion and Earthshatter's flaming blade and fire columns. On by default; ?vfx=code shows the older code-drawn shapes instead.
 const FX_SHEET = (src, w, h, cols, n, fps, ax, ay, loop) => { const img = new Image(); img.src = '/art/fx/' + src; return { img, w, h, cols, n, fps, ax, ay, loop }; };
 const PFX = {
+  // Quickdraw (samurai): the red crescent slash, after Andy's slash FX reference (one PixelLab image, revealed and faded in code)
+  qSlash: FX_SHEET('quickdraw_slash.png', 118, 68, 1, 1, 1, 59, 34, true),
   rock: FX_SHEET('meteor_fly.png', 160, 160, 3, 8, 12, 80, 80, true),
   boom: FX_SHEET('meteor_impact.png', 192, 160, 4, 12, 14, 96, 142, false),
   geyser: FX_SHEET('fire_column.png', 40, 100, 4, 10, 12, 20, 96, false),
@@ -591,6 +593,7 @@ export class BattleScene {
     // offence
     const home = { x: A.x, y: A.y };
     if (fx === 'combo' && first) return this._combo(A, ev, tgt, rc, T, home);
+    if (ev.skill === 'quickdraw' && first) { const own = SP.heroAnim(A.skin || A.cls, 'iai'); if (own && own.iai) return this._iaiAnim(A, first, ev, tgt, rc, own, T, home); }
     if (['missiles', 'multishot', 'ricochet', 'phantom'].includes(fx) && first) return this._multiShot(A, ev, tgt, fx, rc, T);
     if (fx === 'quake') {   // Earthshatter: the floor cracks out from the knight, rock spikes burst up under every enemy
       this.shake = 6; this.shakeT = now(); this.flash = 0.2; sfx('stomp');
@@ -692,6 +695,43 @@ export class BattleScene {
     // generic
     setTimeout(() => this.impact(ev, tgt, fx, rc), T(300));
     return T(900);
+  }
+
+  // Quickdraw (samurai, anims.iai): he dashes at the enemy still in his iaido crouch, a red aura gathers round him, the
+  // draw-cut lands with the red crescent slash and red shards, he holds the follow-through, re-sheathes and goes back.
+  _iaiAnim(A, first, ev, tgt, rc, anim, T, home) {
+    const q = anim.iai, at = []; let acc = 0; for (const [, ms] of anim.timeline) { at.push(acc); acc += ms; }
+    const total = acc, speed = T(1000) / 1000;
+    const dest = { x: first.x + this.reachDX(first) + (anim.dash || 0), y: first.y + 2 };
+    A.anim = { d: anim, t0: now(), speed, at, total };
+    this.cam = { x: (dest.x + first.x) / 2 - 6, y: dest.y - 30, t0: now(), dur: T(total + 200), z: 1.12 };
+    // 1. the dash: low and fast, kicking up dust
+    this.move(A, dest.x - home.x, dest.y - home.y, T(at[q.dashTo]), true); sfx('whirl');
+    for (let i = 0; i < 6; i++) setTimeout(() => this.particles.push({ x: A.x + A.ox + 6, y: A.y + A.oy - 1, vx: 20 + Math.random() * 30, vy: -8 - Math.random() * 10, g: 20, life: 0.4, t: 0, c: '#8a7a70', blob: 1, fade: true }), T(at[q.dashTo] * i / 6));
+    // 2. the red aura, gathering until the cut
+    const auraMs = T(at[q.cutAt] - at[q.auraAt]);
+    setTimeout(() => {
+      this.auras.push({ follow: A, t0: now(), until: now() + auraMs, colors: ['#ff2a3a', '#ff5a6a', '#c8102e', '#ff9aa8'] });
+      this.glows.push({ x: A.x + A.ox, y: A.y + A.oy - 20, r: 26, grow: 14, color: '#ff2a3a', t: 0, life: auraMs / 1000, a: 0.3 });
+      sfx('burn');
+    }, T(at[q.auraAt]));
+    // 3. the cut: the crescent across the enemy, red shards, a flash and a short shake
+    setTimeout(() => {
+      for (const t of tgt) {
+        const e = this.actors.get(t.id); if (!e || e.gone) continue;
+        this.mets.push({ kind: 'qslash', x: e.x - 2, y: e.y - 22, sc: e.size === 'xl' ? 1.5 : e.size === 'l' ? 1.2 : 0.9, t0: now(), life: T(560) });
+        for (let i = 0; i < 22; i++) { const a = -Math.PI * (0.55 + Math.random() * 0.9), v = 70 + Math.random() * 120; this.particles.push({ x: e.x, y: e.y - 22, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6, g: 60, life: 0.4 + Math.random() * 0.4, t: 0, c: ['#ff2a3a', '#c8102e', '#ff8a9a', '#ffffff'][i % 4], streak: 2 + (i % 3), drag: 0.85 }); }
+        this.glows.push({ x: e.x, y: e.y - 22, r: 46, color: '#ff3a4a', t: 0, life: 0.35, a: 0.9 });
+      }
+      this.flash = Math.max(this.flash || 0, 0.1); this.shake = Math.max(this.shake, 5); this.shakeT = now(); sfx('heavy');
+      this.impact(ev, tgt, 'iai', rc);   // red sparks and arc to match the crescent
+    }, T(at[q.cutAt]));
+    // 4. the blade clicks home
+    setTimeout(() => { this.glows.push({ x: A.x + A.ox + 8, y: A.y + A.oy - 14, r: 10, color: '#ffffff', t: 0, life: 0.18, a: 0.9 }); sfx('slash'); }, T(at[q.sheathAt]));
+    // 5. back to his place
+    setTimeout(() => this.move(A, 0, 0, T(anim.timeline[q.returnAt][1]), true), T(at[q.returnAt]));
+    setTimeout(() => { A.anim = null; }, T(total + 40));
+    return T(total + 200);
   }
 
   // Hand-animated special move (PixelLab frames): dash in, raise the sword, slash down.
@@ -822,11 +862,11 @@ export class BattleScene {
       const p = this.pos(t.id); if (!p) continue;
       const k = seen[t.id] = (seen[t.id] || 0) + 1, dy = (k - 1) * 11;   // repeat hits on one target stack upwards
       if (t.dmg != null && !t.shatter) {
-        const colr = { slash_heavy: '#ff9a3c', slash_wide: '#ffd0a0', proj_fire: '#ff8a3c', proj_firearrow: '#ff8a3c', flamewave: '#ff8a3c', proj_arcane: '#b8a6ff', missiles: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', timestop: '#cfe8ff', proj_poison: '#9cff6b', venom: '#9cff6b', phantom: '#a8ffe0', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8', radiance: '#fff0a8', pillar: '#fff2a8', quake: '#e0a060', combo: '#ffb347', xslash: '#9fd8ff', ricochet: '#fff2c0', deadeye: '#8fffd8' }[fx] || '#ffffff';
-        this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy');
+        const colr = { iai: '#ff3a4a', slash_heavy: '#ff9a3c', slash_wide: '#ffd0a0', proj_fire: '#ff8a3c', proj_firearrow: '#ff8a3c', flamewave: '#ff8a3c', proj_arcane: '#b8a6ff', missiles: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', timestop: '#cfe8ff', proj_poison: '#9cff6b', venom: '#9cff6b', phantom: '#a8ffe0', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8', radiance: '#fff0a8', pillar: '#fff2a8', quake: '#e0a060', combo: '#ffb347', xslash: '#9fd8ff', ricochet: '#fff2c0', deadeye: '#8fffd8' }[fx] || '#ffffff';
+        this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy' || fx === 'iai');
         this.elementHit(p.x, p.y - 16, { proj_firearrow: 'proj_fire', flamewave: 'proj_fire', missiles: 'proj_arcane', timestop: 'proj_ice' }[fx] || fx);
         if (fx !== 'phantom' || !this.pixelFx) this.glows.push({ x: p.x, y: p.y - 16, r: 34 + Math.min(40, t.dmg * 1.5), color: colr, t: 0, life: 0.35, a: 0.8 });   // Phantom Volley: its own small flashes
-        if (['slash', 'slash_heavy', 'slash_wide', 'shadow'].includes(fx)) this.arc(p.x, p.y - 18, fx === 'slash_heavy' ? 20 : 15, colr === '#ffffff' ? '#e8f4ff' : colr);
+        if (['slash', 'slash_heavy', 'slash_wide', 'shadow', 'iai'].includes(fx)) this.arc(p.x, p.y - 18, fx === 'slash_heavy' || fx === 'iai' ? 20 : 15, colr === '#ffffff' ? '#e8f4ff' : colr);
         if (t.splash) this.burst(p.x, p.y - 12, '#ff8a3c', 24, 50);
         if (t.dmg > 0) { this.flashActor(p.a); this.pose(p.a, 'hurt', 260); this.hitShake(p.a, t.dmg); }
         if (t.blocked) this.number(p.x + 12, p.y - 28, 'Blocked ' + t.blocked, '#9fb6d8', 0.75);
@@ -1334,6 +1374,13 @@ export class BattleScene {
         const sc = Math.min(1, age / 90) * (k > 0.85 ? 1 - (k - 0.85) / 0.3 : 1);
         n.save(); n.translate(cx, cy); n.rotate(-age / 1000 * Math.PI * 2 * 3.2); n.scale(sc * 2, sc * 2);   // 170px across
         n.drawImage(PFX.vortex.img, -42.5, -42.5); n.restore();
+      }
+      else if (m.kind === 'qslash' && PFX.qSlash.img.complete && PFX.qSlash.img.naturalWidth) {   // the cut sweeps in from the right, then fades as it drifts on
+        const S = PFX.qSlash, sweep = Math.min(1, age / 70), k = age / m.life, w = S.w * m.sc, h = S.h * m.sc;
+        const x0 = Math.round(m.x - S.ax * m.sc - 10 * k), y0 = Math.round(m.y - S.ay * m.sc);
+        n.save(); n.beginPath(); n.rect(x0 + w * (1 - sweep), y0 - 4, w * sweep + 4, h + 8); n.clip();
+        n.globalAlpha = k < 0.35 ? 1 : Math.max(0, 1 - (k - 0.35) / 0.65);
+        n.drawImage(S.img, x0, y0, Math.round(w), Math.round(h)); n.restore(); n.globalAlpha = 1;
       }
       else if (m.kind === 'whalo') frame(PFX.wHalo, age, 1, m.follow.x + m.follow.ox - 2, m.follow.y + m.follow.oy - 66);
       else if (m.kind === 'waura') frame(PFX.wAura, age, 1, m.follow.x + m.follow.ox, m.follow.y + m.follow.oy);
@@ -3934,7 +3981,7 @@ export class BattleScene {
     for (const au of this.auras) {   // flame licks rising from the aura
       const k = Math.min(1, (t - au.t0) / (au.until - au.t0)); if (t > au.until) continue;
       const n = 1 + Math.floor(k * 3);
-      for (let j = 0; j < n; j++) { const ax = au.follow.x + au.follow.ox + (Math.random() - 0.5) * (22 + 20 * k), ay = au.follow.y + au.follow.oy - Math.random() * 10; this.particles.push({ x: ax, y: ay, vx: (Math.random() - 0.5) * 8, vy: -30 - Math.random() * 40 * (0.5 + k), g: 0, life: 0.45 + Math.random() * 0.3, t: 0, c: Math.random() < 0.5 ? '#ff8a2a' : '#ffc24a', blob: Math.random() < 0.3 ? 1 : 0, fade: true }); }
+      for (let j = 0; j < n; j++) { const ax = au.follow.x + au.follow.ox + (Math.random() - 0.5) * (22 + 20 * k), ay = au.follow.y + au.follow.oy - Math.random() * 10; this.particles.push({ x: ax, y: ay, vx: (Math.random() - 0.5) * 8, vy: -30 - Math.random() * 40 * (0.5 + k), g: 0, life: 0.45 + Math.random() * 0.3, t: 0, c: au.colors ? au.colors[Math.floor(Math.random() * au.colors.length)] : Math.random() < 0.5 ? '#ff8a2a' : '#ffc24a', blob: Math.random() < 0.3 ? 1 : 0, fade: true }); }
     }
     // charge stars (ranger arrow tip): grow, twinkle between + and x shapes
     for (let i = this.stars.length - 1; i >= 0; i--) {

@@ -5430,6 +5430,108 @@
      "resolve": null,
      "sheathAt": 11,
      "drawAt": 4
+    },
+    "iai": {
+     "sheet": "samurai_iai.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 13,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       280
+      ],
+      [
+       1,
+       420
+      ],
+      [
+       2,
+       45
+      ],
+      [
+       3,
+       45
+      ],
+      [
+       4,
+       70
+      ],
+      [
+       5,
+       320
+      ],
+      [
+       6,
+       80
+      ],
+      [
+       7,
+       80
+      ],
+      [
+       8,
+       80
+      ],
+      [
+       9,
+       80
+      ],
+      [
+       10,
+       90
+      ],
+      [
+       11,
+       120
+      ],
+      [
+       12,
+       260
+      ]
+     ],
+     "hit": 3,
+     "loop": null,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 26,
+     "cast": false,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null,
+     "slashAt": null,
+     "holdAt": null,
+     "arcAt": null,
+     "blade": null,
+     "meteor": null,
+     "quake": null,
+     "leap": null,
+     "resolve": null,
+     "sheathAt": null,
+     "drawAt": null,
+     "iai": {
+      "dashTo": 1,
+      "auraAt": 1,
+      "cutAt": 3,
+      "sheathAt": 11,
+      "returnAt": 12
+     }
     }
    }
   },
@@ -5657,6 +5759,108 @@
      "resolve": null,
      "sheathAt": 11,
      "drawAt": 4
+    },
+    "iai": {
+     "sheet": "samurai_iai.png",
+     "frame": [
+      128,
+      112
+     ],
+     "anchor": [
+      80,
+      104
+     ],
+     "frames": 13,
+     "variants": 3,
+     "timeline": [
+      [
+       0,
+       280
+      ],
+      [
+       1,
+       420
+      ],
+      [
+       2,
+       45
+      ],
+      [
+       3,
+       45
+      ],
+      [
+       4,
+       70
+      ],
+      [
+       5,
+       320
+      ],
+      [
+       6,
+       80
+      ],
+      [
+       7,
+       80
+      ],
+      [
+       8,
+       80
+      ],
+      [
+       9,
+       80
+      ],
+      [
+       10,
+       90
+      ],
+      [
+       11,
+       120
+      ],
+      [
+       12,
+       260
+      ]
+     ],
+     "hit": 3,
+     "loop": null,
+     "trail": null,
+     "dashFrames": 4,
+     "dash": 26,
+     "cast": false,
+     "strike": null,
+     "release": null,
+     "charge": null,
+     "muzzle": null,
+     "zoom": null,
+     "tips": null,
+     "chargeTo": null,
+     "swing": null,
+     "aura": null,
+     "ring": null,
+     "upswing": null,
+     "dashAt": null,
+     "slashAt": null,
+     "holdAt": null,
+     "arcAt": null,
+     "blade": null,
+     "meteor": null,
+     "quake": null,
+     "leap": null,
+     "resolve": null,
+     "sheathAt": null,
+     "drawAt": null,
+     "iai": {
+      "dashTo": 1,
+      "auraAt": 1,
+      "cutAt": 3,
+      "sheathAt": 11,
+      "returnAt": 12
+     }
     }
    }
   }
