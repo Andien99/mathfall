@@ -225,14 +225,14 @@ export class Guide {
     const room = run.room;
     if (run.phase === 'room' && room) {
       if (room.type === 'treasure' && ctx.you && ctx.you.chest && ctx.you.chest.opened && !ctx.you.chest.decided && fresh('r_loot'))
-        return T('r_loot', `Blue <b>SKILL</b> cards are new moves you pick in battle; they cost energy and you can hold ${C.MAX_SKILLS}. Green <b>ITEM</b> cards work by themselves, every fight, with no limit.`, { point: 'cards', ms: 14000 });
+        return T('r_loot', `Blue <b>SKILL</b> cards are new moves you pick in battle; they cost energy and you can hold ${C.MAX_SKILLS}. Green <b>ITEM</b> cards work by themselves, every fight, with no limit. Tap the gold to collect it (it's always yours), then pick a skill or an item.`, { point: 'cards', ms: 14000 });
       if (room.type === 'merchant' && fresh('r_shop'))
         return T('r_shop', `Pip sells blue <b>skills</b> (new moves for battle) and green <b>items</b> (always on, no slot needed). Spend your gold!`, { point: 'cards', ms: 12000 });
       if (room.type === 'rest' && fresh('r_rest'))
         return T('r_rest', '<b>Rest</b> heals you, <b>Train</b> makes one skill stronger, and <b>Meditate</b> starts your next fight with full energy.', { ms: 11000 });
       if ((room.type === 'victory' || room.type === 'complete') && fresh('r_upgrade'))
         return T('r_upgrade', 'You won! Pick an upgrade. It lasts for the whole climb.', { pose: 'cheer', ms: 8000 });
-      if (forHelp) return T('help', `Pick what you want, then press the ready button. Blue cards are skills (moves you choose in battle); green cards are items (always on).`, {});
+      if (forHelp) return T('help', `Pick what you want, then press the ready button. Blue cards are skills (moves you choose in battle); green cards are items (always on). Chest gold is always yours.`, {});
     }
     return null;
   }

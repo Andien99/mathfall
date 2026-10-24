@@ -559,21 +559,42 @@ function itemCard(id, extra) {
     h('div', { class: 'cd' }, 'No energy, no slot, no limit'),
     extra && extra.button ? extra.button : null);
 }
-// Gold has its own colour (yellow) like skills (blue) and items (green); its border is the chest's rarity.
-function goldCard(n, extra) {
-  const rarity = extra && extra.rarity;
-  const rc = rarity ? C.RARITY[rarity].color : '#ffd25a';
-  return h('div', { class: 'skcard gold' + (rarity ? ' rar-' + rarity : '') + (extra && extra.isNew ? ' new' : ''), style: { '--rc': rc } },
-    h('div', { class: 'kind' }, h('span', { class: 'kind-tag' }, 'Gold'), h('span', { class: 'kind-sub' }, 'Spend it at the shop')),
+// Chest gold is not a choice: it is always yours. It still sits on its own card (gold's own yellow, border = the
+// chest's rarity) so students tap it and see it arrive; uncollected gold is paid when the room closes anyway.
+function goldCard(ch) {
+  const rc = C.RARITY[ch.rarity].color;
+  const got = ch.goldPaid;
+  const collect = () => {
+    if (got) return;
+    roomOp('collect', {}, r => { if (r && r.ok) { sfx('coin'); coinBurst(card); } });
+  };
+  const card = h('button', { class: 'skcard gold rar-' + ch.rarity + (got ? ' got' : ' tap') + (!roomUI.goldDealt ? ' new' : ''), style: { '--rc': rc }, onclick: collect, disabled: got, 'aria-label': got ? `${ch.gold} gold collected` : `Collect ${ch.gold} gold` },
+    h('div', { class: 'kind' }, h('span', { class: 'kind-tag' }, 'Gold'), h('span', { class: 'kind-sub' }, 'Always yours')),
     h('div', { class: 'ic' }, h('img', { src: SP.iconURL('gold', 3), alt: '' })),
-    rarity ? h('div', { class: 'rar' }, C.RARITY[rarity].name + ' chest') : null,
-    h('h4', null, `${n} gold`),
-    h('p', null, 'Buy skills, items and healing from the merchant later.'),
+    h('div', { class: 'rar' }, C.RARITY[ch.rarity].name + ' chest'),
+    h('h4', null, `${ch.gold} gold`),
+    h('p', null, got ? 'Added to your pouch. Spend it at the merchant.' : 'Free with the chest: you don\'t give anything up for it.'),
     h('div', { class: 'cd' }, `You have ${(myHero() || {}).gold || 0}`),
-    extra && extra.button ? extra.button : null);
+    h('div', { class: 'btn gbtn' }, got ? '✓ Collected' : `Collect ${ch.gold} gold`));
+  roomUI.goldDealt = true;
+  return card;
+}
+// a few coins fly from the gold card to the gold counter in the top bar
+function coinBurst(from) {
+  const a = from.getBoundingClientRect(); const chip = $('#goldChip'); const b = chip ? chip.getBoundingClientRect() : { left: innerWidth - 80, top: 10, width: 40, height: 20 };
+  for (let i = 0; i < 7; i++) {
+    const c = h('img', { class: 'flycoin', src: SP.iconURL('gold', 2), alt: '' });
+    const x0 = a.left + a.width / 2 + (Math.random() - 0.5) * 60, y0 = a.top + a.height * 0.35 + (Math.random() - 0.5) * 30;
+    c.style.left = x0 + 'px'; c.style.top = y0 + 'px';
+    document.body.append(c);
+    const dx = b.left + b.width / 2 - x0, dy = b.top + b.height / 2 - y0;
+    c.animate([{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${dx * 0.4}px, ${dy * 0.4 - 60}px) scale(1.2)`, opacity: 1, offset: 0.4 }, { transform: `translate(${dx}px, ${dy}px) scale(0.6)`, opacity: 0.2 }],
+      { duration: 650 + i * 70, easing: 'cubic-bezier(.4,0,.6,1)', delay: i * 40 }).onfinish = () => c.remove();
+  }
+  if (chip) setTimeout(() => { chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump'); }, 700);
 }
 // The "OR" between chest choices: you keep only one card.
-const orSep = wrap => h('div', { class: 'or' + (wrap ? ' wrap' : ''), 'aria-hidden': 'true' }, h('span', null, 'OR'));
+const orSep = () => h('div', { class: 'or', 'aria-hidden': 'true' }, h('span', null, 'OR'));
 // "Your skills" and "Your items" under the loot, so students can see what they already carry
 function loadout(hero) {
   const items = hero.items || [];
@@ -622,30 +643,31 @@ function renderRoom() {
       panel.append(h('p', { class: 'lead' }, `A ${C.RARITY[ch.rarity].name.toLowerCase()} chest. Open it to see what's inside.`));
       const img = h('img', { class: 'chest-big shake', style: { '--rc': rc }, src: chestURL(ch.rarity, false), alt: 'Treasure chest', onclick: openIt });
       panel.append(img, h('div', { class: 'center' }, h('button', { class: 'btn primary', onclick: openIt }, 'Open the chest')));
-      function openIt() { sfx('open'); roomOp('open', {}, r => { if (r.ok) sfx('twinkle'); }); }
+      function openIt() { sfx('open'); roomOp('open', {}, r => { if (r.ok) { sfx('twinkle'); setTimeout(() => sfx('coin'), 350); } }); }
     } else if (!ch.decided) {
-      const take = (pick, slot) => roomOp('take', { pick, slot }, r => { if (r.ok) { sfx(pick === 'gold' ? 'coin' : 'open'); roomUI.chestSkill = false; if (pick === 'skill' && ch.skill) guide.noteLearned(C.skillName(ch.skill.id, ch.skill.lvl)); } });
+      const take = (pick, slot) => roomOp('take', { pick, slot }, r => { if (r.ok) { sfx(pick === 'keep' ? 'click' : 'open'); roomUI.chestSkill = false; if (pick === 'skill' && ch.skill) guide.noteLearned(C.skillName(ch.skill.id, ch.skill.lvl)); } });
       if (roomUI.chestSkill && ch.skill) panel.append(...replaceRow(ch.skill.id, ch.skill.lvl, 'New', i => take('skill', i), () => { roomUI.chestSkill = false; renderRoom(); }));
       else {
-        panel.append(h('p', { class: 'lead' }, h('b', { class: 'mk-one' }, 'Choose one: '), h('b', { class: 'mk-skill' }, 'a skill'), ' (a new move for battle) ', h('b', { class: 'mk-or' }, 'or'), ' ', h('b', { class: 'mk-item' }, 'an item'), ' (a bonus that is always on) ', h('b', { class: 'mk-or' }, 'or'), ' ', h('b', { class: 'mk-gold' }, 'the gold'), '.'));
+        panel.append(h('p', { class: 'lead' }, h('b', { class: 'mk-gold' }, 'Collect your gold'), ', then ', h('b', { class: 'mk-one' }, 'choose one: '), h('b', { class: 'mk-skill' }, 'a skill'), ' (a new move for battle) ', h('b', { class: 'mk-or' }, 'or'), ' ', h('b', { class: 'mk-item' }, 'an item'), ' (a bonus that is always on).'));
         const row = h('div', { class: 'row choose' });
         const fresh = !roomUI.dealt; roomUI.dealt = true;   // the cards fly in once, not on every update
         if (ch.skill) row.append(skillCard(ch.skill.id, ch.skill.lvl, { isNew: fresh, small: true, button: h('button', { class: 'btn primary', onclick: () => { sfx('click'); if (hero.skills.length < C.MAX_SKILLS) take('skill'); else { roomUI.chestSkill = true; renderRoom(); } } }, 'Take skill') }));
-        if (ch.item) { if (row.firstChild) row.append(orSep(false)); row.append(itemCard(ch.item, { isNew: fresh, small: true, button: h('button', { class: 'btn primary', onclick: () => { sfx('click'); take('item'); } }, 'Take item') })); }
-        if (row.firstChild) row.append(orSep(row.children.length > 1));
-        row.append(goldCard(ch.gold, { isNew: fresh, rarity: ch.rarity, button: h('button', { class: 'btn', onclick: () => take('gold') }, `Take ${ch.gold} gold`) }));
-        panel.append(row);
+        if (ch.item) { if (row.firstChild) row.append(orSep()); row.append(itemCard(ch.item, { isNew: fresh, small: true, button: h('button', { class: 'btn primary', onclick: () => { sfx('click'); take('item'); } }, 'Take item') })); }
+        const choose = h('div', { class: 'grp grp-choose' }, h('div', { class: 'grp-h' }, 'Choose one'), row,
+          h('div', { class: 'center keep' }, h('button', { class: 'linkbtn', onclick: () => { sfx('click'); take('keep'); } }, 'No thanks, keep what I have')));
+        panel.append(h('div', { class: 'loot' }, h('div', { class: 'grp grp-gold' }, h('div', { class: 'grp-h' }, 'Yours to keep'), goldCard(ch)), h('div', { class: 'loot-split', 'aria-hidden': 'true' }), choose));
       }
       panel.append(loadout(hero));
     } else {
       const c = ch.choice || {};
-      panel.append(h('p', { class: 'lead' }, (c.skill ? `You learned ${C.SKILLS[c.skill].name}${c.replaced ? ` (instead of ${C.SKILLS[c.replaced].name})` : ''}.` : c.item ? `You found ${C.ITEMS[c.item].name}.` : c.gold ? `+${c.gold} gold.` : 'Loot sorted.') + ' Waiting for your team.'));
+      if (!ch.goldPaid) panel.append(h('p', { class: 'lead' }, h('b', { class: 'mk-gold' }, "Don't forget your gold!")), h('div', { class: 'loot solo' }, goldCard(ch)));
+      panel.append(h('p', { class: 'lead' }, (c.skill ? `You learned ${C.SKILLS[c.skill].name}${c.replaced ? ` (instead of ${C.SKILLS[c.replaced].name})` : ''}.` : c.item ? `You found ${C.ITEMS[c.item].name}.` : c.kept ? 'You kept your skills and items as they are.' : 'Nothing else in this chest.') + (ch.goldPaid ? ' Waiting for your team.' : '')));
       panel.append(loadout(hero));
     }
     const feed = h('div', { class: 'feed' });
     for (const [pid, c2] of Object.entries(room.chests || {})) {
       const who = state.run.heroes.find(x => x.id === pid); const c = c2.choice; if (!who || pid === me.playerId || !c) continue;
-      feed.appendChild(h('div', null, c.skill ? `${who.name} learned ${C.SKILLS[c.skill].name}` : c.item ? `${who.name} found ${C.ITEMS[c.item].name}` : `${who.name} took ${c.gold} gold`));
+      feed.appendChild(h('div', null, c.skill ? `${who.name} learned ${C.SKILLS[c.skill].name}` : c.item ? `${who.name} found ${C.ITEMS[c.item].name}` : `${who.name} kept their loadout`));
     }
     panel.append(feed, readyLine(room));
   } else if (room.type === 'rest') {

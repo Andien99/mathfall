@@ -211,11 +211,14 @@ async function step(b, done) {
       if (room.ready[b.id]) return;
       stats.rooms[room.type] = (stats.rooms[room.type] || 0) + 1;
       if (room.type === 'treasure') {
+        const mine = st.you && st.you.chest;
+        if (mine && mine.decided) { if (!mine.goldPaid) await emit(b.s, 'room', { op: mine.opened ? 'collect' : 'ready' }); return; }   // chose earlier, gold still to tap
         await emit(b.s, 'room', { op: 'open' });
-        // keep one of the three: a skill (into the free slot, or over a random one), an item, or the gold
-        const pickIt = ['skill', 'item', 'gold'][Math.floor(Math.random() * 3)];
+        if (Math.random() < 0.8) { const g = await emit(b.s, 'room', { op: 'collect' }); if (!g.ok) stats.errors.push('collect gold failed'); }   // some leave it: paid anyway
+        // the gold comes with the chest; keep one of the two: a skill (into the free slot, or over a random one) or the item
+        const pickIt = ['skill', 'item', 'keep'][Math.floor(Math.random() * 3)];
         let t = await emit(b.s, 'room', { op: 'take', pick: pickIt, slot: Math.floor(Math.random() * 3) });
-        if (!t.ok) t = await emit(b.s, 'room', { op: 'take', pick: 'gold' });
+        if (!t.ok) t = await emit(b.s, 'room', { op: 'take', pick: 'keep' });
         if (t.ok) { stats.loot[pickIt] = (stats.loot[pickIt] || 0) + 1; if (pickIt === 'skill') stats.swaps++; } else stats.errors.push('chest take failed ' + t.msg);
       } else if (room.type === 'rest') {
         const rr = Math.random(); await emit(b.s, 'room', rr < 0.4 ? { op: 'rest' } : rr < 0.7 ? { op: 'train', slot: 0 } : { op: 'meditate' });

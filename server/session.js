@@ -368,6 +368,17 @@ class Session {
       this.openRoom(team, { type: 'victory', gold, elite: type === 'elite', ready: {}, stats: {} });
     }
   }
+  // Chest gold is not a choice: every hero gets it. They tap it to collect it (so they see it arrive), and any
+  // gold left uncollected is paid when the room closes. The choice is the skill OR the item.
+  collectChestGold(h, ch) {
+    if (!ch.opened || ch.goldPaid) return false;
+    ch.goldPaid = true; h.gold += ch.gold; return true;
+  }
+  settleChest(h, ch) {
+    ch.opened = true;
+    this.collectChestGold(h, ch);
+    if (!ch.decided) { ch.decided = true; ch.choice = { kept: true }; }
+  }
   advanceRoom(team, forced) {
     const run = team.run; const room = run.room; if (!room) return;
     if (room.type === 'victory' && room.elite) { this.openRoom(team, RUN.makeTreasureRoom(run, 'elite')); this.flush(team); return; }
@@ -375,10 +386,10 @@ class Session {
     if (room.type === 'raidEnd') return;
     if (room.type === 'event' && room.event === 'ambush' && this.resolveAmbush(team)) return;
     if (room.type === 'defeat') { this.startRun(team, run.asc); return; }
-    // anyone who didn't decide on a chest keeps their loadout
+    // anyone who didn't open or decide on a chest still gets its gold and keeps their loadout
     if (room.type === 'treasure') for (const [pid, ch] of Object.entries(room.chests)) {
       const h = run.heroes[pid];
-      if (h && !ch.decided) { ch.opened = true; ch.decided = true; h.gold += ch.gold; ch.choice = { gold: ch.gold }; }
+      if (h) this.settleChest(h, ch);
     }
     if (room.type === 'treasure' && room.kind === 'boss') { this.startRun(team, run.asc + 1, true); return; }
     run.phase = 'map'; run.room = null;
@@ -648,7 +659,7 @@ class Session {
     const you = { id: p.id, name: p.name, cls: p.cls, gender: p.gender, track: this.trackFor(p) === 'modified' ? 'support' : 'main', joining: !!(run && !run.heroes[p.id]), test: this.test };
     if (p.pending) you.pendingQ = p.pending.answered ? null : p.pending.pub.qid;
     const room = run && run.room;
-    if (room && room.type === 'treasure' && room.chests[p.id]) { const ch = room.chests[p.id]; you.chest = { rarity: ch.rarity, opened: ch.opened, decided: ch.decided, choice: ch.choice || null, gold: ch.opened ? ch.gold : 0, skill: ch.opened ? ch.skill : null, item: ch.opened ? ch.item : null }; }
+    if (room && room.type === 'treasure' && room.chests[p.id]) { const ch = room.chests[p.id]; you.chest = { rarity: ch.rarity, opened: ch.opened, decided: ch.decided, choice: ch.choice || null, gold: ch.opened ? ch.gold : 0, goldPaid: !!ch.goldPaid, skill: ch.opened ? ch.skill : null, item: ch.opened ? ch.item : null }; }
     if (room && room.type === 'merchant' && room.stock[p.id]) you.stock = room.stock[p.id];
     const c = run && run.combat;
     if (c && c.phase === 'qte' && c.qte && c.qte.per[p.id]) {
@@ -1170,14 +1181,15 @@ function attach(io, banks) {
       const op = String(d.op || '');
       const ok = (extra) => { reply(cb, { ok: true, ...(extra || {}) }); s.flush(t); };
       if (op === 'ready') {
-        // leaving without choosing takes the chest's gold
-        if (room.type === 'treasure') { const ch = room.chests[p.id]; if (ch && !ch.decided) { ch.opened = true; ch.decided = true; h.gold += ch.gold; ch.choice = { gold: ch.gold }; } }
+        // leaving without choosing: the gold, and nothing else
+        if (room.type === 'treasure') { const ch = room.chests[p.id]; if (ch) s.settleChest(h, ch); }
         room.ready[p.id] = true; s.checkRoomReady(t); return ok();
       }
       if (room.type === 'treasure') {
-        // A chest holds a skill, an item and some gold: the hero keeps one of the three.
+        // A chest holds some gold (always yours, paid on opening), plus a skill and an item: the hero keeps one of the two.
         const ch = room.chests[p.id]; if (!ch) return reply(cb, { ok: false });
-        if (op === 'open' && !ch.opened) { ch.opened = true; return ok(); }
+        if (op === 'open' && !ch.opened) { ch.opened = true; if (!ch.skill && !ch.item) { ch.decided = true; ch.choice = { kept: true }; } return ok(); }
+        if (op === 'collect') { if (!s.collectChestGold(h, ch)) return reply(cb, { ok: false }); if (ch.decided) { room.ready[p.id] = true; s.checkRoomReady(t); } return ok({ gold: ch.gold, total: h.gold }); }
         if (op !== 'take' || !ch.opened || ch.decided) return reply(cb, { ok: false });
         const pickIt = String(d.pick || '');
         if (pickIt === 'skill' && ch.skill) {
@@ -1187,10 +1199,10 @@ function attach(io, banks) {
         } else if (pickIt === 'item' && ch.item) {
           if (!RUN.giveItem(h, ch.item)) return reply(cb, { ok: false, msg: 'You already have that item.' });
           ch.choice = { item: ch.item };
-        } else if (pickIt === 'gold') { h.gold += ch.gold; ch.choice = { gold: ch.gold }; }
+        } else if (pickIt === 'keep' || pickIt === 'gold') ch.choice = { kept: true };   // neither: happy with what they have
         else return reply(cb, { ok: false });
         ch.decided = true;
-        room.ready[p.id] = true; s.checkRoomReady(t);
+        if (ch.goldPaid) { room.ready[p.id] = true; s.checkRoomReady(t); }   // still to collect the gold: not ready yet
         return ok();
       }
       if (room.type === 'rest') {
