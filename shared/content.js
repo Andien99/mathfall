@@ -43,15 +43,21 @@
       attack: { name: 'Smite', dmg: 5, heal: 3, desc: 'Deal 5 damage and heal the most hurt ally 3.' },
       defend: { name: 'Sanctify', block: 7, desc: 'Gain 7 block. Tap an ally first to protect them instead.' },
       skills: ['healing_light', 'blessing'], role: 'Healing'
+    },
+    samurai: {
+      name: 'Samurai', hp: 40, blurb: 'Swift duelist. Strikes first, counters, and finishes the job.',
+      attack: { name: 'Iai Cut', dmg: 8, desc: 'Deal 8 damage.' },
+      defend: { name: 'Parry', block: 8, desc: 'Gain 8 block. Tap an ally first to cover them instead.' },
+      skills: ['quickdraw', 'still_mind'], role: 'Precision'
     }
   };
-  const HERO_ORDER = ['knight', 'mage', 'ranger', 'cleric'];
+  const HERO_ORDER = ['knight', 'mage', 'ranger', 'cleric', 'samurai'];
 
   // Energy powers Skill 1 and Skill 2. Basic actions charge it; it resets at the start of each fight.
   const ENERGY = { max: 10, start: 2, attack: 3, defend: 3, focus: 1 };
 
   // Every skill belongs to one class. Heroes start with their class's two starters (HEROES[cls].skills) and find
-  // the rest in chests and shops: 8 common, 5 rare and 3 legendary per class (the Knight has a 4th legendary).
+  // the rest in chests and shops: 8 common, 5 rare and 3 legendary per class.
   // target: enemy | ally | party | allEnemies | self       cost: energy (legendaries cost 8 or more)
   // Numbers in `p` grow with upgrades (level 2 = x1.35). Durations (keys ending in T) and counts (ending in N) do not.
   const SKILLS = {
@@ -189,7 +195,42 @@
     divine_shield: { cls: 'cleric', name: 'Divine Shield', rarity: 'legendary', cost: 8, target: 'party', icon: 'divine_shield', fx: 'divine', color: '#fff6c8',
       p: {}, desc: () => 'A holy barrier: no hero takes damage from enemies this round, and every hero loses Weak and Vulnerable.' },
     wrath_of_heaven: { cls: 'cleric', name: 'Wrath of Heaven', rarity: 'legendary', cost: 8, target: 'allEnemies', icon: 'wrath', fx: 'pillar', color: '#fff0a8',
-      p: { dmg: 4, hitsN: 4, heal: 8 }, desc: p => `A pillar of light over the whole battlefield strikes every enemy ${p.hitsN} times for ${p.dmg}, and every hero heals ${p.heal}.` }
+      p: { dmg: 4, hitsN: 4, heal: 8 }, desc: p => `A pillar of light over the whole battlefield strikes every enemy ${p.hitsN} times for ${p.dmg}, and every hero heals ${p.heal}.` },
+
+    // ================================================================= SAMURAI
+    // Poised (from Still Mind, Kiai, Perfect Parry, Inner Calm): the samurai's next attack or damaging skill deals double damage.
+    quickdraw: { cls: 'samurai', name: 'Quickdraw', rarity: 'common', cost: 4, target: 'enemy', icon: 'quickdraw', fx: 'slash_heavy', color: '#ffd8a8',
+      p: { dmg: 9 }, desc: p => `Deal ${p.dmg} damage, or ${p.dmg * 2} if the target is at full health.` },
+    still_mind: { cls: 'samurai', name: 'Still Mind', rarity: 'common', cost: 2, target: 'self', icon: 'still_mind', fx: 'poise', color: '#ffc8e0',
+      p: { block: 5 }, desc: p => `Gain ${p.block} block and become Poised: your next attack or damaging skill deals double damage.` },
+    twin_cut: { cls: 'samurai', name: 'Twin Cut', rarity: 'common', cost: 3, target: 'enemy', icon: 'twin_cut', fx: 'slash', color: '#e8eef6',
+      p: { dmg: 5, hitsN: 2 }, desc: p => `Two quick cuts of ${p.dmg} damage.` },
+    final_cut: { cls: 'samurai', name: 'Final Cut', rarity: 'common', cost: 3, target: 'enemy', icon: 'final_cut', fx: 'slash_heavy', color: '#ff8a8a',
+      p: { dmg: 7 }, desc: p => `Deal ${p.dmg} damage, or ${p.dmg * 2} if the target is below half health.` },
+    sweeping_cut: { cls: 'samurai', name: 'Sweeping Cut', rarity: 'common', cost: 4, target: 'allEnemies', icon: 'sweeping_cut', fx: 'whirl', color: '#d0f0ff',
+      p: { dmg: 5 }, desc: p => `Sweep through the line: ${p.dmg} damage to every enemy.` },
+    counter_stance: { cls: 'samurai', name: 'Counter Stance', rarity: 'common', cost: 3, target: 'self', icon: 'counter_stance', fx: 'counter', color: '#ffe08a',
+      p: { block: 7, thorns: 5 }, desc: p => `Gain ${p.block} block. Enemies that hit you this round take ${p.thorns} damage back.` },
+    wind_step: { cls: 'samurai', name: 'Wind Step', rarity: 'common', cost: 3, target: 'enemy', icon: 'wind_step', fx: 'slash', color: '#a8ffe0',
+      p: { dmg: 6, block: 6 }, desc: p => `Dash in for ${p.dmg} damage and gain ${p.block} block.` },
+    kiai: { cls: 'samurai', name: 'Kiai', rarity: 'common', cost: 3, target: 'enemy', icon: 'kiai', fx: 'slash', color: '#ff9a7a',
+      p: { dmg: 4, weakT: 1 }, desc: p => `A fierce shout and a cut: ${p.dmg} damage, the target is Weak for ${p.weakT} round, and you become Poised.` },
+    crescent_moon: { cls: 'samurai', name: 'Crescent Moon', rarity: 'rare', cost: 5, target: 'enemy', icon: 'crescent_moon', fx: 'slash_wide', color: '#fff2c0',
+      p: { dmg: 12, sweep: 5 }, desc: p => `Deal ${p.dmg} damage to the target and ${p.sweep} to every other enemy.` },
+    petal_flurry: { cls: 'samurai', name: 'Petal Flurry', rarity: 'rare', cost: 5, target: 'enemy', icon: 'petal_flurry', fx: 'slash', color: '#ffb8d8',
+      p: { dmg: 4, hitsN: 4 }, desc: p => `${p.hitsN} lightning cuts of ${p.dmg} damage. If the target falls, the rest go to the next enemy.` },
+    perfect_parry: { cls: 'samurai', name: 'Perfect Parry', rarity: 'rare', cost: 4, target: 'self', icon: 'perfect_parry', fx: 'counter', color: '#ffe08a',
+      p: { block: 12, thorns: 6 }, desc: p => `Gain ${p.block} block and become Poised. Enemies that hit you this round take ${p.thorns} damage back.` },
+    blade_dance: { cls: 'samurai', name: 'Blade Dance', rarity: 'rare', cost: 5, target: 'allEnemies', icon: 'blade_dance', fx: 'whirl', color: '#ffc8e0',
+      p: { dmg: 5, wavesN: 2 }, desc: p => `Dance through the enemy line twice: ${p.dmg} damage to every enemy each time.` },
+    inner_calm: { cls: 'samurai', name: 'Inner Calm', rarity: 'rare', cost: 4, target: 'party', icon: 'inner_calm', fx: 'buff_party', color: '#ffc8e0',
+      p: { block: 6 }, desc: p => `Every hero gains ${p.block} block, and you become Poised.` },
+    sakura_storm: { cls: 'samurai', name: 'Sakura Storm', rarity: 'legendary', cost: 8, target: 'allEnemies', icon: 'sakura_storm', fx: 'whirl', color: '#ff9ac8',
+      p: { dmg: 14, vulnT: 1 }, desc: p => `A storm of blossom and steel: ${p.dmg} damage to every enemy, and they are Vulnerable (take +50% damage) for ${p.vulnT} round.` },
+    moonlit_iai: { cls: 'samurai', name: 'Moonlit Iai', rarity: 'legendary', cost: 8, target: 'enemy', icon: 'moonlit_iai', fx: 'slash_heavy', color: '#fff6c8',
+      p: { dmg: 28 }, desc: p => `One perfect draw: ${p.dmg} damage, or ${Math.round(p.dmg * 1.5)} if the target is at full health or below half.` },
+    crimson_banner: { cls: 'samurai', name: 'Crimson Banner', rarity: 'legendary', cost: 8, target: 'party', icon: 'crimson_banner', fx: 'buff_party', color: '#ff6b6b',
+      p: { block: 8, str: 4, strT: 2 }, desc: p => `Raise the clan banner: every hero gains ${p.block} block and deals +${p.str} damage for ${p.strT} rounds.` }
   };
   const UNDEAD = ['skeleton', 'thrall', 'hollowking'];
 
@@ -271,7 +312,8 @@
     thorns: { name: 'Riposte', color: '#ffe08a', desc: 'Enemies that hit this hero take damage back.' },
     frost:  { name: 'Frost Armour', color: '#a8f0ff', desc: 'Enemies that hit this hero are Chilled.' },
     divine: { name: 'Divine Shield', color: '#fff6c8', desc: 'Takes no damage from enemies this round.' },
-    surge:  { name: 'Mana Surge', color: '#9fd8ff', desc: 'The next skill costs no energy.' }
+    surge:  { name: 'Mana Surge', color: '#9fd8ff', desc: 'The next skill costs no energy.' },
+    poise:  { name: 'Poised', color: '#ffc8e0', desc: 'The next attack or damaging skill deals double damage.' }
   };
 
 

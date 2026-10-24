@@ -5,6 +5,8 @@ Run: python3 tools/build_ranger.py   (needs Pillow)
   ranger:f  tools/art-src/ranger_f_base.png  -> public/art/ranger_f.png
   cleric:f  tools/art-src/cleric_f_base.png  -> public/art/cleric.png
   cleric:m  tools/art-src/cleric_m_base.png  -> public/art/cleric_m.png
+  samurai   tools/art-src/samurai_base.png   -> public/art/samurai.png  (PixelLab concept A1; one red panda
+            for both the Boy and Girl pick until a second version is drawn)
 These heroes hold their weapon, so every pose moves the whole sprite: lean, recoil, crouch,
 kneel. The idle loop comes from PixelLab when tools/art-src/<sheet>_idle.png exists
 (4 frames of 84x76, played 0-1-2-1 so it loops without a jump).
@@ -23,6 +25,8 @@ CONFIGS = {
     'ranger:f': dict(src='ranger_f_base.png', sheet='ranger_f', variants=[0, -0.24, 0.30], tint=GREEN, scale=0.95),
     'cleric:f': dict(src='cleric_f_base.png', sheet='cleric', variants=[0, 0.62, 0.36], tint=dict(lo=0.93, hi=0.04, smin=0.25, lmax=0.7, wrap=True), scale=0.85),  # red, blue, green cape
     'cleric:m': dict(src='cleric_m_base.png', sheet='cleric_m', variants=[0, 0.16, -0.12], tint=dict(lo=0.55, hi=0.75, smin=0.12, lmax=0.8), scale=0.93),           # blue, violet, teal robe
+    # the fur shares the coat's reds, so only the coat area is recoloured (region: x0, y0, x1, y1 in the base image)
+    'samurai:m': dict(src='samurai_base.png', sheet='samurai', variants=[0, 0.62, 0.36], tint=dict(lo=0.94, hi=0.02, smin=0.4, lmax=0.45, wrap=True, region=(0, 19, 34, 50)), aliases=['samurai:f'], face=(4, 0)),  # crimson, indigo, jade haori
 }
 
 def anchor_x(im):
@@ -63,7 +67,11 @@ def build_one(key):
         f = Image.new('RGBA', (FW, FH)); paste_clip(f, k, (OX, OY))
         return darken(f) if dark else f
     t = cfg['tint']
-    shade = lambda im, hs: hue_shift(im, t['lo'], t['hi'], hs, t['smin'], t['lmax'], t.get('wrap', False))
+    def shade(im, hs):
+        if 'region' not in t: return hue_shift(im, t['lo'], t['hi'], hs, t['smin'], t['lmax'], t.get('wrap', False))
+        box = t['region']; out = im.copy()
+        out.paste(hue_shift(im.crop(box), t['lo'], t['hi'], hs, t['smin'], t['lmax'], t.get('wrap', False)), box[:2])
+        return out
     idles = load_idle(cfg['sheet'])
     up1, up2 = int(H * 0.46), int(H * 0.64)
     sheet = Image.new('RGBA', (FW * len(POSES), FH * len(cfg['variants'])))
@@ -87,16 +95,18 @@ def build_one(key):
         sc = cfg.get('scale', 1)
         for pi, name in enumerate(POSES): sheet.alpha_composite(shrink_frame(P[name], sc, AX, AY), (pi * FW, vi * FH))
     sheet.save(os.path.join(OUT_DIR, cfg['sheet'] + '.png'))
-    px, py, pw, ph = face_box(base)
+    px, py, pw, ph = (cfg['face'] + (22, 22)) if 'face' in cfg else face_box(base)   # face: the portrait's top-left in the base image, when the fur fools the skin finder
     sc = cfg.get('scale', 1)
     if sc < 1:   # move the portrait crop to where the face ends up after the shrink
         fx, fy = OX + px + pw / 2, OY + py + ph / 2
         px = round(AX + (fx - AX) * sc - pw / 2) - OX; py = max(-OY, round(AY + (fy - AY) * sc - ph / 2) - OY)
-    update_manifest(key, {
+    entry = {
         'sheet': cfg['sheet'] + '.png', 'frame': [FW, FH], 'variants': len(cfg['variants']), 'variantRows': 1,
         'poses': {n: [i, 0] for i, n in enumerate(POSES)}, 'portrait': [OX + px, OY + py, pw, ph]
-    })
+    }
+    for k in [key] + cfg.get('aliases', []): update_manifest(k, entry)
     print('wrote', cfg['sheet'] + '.png', 'size', base.size, 'anchor', (OX, OY), 'idle from PixelLab' if idles else 'idle drawn')
 
 if __name__ == '__main__':
-    for k in CONFIGS: build_one(k)
+    import sys
+    for k in (sys.argv[1:] or CONFIGS): build_one(k)

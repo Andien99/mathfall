@@ -50,7 +50,7 @@ async function main() {
   host.on('host:state', s => { hostState = s; if (STRESS) M.bytesHost += JSON.stringify(s).length; });
 
   const bots = [];
-  const classes = ['knight', 'mage', 'ranger', 'cleric'];
+  const classes = C.HERO_ORDER;
   for (let i = 0; i < PLAYERS; i++) {
     const s = io(URL, { transports: ['websocket'] });
     await new Promise(r => s.on('connect', r));
@@ -58,7 +58,7 @@ async function main() {
     const j = await emit(s, 'join', { code, name: bot.name });
     if (!j.ok) throw new Error('join failed ' + j.msg);
     bot.id = j.playerId; bot.token = j.token;
-    await emit(s, 'pickHero', { cls: classes[i % 4] });
+    await emit(s, 'pickHero', { cls: classes[i % classes.length] });
     // device reports, like a real browser sends for the session report
     bot.tel = setInterval(() => { const t = Date.now(); bot.s.emit('tel', { fps: 50 + (i % 10), rtt: bot.rtt, transport: 'websocket', hidden: false, lowPower: i === 1, lat: [{ ev: 'answer', ms: 40 + i }], errors: i === 2 && !bot.errSent ? ['test error'] : [], info: { ua: 'bot', screen: '1366x768', dpr: 1, cores: 4 } }, () => { bot.rtt = Date.now() - t; }); bot.errSent = true; }, 2000);
     s.on('state', st => {

@@ -13,12 +13,12 @@ const easeIn = t => t * t * t;
 const now = () => performance.now();
 
 const STATUS_COL = { burn: '#ff8a3c', poison: '#8fe05a', weak: '#c7a2ff', vuln: '#ff6b8a', chill: '#8fe3ff', freeze: '#dff8ff', str: '#ff9a7a', taunt: '#ffd36b',
-  mark: '#ff6b6b', stun: '#ffe08a', regen: '#9dffb0', steady: '#c8d4e8', thorns: '#ffe08a', frost: '#a8f0ff', divine: '#fff6c8', surge: '#9fd8ff' };
+  mark: '#ff6b6b', stun: '#ffe08a', regen: '#9dffb0', steady: '#c8d4e8', thorns: '#ffe08a', frost: '#a8f0ff', divine: '#fff6c8', surge: '#9fd8ff', poise: '#ffc8e0' };
 // short labels for the status chips under health bars
-const STATUS_SHORT = { burn: 'B', poison: 'P', str: 'S', mark: 'Mk', regen: '+', thorns: 'Th', weak: 'We', vuln: 'Vu', chill: 'Ch', freeze: 'Fr', taunt: 'Ta', stun: 'St', steady: 'Ir', frost: 'Fa', divine: 'Dv', surge: 'Su' };
+const STATUS_SHORT = { burn: 'B', poison: 'P', str: 'S', mark: 'Mk', regen: '+', thorns: 'Th', weak: 'We', vuln: 'Vu', chill: 'Ch', freeze: 'Fr', taunt: 'Ta', stun: 'St', steady: 'Ir', frost: 'Fa', divine: 'Dv', surge: 'Su', poise: 'Po' };
 // colour of the glow and numbers for each support effect
 const SUP_COL = { heal: '#9dffb0', heal_party: '#9dffb0', revive: '#9dffb0', revive_party: '#ffe27a', bless_party: '#ffe9a0', buff_party: '#ff9a7a', empower: '#ff9a7a', rally_party: '#ffc08a',
-  taunt: '#ffd36b', counter: '#ffe08a', surge: '#9fd8ff', shield_ice: '#a8f0ff', smoke: '#c8c4d8', ward: '#ffe9a0', divine: '#fff6c8', shield_self: '#c8d4e8' };
+  taunt: '#ffd36b', counter: '#ffe08a', surge: '#9fd8ff', shield_ice: '#a8f0ff', smoke: '#c8c4d8', ward: '#ffe9a0', divine: '#fff6c8', shield_self: '#c8d4e8', poise: '#ffc8e0' };
 const SUPPORT = ['defend', 'shield_party', ...Object.keys(SUP_COL)];
 // Champion's Combo cross-slash impacts: the blades' directions (degrees) for the 1st, 2nd and 3rd slash
 const CROSS_ANGLES = [[38, -58], [-36, 62], [-4, 52, -72]];
@@ -102,7 +102,7 @@ const PFX = {
 const TS_TIP = { 'mage:f': [-4, -82], 'mage:m': [-11, -92] };
 const PIXEL_FX = (() => { try { return new URLSearchParams(location.search).get('vfx') !== 'code'; } catch (e) { return true; } })();
 const STATUS_ABBR = { burn: 'Burn', poison: 'Poison', weak: 'Weak', vuln: 'Vulnerable', chill: 'Chilled', freeze: 'Frozen', str: 'Strength', taunt: 'Taunt',
-  mark: 'Marked', stun: 'Stunned', regen: 'Mending', steady: 'Iron Skin', thorns: 'Riposte', frost: 'Frost Armour', divine: 'Shielded', surge: 'Mana Surge' };
+  mark: 'Marked', stun: 'Stunned', regen: 'Mending', steady: 'Iron Skin', thorns: 'Riposte', frost: 'Frost Armour', divine: 'Shielded', surge: 'Mana Surge', poise: 'Poised' };
 
 export class BattleScene {
   constructor(canvas, opts = {}) {
@@ -561,6 +561,7 @@ export class BattleScene {
     const support = SUPPORT.includes(fx);
     if (ev.name && ev.act !== 'attack' && ev.act !== 'defend') this.onBanner(ev.name, 'skill', ev.rarity);
     if (ev.focus) this.number(A.x, A.y - 48, 'Focused ×' + (1 + 0.3 * ev.focus).toFixed(1), '#b8c8ff', 0.8);
+    if (ev.poised) this.number(A.x, A.y - (ev.focus ? 58 : 48), 'Poised ×2', '#ffc8e0', 0.85);   // samurai: Still Mind, Kiai… doubled this one
     if (ev.energy > 0) setTimeout(() => this.number(A.x + 6, A.y - 62, '+' + ev.energy + ' energy', '#ffd84a', 0.75), T(450));
     const rc = (ev.rarity && C.RARITY[ev.rarity]) ? C.RARITY[ev.rarity].color : '#ffffff';
 

@@ -71,7 +71,7 @@ body.screen-lobby #lobby { display: grid; grid-template-columns: 1fr 280px; grid
 .gender-pick { display: inline-flex; margin-top: 10px; border: 1px solid var(--edge); border-radius: 999px; overflow: hidden; background: rgba(12, 14, 36, 0.8); }
 .gender-pick button { padding: 7px 22px; font-weight: 800; color: var(--muted); background: none; border: 0; min-width: 84px; }
 .gender-pick button.on { background: var(--brass); color: #2a1606; }
-.hero-cards { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 14px; }
+.hero-cards { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 12px; }
 .hero-card { position: relative; text-align: left; padding: 10px 12px 14px; border-radius: 8px; border: 1px solid var(--edge); background: linear-gradient(180deg, rgba(30, 40, 92, 0.86), rgba(12, 14, 36, 0.92)); transition: transform 0.12s, border-color 0.12s; }
 .hero-card:hover { transform: translateY(-3px); border-color: var(--edge-hi); }
 .hero-card.picked { border: 2px solid var(--brass); box-shadow: 0 0 0 3px rgba(232, 184, 90, 0.25), 0 14px 40px rgba(0, 0, 0, 0.5); }
@@ -91,6 +91,8 @@ body.screen-lobby #lobby { display: grid; grid-template-columns: 1fr 280px; grid
 .team-box .mem img { width: 42px; height: 42px; image-rendering: pixelated; border-radius: 4px; background: rgba(0, 0, 0, 0.35); }
 .team-box .mem .cls { color: var(--muted); font-size: 14px; }
 .lobby-wait { grid-column: 1 / -1; text-align: center; color: var(--muted); font-style: italic; margin: 0; }
+/* five hero cards need the full width on laptops: the team box drops below them */
+@media (max-width: 1320px) { body.screen-lobby #lobby { grid-template-columns: 1fr; } }
 @media (max-width: 900px) {
   body.screen-lobby #lobby { grid-template-columns: 1fr; }
   .hero-cards { grid-template-columns: repeat(2, 1fr); }

@@ -138,6 +138,55 @@ check('Divine Shield: no damage this round', () => {
 });
 check('Divine Shield clears Weak and Vulnerable from every hero', () => { const run = fight('cleric'); cast(run, 'divine_shield', null, r => { r.heroes.h2.st = { weak: { t: 2 }, vuln: { t: 2 } }; r.heroes.h1.st = { weak: { t: 1 } }; }); assert.deepStrictEqual(Object.keys(run.heroes.h2.st), ['divine']); assert.deepStrictEqual(Object.keys(run.heroes.h1.st), ['divine']); });
 
+// samurai
+const attack = (run, id = 'h1', t = 'e1') => { const out = []; run.heroes[id].acted = false; CB.heroAction(run, run.heroes[id], 'attack', t, out); return out[0]; };
+check('Quickdraw: double against a full-health enemy', () => {
+  assert.strictEqual(dmgTo(cast(fight('samurai'), 'quickdraw', 'e1').ev, 'e1'), 18);
+  assert.strictEqual(dmgTo(cast(fight('samurai'), 'quickdraw', 'e1', r => { r.combat.enemies[0].hp = 150; }).ev, 'e1'), 9);
+});
+check('Still Mind: Poised doubles the next attack, then it is gone', () => {
+  const run = fight('samurai'); const { h } = cast(run, 'still_mind', null);
+  assert.strictEqual(h.block, 5); assert.ok(h.st.poise);
+  const a = attack(run); assert.strictEqual(a.targets[0].dmg, 16); assert.ok(a.poised); assert.ok(!h.st.poise);
+  assert.strictEqual(attack(run).targets[0].dmg, 8);
+});
+check('Poised is kept by blocks and buffs, spent by damaging skills', () => {
+  const run = fight('samurai'); cast(run, 'still_mind', null); cast(run, 'counter_stance', null);
+  assert.ok(run.heroes.h1.st.poise, 'kept by Counter Stance');
+  const { ev } = cast(run, 'twin_cut', 'e1'); assert.strictEqual(dmgTo(ev, 'e1'), 20); assert.ok(!run.heroes.h1.st.poise);
+});
+check('Kiai: Weak, then Poised again (spending an old Poised first)', () => {
+  const run = fight('samurai'); cast(run, 'still_mind', null);
+  const { ev, e, h } = cast(run, 'kiai', 'e1'); assert.strictEqual(dmgTo(ev, 'e1'), 8); assert.ok(e[0].st.weak); assert.ok(h.st.poise);
+});
+check('Final Cut: double below half health', () => {
+  assert.strictEqual(dmgTo(cast(fight('samurai'), 'final_cut', 'e1', r => { r.combat.enemies[0].hp = 90; }).ev, 'e1'), 14);
+  assert.strictEqual(dmgTo(cast(fight('samurai'), 'final_cut', 'e1').ev, 'e1'), 7);
+});
+check('Crescent Moon: 12 to the target, 5 to the others', () => { const { ev } = cast(fight('samurai'), 'crescent_moon', 'e2'); assert.deepStrictEqual(['e1', 'e2', 'e3'].map(id => dmgTo(ev, id)), [5, 12, 5]); });
+check('Petal Flurry moves on when the target falls', () => {
+  const { ev } = cast(fight('samurai'), 'petal_flurry', 'e1', r => { r.combat.enemies[0].hp = 5; });
+  assert.strictEqual(ev.targets.length, 4); assert.deepStrictEqual(ev.targets.map(t => t.id), ['e1', 'e1', 'e2', 'e2']);
+});
+check('Blade Dance: two waves on every enemy', () => { const { ev } = cast(fight('samurai'), 'blade_dance', null); assert.strictEqual(ev.targets.length, 6); for (const id of ['e1', 'e2', 'e3']) assert.strictEqual(dmgTo(ev, id), 10); });
+check('Inner Calm: every hero blocks, the samurai is Poised', () => { const { h, ally } = cast(fight('samurai'), 'inner_calm', null); assert.strictEqual(h.block, 6); assert.strictEqual(ally.block, 6); assert.ok(h.st.poise); });
+check('Perfect Parry: block, counter, Poised', () => {
+  const run = fight('samurai'); const { h } = cast(run, 'perfect_parry', null); assert.strictEqual(h.block, 12); assert.ok(h.st.poise);
+  run.combat.enemies.forEach(e => { e.intent = { move: 'stab', type: 'attack', dmg: 4, target: 'h1' }; });
+  const evs = CB.enemyTurn(run); assert.ok(evs.filter(x => x.kind === 'enemy').every(x => x.targets[0].thorns === 6));
+});
+check('Sakura Storm: 14 and Vulnerable on every enemy', () => { const { ev, e } = cast(fight('samurai'), 'sakura_storm', null); for (const id of ['e1', 'e2', 'e3']) assert.strictEqual(dmgTo(ev, id), 14); assert.ok(e.every(x => x.st.vuln)); });
+check('Moonlit Iai: 42 at full or below half health, 28 otherwise', () => {
+  assert.strictEqual(dmgTo(cast(fight('samurai'), 'moonlit_iai', 'e1').ev, 'e1'), 42);
+  assert.strictEqual(dmgTo(cast(fight('samurai'), 'moonlit_iai', 'e1', r => { r.combat.enemies[0].hp = 150; }).ev, 'e1'), 28);
+  assert.strictEqual(dmgTo(cast(fight('samurai'), 'moonlit_iai', 'e1', r => { r.combat.enemies[0].hp = 90; }).ev, 'e1'), 42);
+});
+check('Crimson Banner: block and +4 for every hero', () => {
+  const run = fight('samurai'); const { h, ally } = cast(run, 'crimson_banner', null);
+  assert.strictEqual(h.block, 8); assert.strictEqual(ally.block, 8); assert.strictEqual(ally.st.str.v, 4);
+  assert.strictEqual(attack(run, 'h2').targets[0].dmg, C.HEROES.knight.attack.dmg + 4);
+});
+
 // ---------------------------------------------------------------- items
 const withItems = (cls, items) => { const run = fight(cls); for (const id of items) RUN.giveItem(run.heroes.h1, id); return run; };
 check("Sage's Crown: skills cost 1 less", () => { const run = withItems('knight', ['sages_crown']); cast(run, 'champions_combo', 'e1'); assert.strictEqual(run.heroes.h1.energy, 2); });

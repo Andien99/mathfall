@@ -63,7 +63,7 @@ if (QP.get('loop')) S.loop = QP.get('loop') !== '0';
 if (QP.get('bare')) document.body.classList.add('bare');
 const save = () => { if (QP.toString()) return; try { localStorage.setItem('mf_lab', JSON.stringify(S)); } catch (e) {} };
 
-const BASIC = { knight: ['slash', 'Slash'], mage: ['proj_arcane', 'Arcane Bolt'], ranger: ['proj_arrow', 'Quick Shot'], cleric: ['smite', 'Smite'] };
+const BASIC = { knight: ['slash', 'Slash'], mage: ['proj_arcane', 'Arcane Bolt'], ranger: ['proj_arrow', 'Quick Shot'], cleric: ['smite', 'Smite'], samurai: ['slash', 'Iai Cut'] };
 const ENEMIES = ['goblin', 'slime', 'skeleton', 'hexer', 'thrall', 'sentinel', 'minotaur', 'wyrm', 'colossus', 'hollowking', 'voidmaw'];
 
 function fit() { const r = $('#stage').getBoundingClientRect(); scene.resize(r.width, r.height, { x: 0, y: 30, w: r.width, h: r.height - 60 }); }

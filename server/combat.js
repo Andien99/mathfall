@@ -347,7 +347,7 @@ function needsToAct(h, player) { return player && player.connected && !h.acted; 
 // Each skill is a small function over these helpers. Damage, healing, block and status strength all
 // take the hero's Focus multiplier (X.m); hit() pushes one target record per hit, the rest merge into
 // the target's latest record so a heal and a block on one hero show together.
-function skillCtx(run, hero, ev, touched, pickEnemy, pickAlly, m, usedFocus) {
+function skillCtx(run, hero, ev, touched, pickEnemy, pickAlly, m, usedFocus, dm = 1) {
   const c = run.combat;
   const X = {
     run, hero, ev, m, usedFocus,
@@ -356,7 +356,7 @@ function skillCtx(run, hero, ev, touched, pickEnemy, pickAlly, m, usedFocus) {
     enemy() { const e = pickEnemy(); hero.lastTarget = e.id; return e; },
     ally: allowDowned => pickAlly(allowDowned),
     rec(id) { let r = null; for (let i = ev.targets.length - 1; i >= 0; i--) if (ev.targets[i].id === id) { r = ev.targets[i]; break; } if (!r) ev.targets.push(r = { id }); touched.add(id); return r; },
-    hit(e, base, opts = {}) { const r = hitEnemy(hero, e, base * m, opts); ev.targets.push(r); touched.add(e.id); return r; },
+    hit(e, base, opts = {}) { const r = hitEnemy(hero, e, base * m * dm, opts); ev.targets.push(r); touched.add(e.id); return r; },   // dm: x2 when the samurai was Poised
     status(ent, k, v, r) { if (ent.dead || ent.downed) return r; addStatus(ent, k, v); r = r || X.rec(ent.id); (r.status = r.status || []).push(k); return r; },
     heal(h, amt, raw) { const n = healHero(hero, h, raw ? amt : amt * m).heal; const r = X.rec(h.id); r.heal = (r.heal || 0) + n; return n; },
     block(h, amt) { const n = blockHero(h, amt * m).block; const r = X.rec(h.id); r.block = (r.block || 0) + n; return n; },
@@ -484,10 +484,31 @@ const SKILL_FX = {
       const r = X.status(h, 'divine', { t: 1 }); if (bad.length) r.cleansed = bad;
     }
   },
-  wrath_of_heaven(X, p) { for (let i = 0; i < p.hitsN; i++) for (const e of X.enemies()) X.hit(e, p.dmg).wave = i; for (const h of X.heroes()) X.heal(h, p.heal); }
+  wrath_of_heaven(X, p) { for (let i = 0; i < p.hitsN; i++) for (const e of X.enemies()) X.hit(e, p.dmg).wave = i; for (const h of X.heroes()) X.heal(h, p.heal); },
+  // ---- samurai (Poised: the next attack or damaging skill deals double damage; heroAction spends it)
+  quickdraw(X, p) { const e = X.enemy(), full = e.hp >= e.maxHp, r = X.hit(e, p.dmg * (full ? 2 : 1)); if (full) r.crit = true; },
+  still_mind(X, p) { X.block(X.hero, p.block); poise(X); },
+  twin_cut(X, p) { let e = X.enemy(); for (let i = 0; i < p.hitsN; i++) { e = X.next(e); if (!e) break; X.hit(e, p.dmg).hit = i; } },
+  final_cut(X, p) { const e = X.enemy(), low = e.hp < e.maxHp / 2, r = X.hit(e, p.dmg * (low ? 2 : 1)); if (low) r.crit = true; },
+  sweeping_cut(X, p) { for (const e of X.enemies()) X.hit(e, p.dmg); },
+  counter_stance(X, p) { X.block(X.hero, p.block); X.status(X.hero, 'thorns', { v: X.n(p.thorns), t: 1 }); },
+  wind_step(X, p) { X.hit(X.enemy(), p.dmg); X.block(X.hero, p.block); },
+  kiai(X, p) { const e = X.enemy(); X.status(e, 'weak', { t: p.weakT }, X.hit(e, p.dmg)); poise(X); },
+  crescent_moon(X, p) { const e = X.enemy(); X.hit(e, p.dmg); for (const o of X.enemies()) if (o !== e) X.hit(o, p.sweep, { noStr: true }).splash = true; },
+  petal_flurry(X, p) { let e = X.enemy(); for (let i = 0; i < p.hitsN; i++) { e = X.next(e); if (!e) break; X.hit(e, p.dmg).hit = i; } },
+  perfect_parry(X, p) { X.block(X.hero, p.block); X.status(X.hero, 'thorns', { v: X.n(p.thorns), t: 1 }); poise(X); },
+  blade_dance(X, p) { for (let w = 0; w < p.wavesN; w++) for (const e of X.enemies()) X.hit(e, p.dmg).wave = w; },
+  inner_calm(X, p) { for (const h of X.heroes()) X.block(h, p.block); poise(X); },
+  sakura_storm(X, p) { for (const e of X.enemies()) X.status(e, 'vuln', { t: p.vulnT }, X.hit(e, p.dmg)); },
+  moonlit_iai(X, p) { const e = X.enemy(), big = e.hp >= e.maxHp || e.hp < e.maxHp / 2, r = X.hit(e, Math.round(p.dmg * (big ? 1.5 : 1))); if (big) r.crit = true; },
+  crimson_banner(X, p) { for (const h of X.heroes()) { X.block(h, p.block); X.status(h, 'str', { v: X.n(p.str), t: p.strT }); } }
 };
+function poise(X) { X.status(X.hero, 'poise', { t: 99 }); }
+// Skills that hit enemies spend Poised (and so do basic attacks); blocks, buffs and Still Mind itself keep it.
+const spendsPoise = def => def.target === 'enemy' || def.target === 'allEnemies';
 
 // ---------------------------------------------------------------- hero actions
+const ATTACK_FX = { knight: 'slash', mage: 'proj_arcane', ranger: 'proj_arrow', cleric: 'smite', samurai: 'slash' };
 // Returns { ok, msg } and pushes events into out[]
 function heroAction(run, hero, action, targetId, out) {
   const c = run.combat;
@@ -527,9 +548,12 @@ function heroAction(run, hero, action, targetId, out) {
 
   if (action === 'attack') {
     const e = pickEnemy(); hero.lastTarget = e.id;
-    ev.fx = { knight: 'slash', mage: 'proj_arcane', ranger: 'proj_arrow', cleric: 'smite' }[hero.cls];
+    ev.fx = ATTACK_FX[hero.cls] || 'slash';
     ev.name = H.attack.name;
-    ev.targets.push(hitEnemy(hero, e, (H.attack.dmg + (has(hero, 'whetstone') ? 2 : 0)) * focusMult)); touched.add(e.id);
+    const dm = hero.st.poise ? 2 : 1;
+    if (dm > 1) { delete hero.st.poise; ev.poised = true; }
+    const hr = hitEnemy(hero, e, (H.attack.dmg + (has(hero, 'whetstone') ? 2 : 0)) * focusMult * dm); if (dm > 1) hr.crit = true;
+    ev.targets.push(hr); touched.add(e.id);
     if (H.attack.heal) {
       const a = lowestHero(run);
       if (a) { const r = healHero(hero, a, H.attack.heal * focusMult); if (r.heal) { ev.targets.push(r); touched.add(a.id); } }
@@ -551,7 +575,9 @@ function heroAction(run, hero, action, targetId, out) {
     if ((hero.energy || 0) < cost) return { ok: false, msg: `${C.skillName(sk.id, sk.lvl)} needs ${cost} energy (you have ${hero.energy || 0}).` };
     ev.skill = sk.id; ev.name = C.skillName(sk.id, sk.lvl); ev.fx = def.fx; ev.rarity = def.rarity;
     const free = hero.st.surge && sk.id !== 'mana_surge';
-    fn(skillCtx(run, hero, ev, touched, pickEnemy, pickAlly, focusMult, usedFocus), C.skillParams(sk.id, sk.lvl));
+    const dm = hero.st.poise && spendsPoise(def) ? 2 : 1;
+    if (dm > 1) { delete hero.st.poise; ev.poised = true; }   // spent before the skill runs, so Kiai can make you Poised again
+    fn(skillCtx(run, hero, ev, touched, pickEnemy, pickAlly, focusMult, usedFocus, dm), C.skillParams(sk.id, sk.lvl));
     if (free) { delete hero.st.surge; ev.surged = true; }   // Mana Surge's free cast is used up
     hero.energy = Math.max(0, (hero.energy || 0) - cost); ev.energy = -cost;
     hero.focus = 0; ev.focus = usedFocus;
@@ -582,7 +608,7 @@ function whiff(run, hero, action, targetId, out) {
     const enemies = aliveEnemies(c);
     const e = (targetId && enemies.find(x => x.id === targetId)) || enemies.find(x => x.id === hero.lastTarget) || enemies[0];
     ev.name = 'Miss!';
-    ev.fx = action === 'attack' ? ({ knight: 'slash', mage: 'proj_arcane', ranger: 'proj_arrow', cleric: 'smite' }[hero.cls]) : 'miss';
+    ev.fx = action === 'attack' ? (ATTACK_FX[hero.cls] || 'slash') : 'miss';
     if (e) ev.targets.push({ id: e.id, miss: true });
   }
   hero.acted = true;
