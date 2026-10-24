@@ -29,6 +29,8 @@ const DARK_A = 0.84;
 const projKind = fx => ({ mark: 'proj_arrow', multishot: 'proj_arrow', ricochet: 'proj_arrow', missiles: 'proj_arcane' }[fx] || fx);
 // the Minotaur's Ground Slam: PixelLab earth spikes that burst out of the floor (public/art/fx)
 const SPIKES = [0, 1, 2].map(i => { const im = new Image(); im.src = '/art/fx/earth_spike_' + i + '.png'; return im; });
+// Moonlit Iai: the full moon that rises behind the battlefield (one PixelLab image, drawn 1:1 and cut in two in code)
+const MOON = new Image(); MOON.src = '/art/fx/moon.png';
 // PixelLab effect sprite sheets (public/art/fx, made with create_vfx): the alternative pixel-art look for the Meteor's rock
 // and explosion and Earthshatter's flaming blade and fire columns. On by default; ?vfx=code shows the older code-drawn shapes instead.
 const FX_SHEET = (src, w, h, cols, n, fps, ax, ay, loop) => { const img = new Image(); img.src = '/art/fx/' + src; return { img, w, h, cols, n, fps, ax, ay, loop }; };
@@ -135,6 +137,7 @@ export class BattleScene {
     this.pixelFx = PIXEL_FX;
     this.rarcs = []; this.rpillar = []; this.rrocks = []; this.rbeam = null; this.rbloom = null;   // Hero's Resolve: curved cuts, the column of light, lifted rocks, the blade's pillar, the ball of light
     this.mets = [];   // Meteor: hand flame, spark, the rock, its explosion and the fire it leaves
+    this.moon = null; this.mwaves = [];   // Moonlit Iai: the moon in the night sky, the crescent waves of moonlight
     this.cracks = []; this.spikes = []; this.ghosts = [];
     this.slowmo = 1;   // <1 plays everything in slow motion (used by the /dev/lab.html animation lab)
     this.freezeUntil = 0;
@@ -596,6 +599,7 @@ export class BattleScene {
     const home = { x: A.x, y: A.y };
     if (fx === 'combo' && first) return this._combo(A, ev, tgt, rc, T, home);
     if (ev.skill === 'sakura_storm' && first) { const own = SP.heroAnim(A.skin || A.cls, 'iai'); if (own && own.iai) return this._sakuraAnim(A, ev, tgt, rc, own, T, home); }
+    if (ev.skill === 'moonlit_iai' && first) { const own = SP.heroAnim(A.skin || A.cls, 'iai'); if (own && own.iai) return this._moonAnim(A, first, ev, tgt, rc, own, T); }
     if (ev.skill === 'quickdraw' && first) { const own = SP.heroAnim(A.skin || A.cls, 'iai'); if (own && own.iai) return this._iaiAnim(A, first, ev, tgt, rc, own, T, home); }
     if (['missiles', 'multishot', 'ricochet', 'phantom'].includes(fx) && first) return this._multiShot(A, ev, tgt, fx, rc, T);
     if (fx === 'quake') {   // Earthshatter: the floor cracks out from the knight, rock spikes burst up under every enemy
@@ -824,6 +828,69 @@ export class BattleScene {
     return T(END + 200);
   }
 
+  // Moonlit Iai (samurai; his Quickdraw frames, re-timed). He never moves; one cut does everything:
+  // 1. night falls: the room dims to deep indigo and a huge full moon rises behind the battlefield, moonlight rimming him;
+  // 2. focus: a glint runs along the scabbard and a faint silver hairline draws itself across the target, where the cut
+  //    will land; 3. the draw: a silver flash, the blade already out, and one giant crescent of moonlight tears from it
+  //    across the field and through the target, shedding silver motes; 4. the delay: nothing happens, the target stands
+  //    there with the cut glowing on it, and a line draws itself across the moon; 5. the sheathe click: the moon splits in
+  //    two along the line and the target takes the hit (on the x1.5 hit everything flashes gold-white, a second crescent
+  //    echoes through and "Perfect Cut" pops up); 6. dawn: the moon halves fade and the light comes back.
+  _moonAnim(A, first, ev, tgt, rc, anim, T) {
+    const rnd = (a, b) => a + Math.random() * (b - a), t0 = now(), when = (ms, fn) => setTimeout(fn, T(ms));
+    const e = first, hp = this._hitPoint(e), big = e.size === 'xl' ? 1.8 : e.size === 'l' ? 1.3 : 1;
+    const crit = tgt.some(r => r.crit);
+    const SILVER = ['#9fb8ff', '#6f8cff', '#dfe8ff', '#ffffff'], GOLD = ['#ffd27a', '#ffb84a', '#fff2c8', '#ffffff'];
+    // timeline (ms): the crouch while night falls and he focuses, the draw, the follow-through held, the sheathe, the crouch
+    const DRAW = 1400, CLICK = DRAW + 60 + 60 + 330 + 250 + 6 * 80, DAWN = CLICK + 520, END = DAWN + 620;
+    const tl = [[0, DRAW], [3, 60], [4, 60], [5, 330], [6, 250], [7, 80], [8, 80], [9, 80], [10, 80], [11, 80], [12, 80], [13, END - CLICK]];
+    const at = []; let acc = 0; for (const [, ms] of tl) { at.push(acc); acc += ms; }
+    A.anim = { d: { ...anim, timeline: tl, loop: null }, t0, speed: T(1000) / 1000, at, total: acc };
+    this.cam = null;
+    // 1. night falls; the moon rises behind the battlefield; moonlight rims him
+    const st = this.stage;
+    this.moon = { x: st.x + st.w * 0.5, y: st.y + 58, r: 50, t0, rise: T(800), lineAt: t0 + T(DRAW + 350), lineMs: T(300), ang: -0.16,
+      splitAt: t0 + T(CLICK), splitMs: T(450), gap: 7, fadeAt: t0 + T(DAWN), end: t0 + T(END) };
+    when(300, () => { A.chronoRim = { t0: now(), until: now() + T(CLICK - 300 + 200), color: '#cfe0ff', inner: '#ffffff' }; sfx('twinkle'); });
+    // 2. focus: a glint runs along the scabbard; a faint hairline draws itself across the target
+    const glint = { kind: 'star', x: A.x + 14, y: A.y - 12, grow: T(260), color: '#ffffff' };
+    when(950, () => { glint.t0 = now(); this.stars.push(glint); sfx('lockSnap'); });
+    for (let i = 1; i <= 6; i++) when(950 + i * 40, () => { glint.x = A.x + 14 - i * 4; glint.y = A.y - 12 - i * 0.6; });
+    when(1250, () => { glint.done = true; });
+    const cut = { kind: 'blade', hang: true, pal: SILVER, x: hp.x, y: hp.y, a: -0.16, l1: 34 * big, l2: 34 * big, w: 0.8 * big };
+    when(1050, () => this.xhits.push(Object.assign(cut, { t0: now(), life: t0 + T(CLICK) - now() })));
+    // 3. the draw: a silver flash, and a giant crescent of moonlight flies from the blade through the target
+    const R = 95, from = { x: A.x - 22, y: Math.round((A.y - 24 + hp.y) / 2) };
+    when(DRAW, () => {
+      this.flash = Math.max(this.flash || 0, 0.3); this.flashC = '225,235,255';
+      this.mwaves.push({ x: from.x + R, y: from.y, vx: -1400, R, W: 24, span: 1.7, pal: SILVER, t0: now(), life: T(480) });
+      this.glows.push({ x: A.x - 16, y: A.y - 24, r: 44, color: '#dfe8ff', t: 0, life: 0.25, a: 0.9 });
+      this.shake = Math.max(this.shake, 3); this.shakeT = now(); sfx('slash'); sfx('resolveSlash');
+    });
+    // 4. as it passes, the cut on the target brightens, and stays there (nothing else happens yet)
+    const pass = DRAW + Math.max(40, (from.x - hp.x) / 1.4);
+    when(pass, () => { cut.w = 1.8 * big; cut.l1 = 44 * big; cut.l2 = 44 * big; this.glows.push({ x: hp.x, y: hp.y, r: 24, color: '#dfe8ff', t: 0, life: 0.2, a: 0.7 }); });
+    // 5. the sheathe click: the moon splits, the target takes the hit
+    when(CLICK, () => {
+      this.glows.push({ x: A.x + A.ox + 8, y: A.y + A.oy - 14, r: 10, color: '#ffffff', t: 0, life: 0.2, a: 1 });
+      const pal = crit ? GOLD : SILVER;
+      this.xhits.push({ kind: 'blade', pal, x: hp.x, y: hp.y, a: -0.16, l1: 80 * big, l2: 80 * big, w: 6 * big, t0: now(), life: T(560) });
+      this.glows.push({ x: hp.x, y: hp.y, r: 14, grow: 60 * big, color: crit ? '#ffe2a0' : '#cfe0ff', t: 0, life: 0.55, a: 0.9, ring: true });
+      for (let i = 0; i < 26; i++) { const a = rnd(0, Math.PI * 2), v = rnd(70, 200); this.particles.push({ x: hp.x, y: hp.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6, g: 70, life: rnd(0.35, 0.8), t: 0, c: [pal[2], '#ffffff', pal[0], pal[1]][i % 4], streak: 2 + (i % 3), drag: 0.86 }); }
+      this.flash = Math.max(this.flash || 0, crit ? 0.32 : 0.18); this.flashC = crit ? '255,240,205' : '225,235,255';
+      this.shake = Math.max(this.shake, crit ? 9 : 6); this.shakeT = now();
+      this.impact(ev, tgt, 'moon', rc);
+      if (crit) {   // the perfect cut: a second, smaller crescent echoes through, and the words
+        this.mwaves.push({ x: hp.x + 50 + 60 * big, y: hp.y, vx: -900, R: 60 * big, W: 14 * big, span: 1.6, pal: GOLD, t0: now() + T(90), life: T(380) });
+        when(120, () => this.number(e.x, e.y - 70, 'Perfect Cut', '#fff2b0', 0.95));
+      }
+      sfx('heavy');
+    });
+    // 6. dawn: the moon fades and the light comes back
+    when(END + 40, () => { A.anim = null; A.chronoRim = null; });
+    return T(END + 200);
+  }
+
   // Quickdraw (samurai, anims.iai): he dashes at the enemy still in his iaido crouch, a red aura gathers round him, the
   // draw-cut lands with the red crescent slash and red shards, he holds the follow-through, re-sheathes and goes back.
   _iaiAnim(A, first, ev, tgt, rc, anim, T, home) {
@@ -995,8 +1062,8 @@ export class BattleScene {
       const p = this.pos(t.id); if (!p) continue;
       const k = seen[t.id] = (seen[t.id] || 0) + 1, dy = (k - 1) * 11;   // repeat hits on one target stack upwards
       if (t.dmg != null && !t.shatter) {
-        const colr = { sakura: '#ff9ac8', iai: '#ff3a4a', slash_heavy: '#ff9a3c', slash_wide: '#ffd0a0', proj_fire: '#ff8a3c', proj_firearrow: '#ff8a3c', flamewave: '#ff8a3c', proj_arcane: '#b8a6ff', missiles: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', timestop: '#cfe8ff', proj_poison: '#9cff6b', venom: '#9cff6b', phantom: '#a8ffe0', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8', radiance: '#fff0a8', pillar: '#fff2a8', quake: '#e0a060', combo: '#ffb347', xslash: '#9fd8ff', ricochet: '#fff2c0', deadeye: '#8fffd8' }[fx] || '#ffffff';
-        this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy' || fx === 'iai' || fx === 'sakura');
+        const colr = { moon: '#e8f0ff', sakura: '#ff9ac8', iai: '#ff3a4a', slash_heavy: '#ff9a3c', slash_wide: '#ffd0a0', proj_fire: '#ff8a3c', proj_firearrow: '#ff8a3c', flamewave: '#ff8a3c', proj_arcane: '#b8a6ff', missiles: '#b8a6ff', meteor: '#ff6a3d', proj_ice: '#bff6ff', nova_ice: '#bff6ff', timestop: '#cfe8ff', proj_poison: '#9cff6b', venom: '#9cff6b', phantom: '#a8ffe0', lightning: '#fff27a', shadow: '#c6a0ff', dragon: '#ff5030', starfall: '#fff0a8', radiance: '#fff0a8', pillar: '#fff2a8', quake: '#e0a060', combo: '#ffb347', xslash: '#9fd8ff', ricochet: '#fff2c0', deadeye: '#8fffd8' }[fx] || '#ffffff';
+        this.hitSparks(p.x, p.y - 16, colr, t.dmg, fx === 'slash' || fx === 'slash_heavy' || fx === 'iai' || fx === 'sakura' || fx === 'moon');
         this.elementHit(p.x, p.y - 16, { proj_firearrow: 'proj_fire', flamewave: 'proj_fire', missiles: 'proj_arcane', timestop: 'proj_ice' }[fx] || fx);
         if ((fx !== 'phantom' || !this.pixelFx) && fx !== 'sakura') this.glows.push({ x: p.x, y: p.y - 16, r: 34 + Math.min(40, t.dmg * 1.5), color: colr, t: 0, life: 0.35, a: 0.8 });   // Phantom Volley: its own small flashes
         if (['slash', 'slash_heavy', 'slash_wide', 'shadow', 'iai'].includes(fx)) this.arc(p.x, p.y - 18, fx === 'slash_heavy' || fx === 'iai' ? 20 : 15, colr === '#ffffff' ? '#e8f4ff' : colr);
@@ -1071,6 +1138,72 @@ export class BattleScene {
     }
     for (let k = 0; k < 14; k++) this.slivers.push({ x: x + (Math.random() - 0.5) * 44, y: y + (Math.random() - 0.5) * 34, vx: (Math.random() - 0.5) * 14, vy: -6 - Math.random() * 16, len: 2.5 + Math.random() * 2.5, t0: t0 + T(100 + Math.random() * 200), last: t0, life: T(900 + Math.random() * 700), twinkle: true });
     sfx('zap');
+  }
+  // Moonlit Iai, behind the fighters: an indigo cast over the darkened room, and the full moon rising with a pale halo.
+  // A cut draws itself across the moon; when he sheathes, the moon splits along it and the halves slide apart.
+  _drawNightMoon(ctx, t, sx, sy) {
+    const M = this.moon; if (!M) return;
+    if (t > M.end) { this.moon = null; return; }
+    const s = this.s, up = clamp((t - M.t0) / M.rise, 0, 1), out = t > M.fadeAt ? clamp(1 - (t - M.fadeAt) / (M.end - M.fadeAt), 0, 1) : 1, k = Math.min(up, out);
+    const e = 1 - Math.pow(1 - up, 3), X = M.x * s + sx, Y = (M.y + 26 * (1 - e)) * s + sy, R = M.r * s;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = `rgba(14,18,60,${0.45 * k})`; ctx.fillRect(0, 0, this.cv.width, this.cv.height);
+    const g = ctx.createRadialGradient(X, Y, R * 0.85, X, Y, R * 2.3); g.addColorStop(0, `rgba(190,210,255,${0.3 * k})`); g.addColorStop(1, 'rgba(120,150,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(X - R * 2.3, Y - R * 2.3, R * 4.6, R * 4.6);
+    ctx.restore();
+    if (!MOON.complete || !MOON.naturalWidth) return;
+    const w = MOON.naturalWidth * s, h = MOON.naturalHeight * s, ca = Math.cos(M.ang), sa = Math.sin(M.ang), nx = -sa, ny = ca;
+    const split = t > M.splitAt ? 1 - Math.pow(1 - clamp((t - M.splitAt) / M.splitMs, 0, 1), 3) : 0;
+    ctx.save(); ctx.globalAlpha = k; ctx.imageSmoothingEnabled = false;
+    if (!split) ctx.drawImage(MOON, Math.round(X - w / 2), Math.round(Y - h / 2), w, h);
+    else for (const side of [-1, 1]) {   // each half slides out along the cut's normal (and a little along the cut)
+      const L = R * 3, tx = (nx * M.gap + ca * M.gap * 0.5) * side * split * s, ty = (ny * M.gap + sa * M.gap * 0.5) * side * split * s;
+      ctx.save(); ctx.translate(tx, ty); ctx.beginPath();
+      ctx.moveTo(X - ca * L, Y - sa * L); ctx.lineTo(X + ca * L, Y + sa * L); ctx.lineTo(X + ca * L + nx * L * side, Y + sa * L + ny * L * side); ctx.lineTo(X - ca * L + nx * L * side, Y - sa * L + ny * L * side);
+      ctx.closePath(); ctx.clip(); ctx.drawImage(MOON, Math.round(X - w / 2), Math.round(Y - h / 2), w, h); ctx.restore();
+    }
+    // the cut across the moon: draws itself across, bright; after the split it glows on both edges and fades
+    if (t > M.lineAt) {
+      const grow = clamp((t - M.lineAt) / M.lineMs, 0, 1), a = (split ? 1 - split : 1) * k, x0 = X - ca * R * 1.05, y0 = Y - sa * R * 1.05, L = R * 2.1 * grow;
+      ctx.globalCompositeOperation = 'lighter';
+      for (const side of split ? [-1, 1] : [0]) {
+        const ox = (nx * M.gap + ca * M.gap * 0.5) * side * split * s, oy = (ny * M.gap + sa * M.gap * 0.5) * side * split * s;
+        ctx.globalAlpha = 0.5 * a; ctx.strokeStyle = '#a8c0ff'; ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo(x0 + ox, y0 + oy); ctx.lineTo(x0 + ox + ca * L, y0 + oy + sa * L); ctx.stroke();
+        ctx.globalAlpha = a; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1 * s; ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+  // Moonlit Iai, over everything: a crescent of moonlight that flies from the blade across the field, bulging the way it
+  // flies, thick in the middle and tapering to points, shedding silver motes as it goes
+  drawMoonWaves(ctx, t, sx, sy) {
+    if (!this.mwaves.length) return;
+    const s = this.s;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = this.mwaves.length - 1; i >= 0; i--) {
+      const m = this.mwaves[i], age = t - m.t0;
+      if (age > m.life) { this.mwaves.splice(i, 1); continue; }
+      if (age < 0) continue;
+      const k = age / m.life, cx = m.x + m.vx * age / 1000, X = cx * s + sx, Y = m.y * s + sy, R = m.R * s, W = m.W * s;
+      const fade = Math.min(1, age / 40) * (k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4), a0 = Math.PI - m.span / 2, N = 30;
+      const shape = wk => {
+        ctx.beginPath();
+        for (let j = 0; j <= N; j++) { const u = j / N, a = a0 + m.span * u, r = R + W * wk * 0.5 * Math.pow(Math.sin(Math.PI * u), 0.8); j ? ctx.lineTo(X + Math.cos(a) * r, Y + Math.sin(a) * r) : ctx.moveTo(X + Math.cos(a) * r, Y + Math.sin(a) * r); }
+        for (let j = N; j >= 0; j--) { const u = j / N, a = a0 + m.span * u, r = R - W * wk * 0.5 * Math.pow(Math.sin(Math.PI * u), 0.8); ctx.lineTo(X + Math.cos(a) * r, Y + Math.sin(a) * r); }
+        ctx.closePath();
+      };
+      const pal = m.pal;
+      ctx.shadowColor = pal[0]; ctx.shadowBlur = this.lowPower ? 0 : 14 * s * fade;
+      shape(1.9); ctx.fillStyle = hexA(pal[1], 0.3 * fade); ctx.fill();
+      ctx.shadowBlur = 0;
+      shape(1); ctx.fillStyle = hexA(pal[2], 0.85 * fade); ctx.fill();
+      shape(0.35); ctx.fillStyle = hexA(pal[3], fade); ctx.fill();
+      if (k < 0.75) for (let q = 0; q < 3; q++) {   // silver motes shed along the crescent, left hanging behind it
+        const a = a0 + m.span * Math.random();
+        this.particles.push({ x: cx + Math.cos(a) * m.R + 4, y: m.y + Math.sin(a) * m.R, vx: (Math.random() - 0.3) * 30, vy: (Math.random() - 0.5) * 20, g: 0, life: 0.4 + Math.random() * 0.5, t: 0, c: Math.random() < 0.5 ? pal[3] : pal[2], plus: Math.random() < 0.3, fade: true });
+      }
+    }
+    ctx.restore();
   }
   drawXHits(ctx, t, sx, sy) {
     if (!this.xhits.length && !this.slivers.length) return;
@@ -3932,6 +4065,7 @@ export class BattleScene {
       ctx.globalCompositeOperation = 'color'; ctx.fillStyle = `rgba(60,110,230,${0.45 * chr})`; ctx.fillRect(0, 0, this.cv.width, this.cv.height);
       ctx.restore();
     }
+    this._drawNightMoon(ctx, t, sx, sy);   // Moonlit Iai: night falls and the moon rises behind the fighters
 
     // ---- native dynamic layer
     n.clearRect(0, 0, W, H);
@@ -3940,6 +4074,7 @@ export class BattleScene {
     const rt = this.chrono && t >= this.chrono.stopAt ? (this.chrono.stopAt - this.t0) / 1000 : time;
     // torches
     for (const tc of this.torches) {
+      if (this.moon && Math.hypot(tc.x - this.moon.x, tc.y - this.moon.y) < this.moon.r + 8) continue;   // Moonlit Iai: hidden behind the moon
       const f = Math.floor(rt * 10 + tc.x) % 4;
       const hgt = [5, 6, 5, 7][f], wob = [0, 1, 0, -1][f];
       n.fillStyle = '#ff7a2a'; n.fillRect(tc.x - 2, tc.y - hgt + 3, 4, hgt - 1);
@@ -4200,6 +4335,7 @@ export class BattleScene {
     this.drawXHits(ctx, t, sx, sy);
     this.drawBigArcs(ctx, t, sx, sy);
     this.drawResolve(ctx, t, sx, sy);
+    this.drawMoonWaves(ctx, t, sx, sy);
     this.drawMeteors(ctx, t, sx, sy);
     this.drawOverlays(ctx, t, sx, sy);
     this.applyCam(ctx, t);
