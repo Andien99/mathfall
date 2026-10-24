@@ -379,14 +379,14 @@
   };
 
   // Quick-time arithmetic for big enemy moves: + - x / with friendly numbers.
+  // Quick-time questions are times tables only: multiplication or division, up to 12 × 12. Factors run 2 to 12
+  // (no × 1, too easy to be worth a dodge). Division is always a times-table fact read backwards, so the answer is
+  // a whole number from 2 to 12. `level` is kept for callers but no longer changes the range.
   function qteQuestion(level) {
     const r = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-    const op = ['+', '−', '×', '÷'][r(0, 3)];
-    const hard = level > 1;
-    if (op === '+') { const a = r(12, hard ? 89 : 49), b = r(5, hard ? 59 : 39); return { q: `${a} + ${b}`, a: a + b }; }
-    if (op === '−') { const a = r(25, hard ? 99 : 70), b = r(4, a - 5); return { q: `${a} − ${b}`, a: a - b }; }
-    if (op === '×') { const a = r(2, hard ? 12 : 9), b = r(3, 12); return { q: `${a} × ${b}`, a: a * b }; }
-    const b = r(2, hard ? 12 : 9), a = r(2, 12); return { q: `${a * b} ÷ ${b}`, a };
+    const a = r(2, 12), b = r(2, 12);
+    if (Math.random() < 0.5) return { q: `${a} × ${b}`, a: a * b };
+    return { q: `${a * b} ÷ ${b}`, a };
   }
 
   // Each map ends in a boss; beating it starts the next act on a new map with the next boss.

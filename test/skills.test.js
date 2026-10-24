@@ -204,5 +204,16 @@ check('a third skill goes in the free slot; a fourth must replace one', () => {
   assert.strictEqual(RUN.giveSkill(h, { id: 'meteor' }, 0), 'fireball'); assert.strictEqual(h.skills[0].id, 'meteor');
 });
 
+check('quick-time questions are times tables to 12 (× or ÷ only)', () => {
+  for (let i = 0; i < 2000; i++) {
+    const g = C.qteQuestion(1 + (i % 2));
+    const m = g.q.match(/^(\d+) ([×÷]) (\d+)$/);
+    assert.ok(m, 'format ' + g.q);
+    const x = +m[1], y = +m[3];
+    if (m[2] === '×') { assert.ok(x >= 2 && x <= 12 && y >= 2 && y <= 12, g.q); assert.strictEqual(g.a, x * y); }
+    else { assert.ok(y >= 2 && y <= 12 && g.a >= 2 && g.a <= 12 && x === g.a * y, g.q); }
+  }
+});
+
 console.log(`${checks} passed, ${failures} failed`);
 process.exit(failures ? 1 : 0);
