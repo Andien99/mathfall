@@ -81,10 +81,12 @@ EXTRA = {
     'cleric:f/victory': dict(base='cleric:f', ms=[130] * 9, loop=[[8, 650], [9, 650]]),
     'mage:f/victory': dict(base='mage:f', ms=[130] * 11, loop=[[10, 650], [11, 650]]),
     'ranger:f/victory': dict(base='ranger:f', ms=[130] * 9, loop=[[8, 650], [9, 650]]),
-    # samurai (PixelLab animate_image from his idle to tools/build_samurai_victory.py's hold pose): a flick of the blade,
+    # samurai: from his iaido crouch a snap draw ('drawAt': the blade comes out, with a slash flash in the game; the
+    # in-betweens of PixelLab's draw were unusable, so it cuts from the start of the draw to the blade out), then
+    # (PixelLab animate_image from his old idle to tools/build_samurai_victory.py's hold pose) a flick of the blade,
     # it slides home ('sheathAt': the click, when the first cherry blossoms fly), then he turns his back and looks over
     # his shoulder. The hold breathes between the last frame and the same lifted 1px.
-    'samurai:m/victory': dict(base='samurai:m', ms=[90, 80, 90, 150, 110, 200, 260, 110, 110, 110, 120], loop=[[11, 700], [12, 700]], sheathAt=5),
+    'samurai:m/victory': dict(base='samurai:m', ms=[140, 70, 50, 90, 80, 90, 150, 110, 200, 260, 110, 110, 110, 120], loop=[[14, 700], [15, 700]], sheathAt=8, drawAt=2),
     # Champion's Combo (tools/assemble_combo.py): three slashes ('slashAt' = the frame each one lands on), lift the sword
     # up, hold it while the electric aura charges ('holdAt' = first and last held frame; 'blade' = blade length for the
     # aura), then the downward slash: the giant arc appears on 'arcAt' and the finisher lands on 'hit'.
@@ -162,7 +164,7 @@ def build(skin):
         'timeline': [[i, ms] for i, ms in enumerate(m['ms'])], 'hit': m.get('hit'), 'loop': m.get('loop'), 'trail': m.get('trail'), 'dashFrames': m.get('dashFrames', 4), 'dash': m.get('dash', 16),
         'cast': m.get('cast', False), 'strike': m.get('strike'), 'release': m.get('release'), 'charge': m.get('charge'), 'muzzle': m.get('muzzle'), 'zoom': m.get('zoom'),
         'tips': tips, 'chargeTo': m.get('chargeTo'), 'swing': m.get('swing'), 'aura': m.get('aura'), 'ring': m.get('ring'), 'upswing': m.get('upswing'), 'dashAt': m.get('dashAt'),
-        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor'), 'quake': m.get('quake'), 'leap': m.get('leap'), 'resolve': m.get('resolve'), 'sheathAt': m.get('sheathAt')}
+        'slashAt': m.get('slashAt'), 'holdAt': m.get('holdAt'), 'arcAt': m.get('arcAt'), 'blade': m.get('blade'), 'meteor': m.get('meteor'), 'quake': m.get('quake'), 'leap': m.get('leap'), 'resolve': m.get('resolve'), 'sheathAt': m.get('sheathAt'), 'drawAt': m.get('drawAt')}
     for al in m.get('aliases', []):   # e.g. samurai:f shares the samurai's sheets until she has her own
         man['heroes'][al].setdefault('anims', {})[mv] = man['heroes'][m.get('skin', skin)]['anims'][mv]
     json.dump(man, open(path, 'w'), indent=1)

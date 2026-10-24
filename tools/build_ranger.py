@@ -88,7 +88,8 @@ def build_one(key):
         body = shade(base, hs)
         P = {}
         if idles:
-            for i in range(4): P['idle%d' % i] = shade(idles[i], hs)
+            fk = [(a + OX, b + OY, c + OX, d + OY) for a, b, c, d in cfg.get('keep', [])]   # idle frames are in frame coordinates
+            for i in range(4): P['idle%d' % i] = shade(idles[i], hs, fk or None)
         else:
             P['idle0'] = frame(body); P['idle1'] = frame(body, upper=(up1, 0, 1)); P['idle2'] = frame(body, upper=(up2, 0, 1)); P['idle3'] = P['idle1']
         if 'swing_src' in cfg:   # the strike frames from a second drawing (the samurai: blade drawn), feet on the same spot

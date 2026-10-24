@@ -3660,8 +3660,12 @@ export class BattleScene {
   _drawPetals(n, t, dt) {
     if (this._victory) for (const A of this.actors.values()) {
       if (A.type !== 'hero' || A.cls !== 'samurai' || A.downed || A.gone) continue;
-      // the blossoms start when the blade clicks home (the move's 'sheathAt' frame); without the move, shortly after the win
       const m = A.anim, mine = m && m.d && m.d.loop;
+      // the snap draw out of his iaido crouch ('drawAt'): a white slash where the blade comes out
+      if (mine && m.d.drawAt != null && (!A._drawnAt || A._drawnAt < this.victoryAt) && t >= m.t0 + m.at[m.d.drawAt] * m.speed) {
+        A._drawnAt = t; this.arc(A.x - 16, A.y - 20, 18, '#ffffff'); this.flash = Math.max(this.flash || 0, 0.12); sfx('slash');
+      }
+      // the blossoms start when the blade clicks home (the move's 'sheathAt' frame); without the move, shortly after the win
       const held = mine ? m.t0 + (m.d.sheathAt != null ? m.at[m.d.sheathAt] : m.total) * m.speed : (this.victoryAt || t) + 700;
       if (t < held) continue;
       const floor = A.y + 2;
