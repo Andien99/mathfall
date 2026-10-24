@@ -5441,20 +5441,20 @@
       80,
       104
      ],
-     "frames": 13,
+     "frames": 14,
      "variants": 3,
      "timeline": [
       [
        0,
-       280
+       70
       ],
       [
        1,
-       420
+       240
       ],
       [
        2,
-       45
+       420
       ],
       [
        3,
@@ -5462,15 +5462,15 @@
       ],
       [
        4,
-       70
+       45
       ],
       [
        5,
-       320
+       70
       ],
       [
        6,
-       80
+       320
       ],
       [
        7,
@@ -5486,18 +5486,22 @@
       ],
       [
        10,
-       90
+       80
       ],
       [
        11,
-       120
+       90
       ],
       [
        12,
+       120
+      ],
+      [
+       13,
        260
       ]
      ],
-     "hit": 3,
+     "hit": 4,
      "loop": null,
      "trail": null,
      "dashFrames": 4,
@@ -5526,11 +5530,12 @@
      "sheathAt": null,
      "drawAt": null,
      "iai": {
-      "dashTo": 1,
-      "auraAt": 1,
-      "cutAt": 3,
-      "sheathAt": 11,
-      "returnAt": 12
+      "dashAt": 1,
+      "dashTo": 2,
+      "auraAt": 2,
+      "cutAt": 4,
+      "sheathAt": 12,
+      "returnAt": 13
      }
     }
    }
@@ -5770,20 +5775,20 @@
       80,
       104
      ],
-     "frames": 13,
+     "frames": 14,
      "variants": 3,
      "timeline": [
       [
        0,
-       280
+       70
       ],
       [
        1,
-       420
+       240
       ],
       [
        2,
-       45
+       420
       ],
       [
        3,
@@ -5791,15 +5796,15 @@
       ],
       [
        4,
-       70
+       45
       ],
       [
        5,
-       320
+       70
       ],
       [
        6,
-       80
+       320
       ],
       [
        7,
@@ -5815,18 +5820,22 @@
       ],
       [
        10,
-       90
+       80
       ],
       [
        11,
-       120
+       90
       ],
       [
        12,
+       120
+      ],
+      [
+       13,
        260
       ]
      ],
-     "hit": 3,
+     "hit": 4,
      "loop": null,
      "trail": null,
      "dashFrames": 4,
@@ -5855,11 +5864,12 @@
      "sheathAt": null,
      "drawAt": null,
      "iai": {
-      "dashTo": 1,
-      "auraAt": 1,
-      "cutAt": 3,
-      "sheathAt": 11,
-      "returnAt": 12
+      "dashAt": 1,
+      "dashTo": 2,
+      "auraAt": 2,
+      "cutAt": 4,
+      "sheathAt": 12,
+      "returnAt": 13
      }
     }
    }

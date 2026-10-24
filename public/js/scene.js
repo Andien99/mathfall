@@ -705,9 +705,15 @@ export class BattleScene {
     const dest = { x: first.x + this.reachDX(first) + (anim.dash || 0), y: first.y + 2 };
     A.anim = { d: anim, t0: now(), speed, at, total };
     this.cam = { x: (dest.x + first.x) / 2 - 6, y: dest.y - 30, t0: now(), dur: T(total + 200), z: 1.12 };
-    // 1. the dash: low and fast, kicking up dust
-    this.move(A, dest.x - home.x, dest.y - home.y, T(at[q.dashTo]), true); sfx('whirl');
-    for (let i = 0; i < 6; i++) setTimeout(() => this.particles.push({ x: A.x + A.ox + 6, y: A.y + A.oy - 1, vx: 20 + Math.random() * 30, vy: -8 - Math.random() * 10, g: 20, life: 0.4, t: 0, c: '#8a7a70', blob: 1, fade: true }), T(at[q.dashTo] * i / 6));
+    // 1. the dash: a short crouch, then he springs at the enemy in the airborne dash pose ('dashAt' to 'dashTo'), leaving
+    //    speed lines, a red streak and dust behind him
+    const d0 = at[q.dashAt || 0], dMs = at[q.dashTo] - d0;
+    setTimeout(() => { this.move(A, dest.x - home.x, dest.y - home.y, T(dMs), true); sfx('whirl'); }, T(d0));
+    for (let i = 0; i < 10; i++) setTimeout(() => {
+      const x = A.x + A.ox + 8, y = A.y + A.oy;
+      this.particles.push({ x, y: y - 8 - Math.random() * 30, vx: 140 + Math.random() * 80, vy: 0, g: 0, life: 0.22, t: 0, c: i % 3 ? '#ffffff' : '#ff3a4a', streak: 8 + Math.random() * 8, fade: true });
+      if (i % 2 === 0) this.particles.push({ x, y: y - 1, vx: 20 + Math.random() * 30, vy: -8 - Math.random() * 10, g: 20, life: 0.4, t: 0, c: '#8a7a70', blob: 1, fade: true });
+    }, T(d0 + dMs * i / 10));
     // 2. the red aura, gathering until the cut
     const auraMs = T(at[q.cutAt] - at[q.auraAt]);
     setTimeout(() => {
